@@ -1,0 +1,656 @@
+# Chrome Extension Project - Cursor Rules
+
+## Project Overview
+
+This is a Chrome Extension built with:
+- **React** (UI library)
+- **TypeScript** (type safety)
+- **Vite** (build tool)
+- **ESLint** (code linting)
+- **Jotai** (state management)
+- **Lucide React** (icons)
+
+---
+
+## Folder Structure
+
+Always follow this folder structure when creating new files:
+
+```
+src/
+├── components/           # Reusable UI components
+│   ├── ui/              # Base UI components (Button, Input, Card, Modal, etc.)
+│   └── features/        # Feature-specific components
+├── pages/               # Page-level components
+├── hooks/               # Custom React hooks
+├── store/               # Jotai atoms and state management
+├── storage/
+│   └── chrome-local/    # Chrome storage implementation
+│       ├── ChromeStorage.ts      # Central storage class
+│       └── dto/                  # Storage DTOs (statically defined)
+├── api-services/        # API handling
+│   ├── ApiService.ts    # Central API class
+│   └── dto/             # Request/Response DTOs (statically defined)
+├── constants/
+│   └── colors.ts        # Color constants
+├── assets/
+│   ├── icons/           # Icon components/files
+│   ├── logos/           # Logo files
+│   ├── svg/             # SVG files
+│   └── photos/          # Photo files
+├── types/               # TypeScript type definitions
+└── utils/               # Utility functions
+```
+
+---
+
+## Component Guidelines
+
+### Modular & Reusable Components
+- Follow atomic design principles (atoms → molecules → organisms → templates → pages)
+- Each component should be self-contained with its own types
+- Extract reusable logic into custom hooks
+- Prefer composition over inheritance
+- Always define proper TypeScript interfaces for props
+
+### Component File Structure
+```typescript
+// ComponentName.tsx
+import React from 'react';
+import { SomeIcon } from 'lucide-react';
+import { COLORS } from '@/constants/colors';
+
+interface ComponentNameProps {
+  // Define all props with proper types
+  title: string;
+  onClick?: () => void;
+}
+
+export const ComponentName: React.FC<ComponentNameProps> = ({ title, onClick }) => {
+  return (
+    <div style={{ backgroundColor: COLORS.PRIMARY }}>
+      {title}
+    </div>
+  );
+};
+```
+
+### Component Naming
+- Use PascalCase for component names
+- Use descriptive names that reflect the component's purpose
+- Prefix feature-specific components with feature name (e.g., `WordListItem`, `ExplanationCard`)
+
+---
+
+## Color Management
+
+### Rules
+- **NEVER** hardcode hex/rgb values directly in components
+- All colors MUST be defined as constants in `src/constants/colors.ts`
+- When adding a new color, add it to the constants file first
+- Use CSS variables for theming support when applicable
+
+### Color Constants Pattern
+```typescript
+// src/constants/colors.ts
+export const COLORS = {
+  // Primary colors
+  PRIMARY: '#6B46C1',
+  PRIMARY_LIGHT: '#9F7AEA',
+  PRIMARY_DARK: '#553C9A',
+  
+  // Secondary colors
+  SECONDARY: '#38B2AC',
+  SECONDARY_LIGHT: '#81E6D9',
+  
+  // Neutrals
+  WHITE: '#FFFFFF',
+  BLACK: '#000000',
+  GRAY_100: '#F7FAFC',
+  GRAY_200: '#EDF2F7',
+  GRAY_300: '#E2E8F0',
+  GRAY_400: '#CBD5E0',
+  GRAY_500: '#A0AEC0',
+  GRAY_600: '#718096',
+  GRAY_700: '#4A5568',
+  GRAY_800: '#2D3748',
+  GRAY_900: '#1A202C',
+  
+  // Semantic colors
+  SUCCESS: '#48BB78',
+  ERROR: '#F56565',
+  WARNING: '#ED8936',
+  INFO: '#4299E1',
+  
+  // Background colors
+  BACKGROUND_PRIMARY: '#FFFFFF',
+  BACKGROUND_SECONDARY: '#F7FAFC',
+  
+  // Text colors
+  TEXT_PRIMARY: '#1A202C',
+  TEXT_SECONDARY: '#718096',
+  TEXT_MUTED: '#A0AEC0',
+} as const;
+
+export type ColorKey = keyof typeof COLORS;
+```
+
+### Usage in Components
+```typescript
+import { COLORS } from '@/constants/colors';
+
+// In styles
+const styles = {
+  container: {
+    backgroundColor: COLORS.BACKGROUND_PRIMARY,
+    color: COLORS.TEXT_PRIMARY,
+    borderColor: COLORS.GRAY_300,
+  }
+};
+
+// In inline styles
+<div style={{ backgroundColor: COLORS.PRIMARY }}>Content</div>
+
+// In CSS-in-JS
+const StyledButton = styled.button`
+  background-color: ${COLORS.PRIMARY};
+  color: ${COLORS.WHITE};
+`;
+```
+
+---
+
+## Styling Conventions
+
+### Border Radius
+- **Large components** (cards, modals, panels, containers): `border-radius: 30px`
+- **Buttons**: `border-radius: 10px`
+- **Small elements** (badges, tags, chips): `border-radius: 6px`
+- **Input fields**: `border-radius: 10px`
+
+### Style Constants
+```typescript
+// src/constants/styles.ts
+export const BORDER_RADIUS = {
+  LARGE: '30px',      // Cards, modals, panels
+  MEDIUM: '10px',     // Buttons, inputs
+  SMALL: '6px',       // Badges, tags
+  ROUND: '50%',       // Circular elements
+} as const;
+```
+
+---
+
+## State Management (Jotai)
+
+### Atom Location
+- All atoms MUST be defined in `src/store/` folder
+- Group related atoms in separate files (e.g., `userAtoms.ts`, `settingsAtoms.ts`)
+
+### Naming Convention
+- Atom names MUST end with `Atom` suffix
+- Use camelCase: `userDataAtom`, `selectedWordsAtom`, `isLoadingAtom`
+
+### Atom Pattern
+```typescript
+// src/store/wordsAtoms.ts
+import { atom } from 'jotai';
+import { atomWithStorage } from 'jotai/utils';
+
+// Basic atom
+export const selectedWordsAtom = atom<string[]>([]);
+
+// Derived atom (read-only)
+export const wordCountAtom = atom((get) => get(selectedWordsAtom).length);
+
+// Writable derived atom
+export const filteredWordsAtom = atom(
+  (get) => get(selectedWordsAtom).filter(word => word.length > 3),
+  (get, set, newWords: string[]) => {
+    set(selectedWordsAtom, newWords);
+  }
+);
+
+// Atom with async action
+export const fetchWordsAtom = atom(
+  null,
+  async (get, set) => {
+    const response = await fetch('/api/words');
+    const words = await response.json();
+    set(selectedWordsAtom, words);
+  }
+);
+```
+
+### Usage in Components
+```typescript
+import { useAtom, useAtomValue, useSetAtom } from 'jotai';
+import { selectedWordsAtom, wordCountAtom } from '@/store/wordsAtoms';
+
+const MyComponent = () => {
+  // Read and write
+  const [words, setWords] = useAtom(selectedWordsAtom);
+  
+  // Read only
+  const count = useAtomValue(wordCountAtom);
+  
+  // Write only
+  const setWordsOnly = useSetAtom(selectedWordsAtom);
+  
+  return <div>...</div>;
+};
+```
+
+---
+
+## Chrome Storage (chrome.storage.local)
+
+### Location
+All Chrome storage related code MUST be in `src/storage/chrome-local/`
+
+### Storage Keys
+Define all storage keys as static constants in the ChromeStorage class.
+
+### DTO Pattern
+All objects stored in Chrome storage MUST have corresponding DTO interfaces defined in `src/storage/chrome-local/dto/`
+
+### ChromeStorage Class Pattern
+```typescript
+// src/storage/chrome-local/ChromeStorage.ts
+import { UserSettingsDTO, SavedWordsDTO, SessionDataDTO } from './dto';
+
+export class ChromeStorage {
+  // Static storage keys - add all keys here
+  static readonly KEYS = {
+    USER_SETTINGS: 'user_settings',
+    SAVED_WORDS: 'saved_words',
+    SESSION_DATA: 'session_data',
+    LAST_SYNC: 'last_sync',
+  } as const;
+
+  /**
+   * Get a value from chrome.storage.local
+   */
+  static async get<T>(key: string): Promise<T | null> {
+    return new Promise((resolve) => {
+      chrome.storage.local.get([key], (result) => {
+        resolve(result[key] ?? null);
+      });
+    });
+  }
+
+  /**
+   * Set a value in chrome.storage.local
+   */
+  static async set<T>(key: string, value: T): Promise<void> {
+    return new Promise((resolve) => {
+      chrome.storage.local.set({ [key]: value }, () => {
+        resolve();
+      });
+    });
+  }
+
+  /**
+   * Remove a value from chrome.storage.local
+   */
+  static async remove(key: string): Promise<void> {
+    return new Promise((resolve) => {
+      chrome.storage.local.remove([key], () => {
+        resolve();
+      });
+    });
+  }
+
+  /**
+   * Clear all values from chrome.storage.local
+   */
+  static async clear(): Promise<void> {
+    return new Promise((resolve) => {
+      chrome.storage.local.clear(() => {
+        resolve();
+      });
+    });
+  }
+
+  // Type-safe getters and setters for each key
+  static async getUserSettings(): Promise<UserSettingsDTO | null> {
+    return this.get<UserSettingsDTO>(this.KEYS.USER_SETTINGS);
+  }
+
+  static async setUserSettings(settings: UserSettingsDTO): Promise<void> {
+    return this.set(this.KEYS.USER_SETTINGS, settings);
+  }
+
+  static async getSavedWords(): Promise<SavedWordsDTO | null> {
+    return this.get<SavedWordsDTO>(this.KEYS.SAVED_WORDS);
+  }
+
+  static async setSavedWords(words: SavedWordsDTO): Promise<void> {
+    return this.set(this.KEYS.SAVED_WORDS, words);
+  }
+}
+```
+
+### Storage DTO Pattern
+```typescript
+// src/storage/chrome-local/dto/UserSettingsDTO.ts
+export interface UserSettingsDTO {
+  theme: 'light' | 'dark';
+  language: string;
+  autoSave: boolean;
+  createdAt: number;
+  updatedAt: number;
+}
+
+// src/storage/chrome-local/dto/SavedWordsDTO.ts
+export interface SavedWordItem {
+  word: string;
+  explanation: string;
+  savedAt: number;
+}
+
+export interface SavedWordsDTO {
+  words: SavedWordItem[];
+  lastModified: number;
+}
+
+// src/storage/chrome-local/dto/index.ts
+export * from './UserSettingsDTO';
+export * from './SavedWordsDTO';
+```
+
+---
+
+## API Services
+
+### Location
+All API related code MUST be in `src/api-services/`
+
+### DTO Pattern
+All request and response objects MUST have corresponding DTO interfaces defined in `src/api-services/dto/`
+
+### ApiService Class Pattern
+```typescript
+// src/api-services/ApiService.ts
+import {
+  ExplainWordRequestDTO,
+  ExplainWordResponseDTO,
+  GetWordsResponseDTO,
+} from './dto';
+
+export class ApiService {
+  private static readonly BASE_URL = 'https://api.example.com';
+
+  /**
+   * Generic request handler with error handling
+   */
+  private static async request<T>(
+    endpoint: string,
+    options: RequestInit = {}
+  ): Promise<T> {
+    const url = `${this.BASE_URL}${endpoint}`;
+    
+    const defaultHeaders: HeadersInit = {
+      'Content-Type': 'application/json',
+    };
+
+    const response = await fetch(url, {
+      ...options,
+      headers: {
+        ...defaultHeaders,
+        ...options.headers,
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`API Error: ${response.status} ${response.statusText}`);
+    }
+
+    return response.json();
+  }
+
+  /**
+   * GET request helper
+   */
+  private static async get<T>(endpoint: string): Promise<T> {
+    return this.request<T>(endpoint, { method: 'GET' });
+  }
+
+  /**
+   * POST request helper
+   */
+  private static async post<TRequest, TResponse>(
+    endpoint: string,
+    data: TRequest
+  ): Promise<TResponse> {
+    return this.request<TResponse>(endpoint, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  // API Methods - Add all API calls here
+  static async explainWord(request: ExplainWordRequestDTO): Promise<ExplainWordResponseDTO> {
+    return this.post<ExplainWordRequestDTO, ExplainWordResponseDTO>(
+      '/explain',
+      request
+    );
+  }
+
+  static async getWords(): Promise<GetWordsResponseDTO> {
+    return this.get<GetWordsResponseDTO>('/words');
+  }
+}
+```
+
+### API DTO Pattern
+```typescript
+// src/api-services/dto/ExplainWordDTO.ts
+export interface ExplainWordRequestDTO {
+  word: string;
+  context?: string;
+  language?: string;
+}
+
+export interface ExplainWordResponseDTO {
+  word: string;
+  explanation: string;
+  examples: string[];
+  complexity: 'easy' | 'medium' | 'hard';
+}
+
+// src/api-services/dto/GetWordsDTO.ts
+export interface WordItem {
+  id: string;
+  word: string;
+  category: string;
+}
+
+export interface GetWordsResponseDTO {
+  words: WordItem[];
+  total: number;
+}
+
+// src/api-services/dto/index.ts
+export * from './ExplainWordDTO';
+export * from './GetWordsDTO';
+```
+
+---
+
+## Icons (Lucide React)
+
+### Usage
+- Use `lucide-react` library for all icons
+- Import icons individually for tree-shaking
+
+### Pattern
+```typescript
+import { Search, Plus, X, ChevronDown, Settings } from 'lucide-react';
+
+// In component
+<Search size={20} color={COLORS.TEXT_PRIMARY} />
+<Plus size={24} strokeWidth={2} />
+```
+
+### Custom Icons
+- If you need custom icons not in Lucide, place them in `src/assets/icons/`
+- Create React components for custom SVG icons
+
+---
+
+## Asset Organization
+
+### Icons (`src/assets/icons/`)
+- Custom icon components
+- Icon SVG files not available in Lucide
+
+### Logos (`src/assets/logos/`)
+- App logo in various sizes
+- Brand assets
+
+### SVG Files (`src/assets/svg/`)
+- Illustrations
+- Decorative SVGs
+- Complex graphics
+
+### Photos (`src/assets/photos/`)
+- Image files (jpg, png, webp)
+- Background images
+- User-facing photography
+
+---
+
+## TypeScript Guidelines
+
+### Type Definitions
+- Define shared types in `src/types/`
+- Use interfaces for object shapes
+- Use type aliases for unions and complex types
+- Export all types that are used across files
+
+### Strict Typing
+- Avoid `any` type - use `unknown` if type is truly unknown
+- Use generics for reusable type patterns
+- Define return types for all functions
+
+### Pattern
+```typescript
+// src/types/common.ts
+export interface BaseEntity {
+  id: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export type Status = 'idle' | 'loading' | 'success' | 'error';
+
+export interface ApiResponse<T> {
+  data: T;
+  success: boolean;
+  message?: string;
+}
+```
+
+---
+
+## Import/Export Conventions
+
+### Import Order
+1. React imports
+2. Third-party libraries
+3. Internal absolute imports (@/)
+4. Relative imports
+5. Type imports
+6. Style imports
+
+### Example
+```typescript
+// React
+import React, { useState, useEffect } from 'react';
+
+// Third-party
+import { useAtom } from 'jotai';
+import { Search } from 'lucide-react';
+
+// Internal absolute
+import { COLORS } from '@/constants/colors';
+import { ApiService } from '@/api-services/ApiService';
+import { ChromeStorage } from '@/storage/chrome-local/ChromeStorage';
+
+// Relative
+import { ChildComponent } from './ChildComponent';
+
+// Types
+import type { WordItem } from '@/types';
+
+// Styles
+import './styles.css';
+```
+
+### Barrel Exports
+Use index.ts files to re-export from folders:
+```typescript
+// src/components/ui/index.ts
+export { Button } from './Button';
+export { Input } from './Input';
+export { Card } from './Card';
+```
+
+---
+
+## Standard Terminology
+
+When feature descriptions use these terms, implement accordingly:
+
+| Term | Implementation |
+|------|----------------|
+| "modal" / "dialog" | Overlay component with backdrop |
+| "toast" / "notification" | Temporary message popup |
+| "dropdown" | Select or menu component |
+| "tabs" | Tabbed interface navigation |
+| "accordion" | Collapsible sections |
+| "card" | Contained content block with 30px radius |
+| "button" | Clickable element with 10px radius |
+| "input" / "text field" | Text input element with 10px radius |
+| "list" | Scrollable list of items |
+| "grid" | Grid layout of items |
+| "sidebar" | Side navigation panel |
+| "header" | Top navigation bar |
+| "footer" | Bottom content area |
+| "loading" / "spinner" | Loading indicator |
+| "skeleton" | Placeholder loading state |
+| "badge" | Small label indicator |
+| "chip" / "tag" | Removable label |
+| "tooltip" | Hover information popup |
+| "popover" | Click-triggered popup |
+| "drawer" | Slide-in panel |
+| "stepper" | Multi-step process UI |
+
+---
+
+## ESLint Rules to Follow
+
+- No unused variables
+- No console.log in production (use proper logging)
+- Consistent return types
+- Prefer const over let
+- Use arrow functions for components
+- Destructure props
+- No magic numbers (use constants)
+- Maximum line length: 100 characters
+
+---
+
+## File Naming Conventions
+
+| Type | Convention | Example |
+|------|------------|---------|
+| Components | PascalCase | `WordCard.tsx` |
+| Hooks | camelCase with 'use' prefix | `useWordSelection.ts` |
+| Utils | camelCase | `formatText.ts` |
+| Constants | camelCase or SCREAMING_SNAKE | `colors.ts`, `API_ENDPOINTS.ts` |
+| Types | PascalCase | `WordTypes.ts` |
+| DTOs | PascalCase with DTO suffix | `UserSettingsDTO.ts` |
+| Atoms | camelCase with Atom suffix | `wordsAtom.ts` |
+
