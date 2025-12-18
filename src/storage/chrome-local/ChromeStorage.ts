@@ -1,5 +1,8 @@
 // src/storage/chrome-local/ChromeStorage.ts
 
+import type { DomainSettingsDTO } from './dto';
+import type { DomainStatus } from '@/types/domain';
+
 /**
  * Central class for all chrome.storage.local operations
  * All storage operations must go through this class
@@ -15,6 +18,7 @@ export class ChromeStorage {
     SESSION_DATA: 'session_data',
     LAST_SYNC: 'last_sync',
     AUTH_TOKEN: 'auth_token',
+    EXTENSION_SETTINGS: 'extension_settings',
   } as const;
 
   // ============================================
@@ -121,6 +125,51 @@ export class ChromeStorage {
 
   static async setLastSync(timestamp: number = Date.now()): Promise<void> {
     return this.set(this.KEYS.LAST_SYNC, timestamp);
+  }
+
+  // --- Extension Settings ---
+  static async getExtensionSettings(): Promise<DomainSettingsDTO | null> {
+    return this.get<DomainSettingsDTO>(this.KEYS.EXTENSION_SETTINGS);
+  }
+
+  static async setExtensionSettings(settings: DomainSettingsDTO): Promise<void> {
+    return this.set(this.KEYS.EXTENSION_SETTINGS, settings);
+  }
+
+  static async getGlobalDisabled(): Promise<boolean> {
+    const settings = await this.getExtensionSettings();
+    return settings?.globalDisabled ?? false;
+  }
+
+  static async setGlobalDisabled(disabled: boolean): Promise<void> {
+    const settings = await this.getExtensionSettings();
+    const updatedSettings: DomainSettingsDTO = {
+      globalDisabled: disabled,
+      domainSettings: settings?.domainSettings ?? {},
+    };
+    return this.setExtensionSettings(updatedSettings);
+  }
+
+  static async getDomainStatus(domain: string): Promise<DomainStatus | null> {
+    const settings = await this.getExtensionSettings();
+    return settings?.domainSettings[domain] ?? null;
+  }
+
+  static async setDomainStatus(domain: string, status: DomainStatus): Promise<void> {
+    const settings = await this.getExtensionSettings();
+    const updatedSettings: DomainSettingsDTO = {
+      globalDisabled: settings?.globalDisabled ?? false,
+      domainSettings: {
+        ...(settings?.domainSettings ?? {}),
+        [domain]: status,
+      },
+    };
+    return this.setExtensionSettings(updatedSettings);
+  }
+
+  static async getAllDomainSettings(): Promise<Record<string, DomainStatus>> {
+    const settings = await this.getExtensionSettings();
+    return settings?.domainSettings ?? {};
   }
 }
 

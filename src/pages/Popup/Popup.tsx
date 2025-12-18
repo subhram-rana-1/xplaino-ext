@@ -1,71 +1,227 @@
 // src/pages/Popup/Popup.tsx
-import React from 'react';
-import { Sparkles } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
 import { COLORS } from '@/constants/colors';
-import { BORDER_RADIUS, SHADOW } from '@/constants/styles';
+import { SPACING } from '@/constants/styles';
+import { Toggle } from '@/components/ui';
+import { ChromeStorage } from '@/storage/chrome-local/ChromeStorage';
+import { extractDomain } from '@/utils/domain';
+import { DomainStatus } from '@/types/domain';
+import brandNameImage from '@/assets/photos/brand-name.png';
 
 export const Popup: React.FC = () => {
+  const [globalDisabled, setGlobalDisabled] = useState<boolean>(false);
+  const [domainStatus, setDomainStatus] = useState<DomainStatus | null>(null);
+  const [currentDomain, setCurrentDomain] = useState<string>('');
+  const [loading, setLoading] = useState<boolean>(true);
+
+  useEffect(() => {
+    loadSettings();
+  }, []);
+
+  const loadSettings = async () => {
+    try {
+      setLoading(true);
+
+      // Get current tab URL
+      const tabs = await chrome.tabs.query({
+        active: true,
+        currentWindow: true,
+      });
+
+      if (tabs.length > 0 && tabs[0].url) {
+        const domain = extractDomain(tabs[0].url);
+        setCurrentDomain(domain);
+
+        // Load settings
+        const globalDisabledValue = await ChromeStorage.getGlobalDisabled();
+        const domainStatusValue = await ChromeStorage.getDomainStatus(domain);
+
+        setGlobalDisabled(globalDisabledValue);
+        setDomainStatus(domainStatusValue);
+      }
+    } catch (error) {
+      console.error('Error loading settings:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGlobalToggle = async (checked: boolean) => {
+    try {
+      await ChromeStorage.setGlobalDisabled(!checked); // Inverted: checked = enabled
+      setGlobalDisabled(!checked);
+    } catch (error) {
+      console.error('Error updating global setting:', error);
+    }
+  };
+
+  const handleDomainToggle = async (checked: boolean) => {
+    if (!currentDomain) return;
+
+    try {
+      const newStatus = checked ? DomainStatus.ENABLED : DomainStatus.DISABLED;
+      await ChromeStorage.setDomainStatus(currentDomain, newStatus);
+      setDomainStatus(newStatus);
+    } catch (error) {
+      console.error('Error updating domain setting:', error);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div
+        style={{
+          width: '500px',
+          height: '250px',
+          backgroundColor: COLORS.WHITE,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: SPACING.LG,
+        }}
+      >
+        <p style={{ color: COLORS.TEXT_SECONDARY }}>Loading...</p>
+      </div>
+    );
+  }
+
+  const handleGlobeClick = () => {
+    chrome.tabs.create({ url: 'https://xplaino.com' });
+  };
+
   return (
     <div
       style={{
-        width: '400px',
-        minHeight: '500px',
-        backgroundColor: COLORS.BACKGROUND_SECONDARY,
+        width: '500px',
+        height: '250px',
+        backgroundColor: COLORS.WHITE,
         display: 'flex',
         flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '24px',
+        padding: SPACING.LG,
+        gap: SPACING.MD,
+        position: 'relative',
+        overflow: 'hidden',
+        boxSizing: 'border-box',
       }}
     >
+      {/* Brand Image - Clickable */}
       <div
         style={{
-          backgroundColor: COLORS.BACKGROUND_PRIMARY,
-          borderRadius: BORDER_RADIUS.LARGE,
-          padding: '48px',
-          boxShadow: SHADOW.LG,
-          textAlign: 'center',
           display: 'flex',
-          flexDirection: 'column',
+          justifyContent: 'center',
           alignItems: 'center',
-          gap: '16px',
+          width: '100%',
+          flexShrink: 0,
+          marginTop: SPACING.MD,
+          marginBottom: SPACING.SM,
         }}
       >
+        <img
+          src={brandNameImage}
+          alt="Brand Name"
+          onClick={handleGlobeClick}
+          className="brand-logo"
+          style={{
+            maxWidth: '200px',
+            height: 'auto',
+            objectFit: 'contain',
+            cursor: 'pointer',
+            transition: 'transform 0.2s ease',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.transform = 'scale(1.05)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = 'scale(1)';
+          }}
+        />
+      </div>
+
+      {/* Global Toggle */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: SPACING.MD }}>
+        <Toggle
+          checked={!globalDisabled}
+          onChange={handleGlobalToggle}
+        />
+        <span
+          style={{
+            color: COLORS.TEXT_PRIMARY,
+            fontSize: '15px',
+            fontWeight: 600,
+          }}
+        >
+          Enable globally
+        </span>
+      </div>
+
+      {/* Domain Settings - Only show if extension is globally enabled and domain is not INVALID */}
+      {currentDomain && !globalDisabled && domainStatus !== DomainStatus.INVALID && (
         <div
           style={{
-            width: '64px',
-            height: '64px',
-            borderRadius: BORDER_RADIUS.ROUND,
-            backgroundColor: COLORS.PRIMARY_LIGHT,
             display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
+            flexDirection: 'column',
+            gap: SPACING.SM,
           }}
         >
-          <Sparkles size={32} color={COLORS.PRIMARY} />
+          {domainStatus === DomainStatus.BANNED ? (
+            <p
+              style={{
+                color: COLORS.ERROR,
+                fontSize: '14px',
+                margin: 0,
+                padding: SPACING.SM,
+                backgroundColor: COLORS.ERROR_LIGHT,
+                borderRadius: '12px',
+                boxSizing: 'border-box',
+                width: '100%',
+                wordBreak: 'break-word',
+              }}
+            >
+              Extension does not support{' '}
+              <span
+                style={{
+                  color: COLORS.PRIMARY,
+                  fontStyle: 'italic',
+                  fontWeight: 700,
+                }}
+              >
+                {currentDomain}
+              </span>
+            </p>
+          ) : (
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: SPACING.MD,
+              }}
+            >
+              <Toggle
+                checked={domainStatus === DomainStatus.ENABLED}
+                onChange={handleDomainToggle}
+              />
+              <span
+                style={{
+                  color: COLORS.TEXT_PRIMARY,
+                  fontSize: '15px',
+                  fontWeight: 600,
+                }}
+              >
+                Enable on{' '}
+                <span
+                  style={{
+                    color: COLORS.PRIMARY,
+                    fontStyle: 'italic',
+                  }}
+                >
+                  {currentDomain}
+                </span>
+              </span>
+            </div>
+          )}
         </div>
+      )}
 
-        <h1
-          style={{
-            color: COLORS.PRIMARY,
-            fontSize: '28px',
-            fontWeight: 700,
-            margin: 0,
-          }}
-        >
-          Hello World
-        </h1>
-
-        <p
-          style={{
-            color: COLORS.TEXT_SECONDARY,
-            fontSize: '16px',
-            margin: 0,
-          }}
-        >
-          Welcome to Xplaino AI
-        </p>
-      </div>
     </div>
   );
 };

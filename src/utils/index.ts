@@ -5,5 +5,5 @@
  * Add utility function exports here as they are created
  */
 
-export {};
+export { extractDomain } from './domain';
 

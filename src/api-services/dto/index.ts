@@ -5,5 +5,5 @@
  * Add DTO exports here as they are created
  */
 
-export {};
+export type { DomainResponseDTO, GetAllDomainsResponseDTO } from './DomainDTO';
 

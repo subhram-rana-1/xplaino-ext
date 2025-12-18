@@ -8,4 +8,6 @@ export { LoginModal } from './LoginModal';
 export { Modal } from './Modal';
 export { Toast } from './Toast';
 export type { ToastProps } from './Toast';
+export { Toggle } from './Toggle';
+export type { ToggleProps } from './Toggle';
 

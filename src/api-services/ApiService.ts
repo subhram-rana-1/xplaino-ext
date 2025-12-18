@@ -1,5 +1,7 @@
 // src/api-services/ApiService.ts
 
+import type { GetAllDomainsResponseDTO } from './dto/DomainDTO';
+
 /**
  * Central class for all API calls
  * All API operations must go through this class
@@ -9,7 +11,10 @@ export class ApiService {
   // CONFIGURATION
   // ============================================
 
-  private static readonly BASE_URL = 'https://api.example.com';
+  // TODO: Update this to your actual API URL
+  // For local development: 'http://localhost:8000'
+  // For production: 'https://api.xplaino.com'
+  private static readonly BASE_URL = 'http://localhost:8000';
 
   // ============================================
   // GENERIC REQUEST METHODS
@@ -66,7 +71,9 @@ export class ApiService {
 
   /**
    * POST request helper
+   * Reserved for future API calls
    */
+  // @ts-ignore - Reserved for future use
   private static async post<TRequest, TResponse>(
     endpoint: string,
     data: TRequest
@@ -79,7 +86,9 @@ export class ApiService {
 
   /**
    * PUT request helper
+   * Reserved for future API calls
    */
+  // @ts-ignore - Reserved for future use
   private static async put<TRequest, TResponse>(
     endpoint: string,
     data: TRequest
@@ -92,20 +101,23 @@ export class ApiService {
 
   /**
    * DELETE request helper
+   * Reserved for future API calls
    */
+  // @ts-ignore - Reserved for future use
   private static async delete<T>(endpoint: string): Promise<T> {
     return this.request<T>(endpoint, { method: 'DELETE' });
   }
 
   /**
    * Get auth token from storage
+   * Uses direct chrome.storage.local to avoid bundler issues in service worker context
    */
   private static async getAuthToken(): Promise<string | null> {
-    // Import dynamically to avoid circular dependencies
-    const { ChromeStorage } = await import(
-      '@/storage/chrome-local/ChromeStorage'
-    );
-    return ChromeStorage.getAuthToken();
+    return new Promise((resolve) => {
+      chrome.storage.local.get(['auth_token'], (result) => {
+        resolve(result.auth_token ?? null);
+      });
+    });
   }
 
   // ============================================
@@ -120,6 +132,16 @@ export class ApiService {
    */
   static async healthCheck(): Promise<{ status: string }> {
     return this.get<{ status: string }>('/health');
+  }
+
+  /**
+   * Get all domains
+   * API Endpoint: GET /api/domain/
+   * Note: This endpoint requires authentication (returns 401 if not logged in)
+   * @returns Promise resolving to domains response
+   */
+  static async getAllDomains(): Promise<GetAllDomainsResponseDTO> {
+    return this.get<GetAllDomainsResponseDTO>('/api/domain/');
   }
 }
 
