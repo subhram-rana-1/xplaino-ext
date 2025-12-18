@@ -1,0 +1,41 @@
+/* src/content/components/SidePanel/Footer.module.css */
+
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  padding: 0;
+  background: #FFFFFF;
+  border-top: 1px solid #E2E8F0;
+  height: 50px;
+  flex-shrink: 0;
+  gap: 0;
+}
+
+.tab {
+  flex: 1;
+  height: 100%;
+  border: none;
+  background: transparent;
+  color: #9527F5;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border-bottom: 3px solid transparent;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tab:hover {
+  background: rgba(149, 39, 245, 0.05);
+}
+
+.tab.active {
+  background: #9527F5;
+  color: #FFFFFF;
+  border-bottom-color: #9527F5;
+}
+

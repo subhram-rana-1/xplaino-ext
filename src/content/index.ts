@@ -89,20 +89,11 @@ const FAB_STYLES = `
   .fabParent {
     position: fixed;
     top: 120px;
-    right: 0;
+    right: 8px;
     display: flex;
     flex-direction: row;
     align-items: center;
-    gap: 12px;
     z-index: 2147483647;
-    padding: 8px;
-    padding-right: 0;
-    transform: translateX(calc(100% - 60px));
-    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  }
-
-  .fabParent.actionsVisible {
-    transform: translateX(0);
   }
 
   .fabContainer {
@@ -147,19 +138,22 @@ const FAB_STYLES = `
   }
 
   .actionsContainer {
+    position: absolute;
+    right: calc(100% + 12px);
+    top: 50%;
+    transform: translateY(-50%) translateX(20px);
     display: flex;
     flex-direction: column;
     gap: 10px;
     opacity: 0;
     visibility: hidden;
-    transform: translateX(20px);
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
   .actionsContainer.visible {
     opacity: 1;
     visibility: visible;
-    transform: translateX(0);
+    transform: translateY(-50%) translateX(0);
   }
 
   .actionButton {
@@ -318,7 +312,10 @@ const FABComponent: React.FC = () => {
 
   const handleSummarise = () => console.log('[FAB] Summarise clicked');
   const handleTranslate = () => console.log('[FAB] Translate clicked');
-  const handleOptions = () => console.log('[FAB] Options clicked');
+  const handleOptions = () => {
+    console.log('[FAB] Options clicked');
+    setSidePanelOpen(true);
+  };
 
   // Xplaino logo SVG (white version)
   const logoSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="638" height="636" viewBox="0 0 638 636">
@@ -418,11 +415,23 @@ const FABComponent: React.FC = () => {
   ]);
 };
 
-// Host element ID
+// Host element IDs
 const FAB_HOST_ID = 'xplaino-fab-host';
+const SIDE_PANEL_HOST_ID = 'xplaino-side-panel-host';
 
-// React root reference
+// React root references
 let fabRoot: ReactDOM.Root | null = null;
+let sidePanelRoot: ReactDOM.Root | null = null;
+
+// Shared state for side panel
+let sidePanelOpen = false;
+const sidePanelStateListeners: Array<(open: boolean) => void> = [];
+
+function setSidePanelOpen(open: boolean) {
+  sidePanelOpen = open;
+  sidePanelStateListeners.forEach((listener) => listener(open));
+  updateSidePanel();
+}
 
 /**
  * Inject FAB into the page with Shadow DOM
@@ -475,7 +484,385 @@ function removeFAB(): void {
     host.remove();
     console.log('[Content Script] FAB removed');
   }
+  removeSidePanel();
 }
+
+/**
+ * Update side panel state
+ */
+function updateSidePanel(): void {
+  const host = document.getElementById(SIDE_PANEL_HOST_ID);
+  if (host && sidePanelRoot) {
+    const shadow = host.shadowRoot;
+    if (shadow) {
+      const mountPoint = shadow.getElementById('side-panel-root');
+      if (mountPoint) {
+        sidePanelRoot.render(
+          React.createElement(SidePanelComponent, { isOpen: sidePanelOpen })
+        );
+      }
+    }
+  }
+}
+
+/**
+ * Inject Side Panel into the page with Shadow DOM
+ */
+function injectSidePanel(): void {
+  // Check if already injected
+  if (document.getElementById(SIDE_PANEL_HOST_ID)) {
+    updateSidePanel();
+    return;
+  }
+
+  // Create host element
+  const host = document.createElement('div');
+  host.id = SIDE_PANEL_HOST_ID;
+  host.style.cssText = 'all: initial; position: fixed; z-index: 2147483646;';
+
+  // Attach Shadow DOM
+  const shadow = host.attachShadow({ mode: 'open' });
+
+  // Inject styles (we'll add these next)
+  const styleElement = document.createElement('style');
+  styleElement.textContent = SIDE_PANEL_STYLES;
+  shadow.appendChild(styleElement);
+
+  // Create React mount point
+  const mountPoint = document.createElement('div');
+  mountPoint.id = 'side-panel-root';
+  shadow.appendChild(mountPoint);
+
+  // Append to document
+  document.body.appendChild(host);
+
+  // Render React component
+  sidePanelRoot = ReactDOM.createRoot(mountPoint);
+  sidePanelRoot.render(
+    React.createElement(SidePanelComponent, { isOpen: sidePanelOpen })
+  );
+
+  console.log('[Content Script] Side Panel injected successfully');
+}
+
+/**
+ * Remove Side Panel from the page
+ */
+function removeSidePanel(): void {
+  const host = document.getElementById(SIDE_PANEL_HOST_ID);
+  if (host) {
+    if (sidePanelRoot) {
+      sidePanelRoot.unmount();
+      sidePanelRoot = null;
+    }
+    host.remove();
+    console.log('[Content Script] Side Panel removed');
+  }
+}
+
+/**
+ * Side Panel Styles - inlined for Shadow DOM
+ * Note: This is a simplified version. Full implementation would include all component styles.
+ */
+const SIDE_PANEL_STYLES = `
+  :host {
+    all: initial;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  .sidePanel {
+    position: fixed;
+    top: 80px;
+    right: 0;
+    bottom: 80px;
+    width: 400px;
+    min-width: 300px;
+    max-width: 800px;
+    background: #FFFFFF;
+    border-radius: 30px 0 0 30px;
+    box-shadow: 0 0 20px rgba(149, 39, 245, 0.3);
+    z-index: 2147483646;
+    display: flex;
+    flex-direction: column;
+    transform: translateX(100%);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    overflow: hidden;
+  }
+
+  .sidePanel.open {
+    transform: translateX(0);
+  }
+
+  .header {
+    background: #FFFFFF;
+    border-bottom: 1px solid #BF7EFA;
+    padding: 16px 24px;
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+    height: 60px;
+  }
+
+  .content {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+
+  .footer {
+    background: #FFFFFF;
+    border-top: 1px solid #BF7EFA;
+    display: flex;
+    flex-shrink: 0;
+    height: 50px;
+  }
+
+  .tabGroup {
+    display: flex;
+    width: 100%;
+    height: 100%;
+  }
+
+  .tab {
+    flex: 1;
+    background: transparent;
+    border: none;
+    color: #9527F5;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .tab:hover {
+    background: rgba(149, 39, 245, 0.1);
+  }
+
+  .tab.active {
+    background: #9527F5;
+    color: #FFFFFF;
+  }
+
+  .tab:not(:last-child) {
+    border-right: 1px solid #BF7EFA;
+  }
+`;
+
+/**
+ * Simplified Side Panel Component for content script
+ * Full implementation would use the actual SidePanel component
+ */
+const SidePanelComponent: React.FC<{ isOpen: boolean }> = ({ isOpen }) => {
+  const [activeTab, setActiveTab] = React.useState<'summary' | 'settings' | 'my'>('summary');
+  const [width, setWidth] = React.useState(400);
+  const [isResizing, setIsResizing] = React.useState(false);
+  const startXRef = React.useRef<number>(0);
+  const startWidthRef = React.useRef<number>(400);
+
+  React.useEffect(() => {
+    if (!isOpen) {
+      setActiveTab('summary');
+    }
+  }, [isOpen]);
+
+  // Resize functionality
+  const handleResizeStart = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsResizing(true);
+    startXRef.current = e.clientX;
+    startWidthRef.current = width;
+    document.body.style.userSelect = 'none';
+    document.body.style.cursor = 'ew-resize';
+  };
+
+  React.useEffect(() => {
+    if (!isResizing) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      e.preventDefault();
+      const deltaX = startXRef.current - e.clientX;
+      let newWidth = startWidthRef.current + deltaX;
+      newWidth = Math.max(300, Math.min(800, newWidth));
+      setWidth(newWidth);
+    };
+
+    const handleMouseUp = () => {
+      setIsResizing(false);
+      document.body.style.userSelect = '';
+      document.body.style.cursor = '';
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+      document.body.style.userSelect = '';
+      document.body.style.cursor = '';
+    };
+  }, [isResizing, width]);
+
+  const handleClose = () => {
+    setSidePanelOpen(false);
+  };
+
+  if (!isOpen) {
+    return null;
+  }
+
+  return React.createElement('div', {
+    className: `sidePanel ${isOpen ? 'open' : ''}`,
+    style: { width: `${width}px` },
+  }, [
+    // Resize handles
+    React.createElement('div', {
+      key: 'resize-handles',
+      style: {
+        position: 'absolute',
+        left: 0,
+        top: 0,
+        bottom: 0,
+        width: '8px',
+        pointerEvents: 'none',
+        zIndex: 10,
+      },
+    }, [
+      React.createElement('div', {
+        key: 'top-left',
+        onMouseDown: handleResizeStart,
+        style: {
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          width: '8px',
+          height: '30px',
+          background: '#9527F5',
+          borderRadius: '30px 0 0 0',
+          cursor: 'nw-resize',
+          pointerEvents: 'all',
+          zIndex: 11,
+        },
+      }),
+      React.createElement('div', {
+        key: 'left',
+        onMouseDown: handleResizeStart,
+        style: {
+          position: 'absolute',
+          top: '30px',
+          left: 0,
+          bottom: '30px',
+          width: '8px',
+          background: '#9527F5',
+          cursor: 'ew-resize',
+          pointerEvents: 'all',
+          zIndex: 11,
+        },
+      }),
+      React.createElement('div', {
+        key: 'bottom-left',
+        onMouseDown: handleResizeStart,
+        style: {
+          position: 'absolute',
+          bottom: 0,
+          left: 0,
+          width: '8px',
+          height: '30px',
+          background: '#9527F5',
+          borderRadius: '0 0 0 30px',
+          cursor: 'sw-resize',
+          pointerEvents: 'all',
+          zIndex: 11,
+        },
+      }),
+    ]),
+    // Header
+    React.createElement('div', {
+      key: 'header',
+      className: 'header',
+      style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
+    }, [
+      React.createElement('div', {
+        key: 'brand',
+        style: { color: '#9527F5', fontSize: '20px', fontWeight: 700 },
+      }, 'Xplaino'),
+      React.createElement('button', {
+        key: 'close',
+        onClick: handleClose,
+        style: {
+          marginLeft: 'auto',
+          width: '32px',
+          height: '32px',
+          borderRadius: '50%',
+          background: 'transparent',
+          border: 'none',
+          color: '#718096',
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          transition: 'all 0.2s ease',
+          padding: 0,
+        },
+        onMouseEnter: (e: any) => {
+          e.currentTarget.style.background = 'rgba(149, 39, 245, 0.1)';
+          e.currentTarget.style.color = '#9527F5';
+        },
+        onMouseLeave: (e: any) => {
+          e.currentTarget.style.background = 'transparent';
+          e.currentTarget.style.color = '#718096';
+        },
+      }, React.createElement('svg', {
+        xmlns: 'http://www.w3.org/2000/svg',
+        viewBox: '0 0 24 24',
+        fill: 'none',
+        stroke: 'currentColor',
+        strokeWidth: '2',
+        strokeLinecap: 'round',
+        strokeLinejoin: 'round',
+        style: { width: '18px', height: '18px' },
+      }, [
+        React.createElement('line', { key: '1', x1: '18', y1: '6', x2: '6', y2: '18' }),
+        React.createElement('line', { key: '2', x1: '6', y1: '6', x2: '18', y2: '18' }),
+      ])),
+    ]),
+    // Content
+    React.createElement('div', {
+      key: 'content',
+      className: 'content',
+    }, React.createElement('div', {
+      style: { padding: '16px', color: '#1A202C' },
+    }, `Content for ${activeTab} tab`)),
+    // Footer
+    React.createElement('div', {
+      key: 'footer',
+      className: 'footer',
+    }, React.createElement('div', {
+      className: 'tabGroup',
+    }, [
+      React.createElement('button', {
+        key: 'summary',
+        className: `tab ${activeTab === 'summary' ? 'active' : ''}`,
+        onClick: () => setActiveTab('summary'),
+      }, 'Summary'),
+      React.createElement('button', {
+        key: 'settings',
+        className: `tab ${activeTab === 'settings' ? 'active' : ''}`,
+        onClick: () => setActiveTab('settings'),
+      }, 'Settings'),
+      React.createElement('button', {
+        key: 'my',
+        className: `tab ${activeTab === 'my' ? 'active' : ''}`,
+        onClick: () => setActiveTab('my'),
+      }, 'My'),
+    ])),
+  ]);
+};
 
 /**
  * Main content script logic
@@ -486,9 +873,11 @@ async function initContentScript(): Promise<void> {
   if (allowed) {
     console.log('[Content Script] Running content script functionality...');
     injectFAB();
+    injectSidePanel();
   } else {
     console.log('[Content Script] Not running - extension not allowed on this page');
     removeFAB();
+    removeSidePanel();
   }
 }
 

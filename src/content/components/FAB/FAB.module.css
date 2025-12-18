@@ -14,25 +14,15 @@
   --fab-gap: 12px;
 }
 
-/* Parent container - positioned at top-right, appears from right edge */
+/* Parent container - positioned at top-right */
 .fabParent {
   position: fixed;
   top: 120px;
-  right: 0;
+  right: 8px;
   display: flex;
   flex-direction: row;
   align-items: center;
-  gap: var(--fab-gap);
   z-index: 2147483647;
-  padding: 8px;
-  padding-right: 0;
-  transform: translateX(calc(100% - var(--fab-size) - 8px));
-  transition: transform var(--fab-transition);
-}
-
-/* When actions are visible, slide in fully */
-.fabParent.actionsVisible {
-  transform: translateX(0);
 }
 
 /* FAB container */
@@ -80,21 +70,24 @@
   pointer-events: none;
 }
 
-/* Actions container */
+/* Actions container - positioned absolutely to the left of FAB */
 .actionsContainer {
+  position: absolute;
+  right: calc(100% + 12px);
+  top: 50%;
+  transform: translateY(-50%) translateX(20px);
   display: flex;
   flex-direction: column;
   gap: 10px;
   opacity: 0;
   visibility: hidden;
-  transform: translateX(20px);
   transition: all var(--fab-transition);
 }
 
 .actionsContainer.visible {
   opacity: 1;
   visibility: visible;
-  transform: translateX(0);
+  transform: translateY(-50%) translateX(0);
 }
 
 /* Action button styles */

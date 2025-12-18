@@ -1,0 +1,230 @@
+/* src/content/components/SidePanel/SidePanel.module.css */
+
+/* CSS Variables */
+:host {
+  --panel-primary: #9527F5;
+  --panel-primary-light: #BF7EFA;
+  --panel-primary-medium: #8607f5;
+  --panel-white: #FFFFFF;
+  --panel-shadow: 0 0 20px rgba(149, 39, 245, 0.3);
+  --panel-border-radius: 30px;
+  --panel-transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  --panel-min-width: 300px;
+  --panel-max-width: 800px;
+  --panel-default-width: 400px;
+}
+
+/* Side Panel Container */
+.sidePanel {
+  position: fixed;
+  top: 80px;
+  right: 0;
+  bottom: 80px;
+  width: var(--panel-default-width);
+  min-width: var(--panel-min-width);
+  max-width: var(--panel-max-width);
+  background: var(--panel-white);
+  border-radius: var(--panel-border-radius) 0 0 var(--panel-border-radius);
+  box-shadow: var(--panel-shadow);
+  z-index: 2147483646;
+  display: flex;
+  flex-direction: column;
+  transform: translateX(100%);
+  transition: transform var(--panel-transition);
+  overflow: hidden;
+}
+
+.sidePanel.open {
+  transform: translateX(0);
+}
+
+/* Resize Handle Container */
+.resizeHandles {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 8px;
+  pointer-events: none;
+  z-index: 10;
+}
+
+/* Resize Handle - Top Left */
+.resizeHandleTopLeft {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 8px;
+  height: 30px;
+  background: var(--panel-primary);
+  border-radius: var(--panel-border-radius) 0 0 0;
+  cursor: nw-resize;
+  pointer-events: all;
+  z-index: 11;
+}
+
+.resizeHandleTopLeft:hover {
+  background: var(--panel-primary-medium);
+}
+
+/* Resize Handle - Left */
+.resizeHandleLeft {
+  position: absolute;
+  top: 30px;
+  left: 0;
+  bottom: 30px;
+  width: 8px;
+  background: var(--panel-primary);
+  cursor: ew-resize;
+  pointer-events: all;
+  z-index: 11;
+}
+
+.resizeHandleLeft:hover {
+  background: var(--panel-primary-medium);
+}
+
+/* Resize Handle - Bottom Left */
+.resizeHandleBottomLeft {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 8px;
+  height: 30px;
+  background: var(--panel-primary);
+  border-radius: 0 0 0 var(--panel-border-radius);
+  cursor: sw-resize;
+  pointer-events: all;
+  z-index: 11;
+}
+
+.resizeHandleBottomLeft:hover {
+  background: var(--panel-primary-medium);
+}
+
+/* Header */
+.header {
+  background: var(--panel-white);
+  border-bottom: 1px solid var(--panel-primary-light);
+  padding: 16px 24px;
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  height: 60px;
+  box-sizing: border-box;
+}
+
+.headerBrand {
+  height: 32px;
+  width: auto;
+  object-fit: contain;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+
+.headerBrand:hover {
+  transform: scale(1.05);
+}
+
+.closeButton {
+  margin-left: auto;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: transparent;
+  border: none;
+  color: #718096;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.closeButton:hover {
+  background: rgba(149, 39, 245, 0.1);
+  color: #9527F5;
+}
+
+.closeButton:active {
+  transform: scale(0.95);
+}
+
+.closeButton svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* Content Area */
+.content {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 0;
+  position: relative;
+}
+
+/* Footer */
+.footer {
+  background: var(--panel-white);
+  border-top: 1px solid var(--panel-primary-light);
+  padding: 0;
+  display: flex;
+  flex-shrink: 0;
+  height: 50px;
+}
+
+/* Tab Group */
+.tabGroup {
+  display: flex;
+  width: 100%;
+  height: 100%;
+}
+
+.tab {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: var(--panel-primary);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.tab:hover {
+  background: rgba(149, 39, 245, 0.1);
+}
+
+.tab.active {
+  background: var(--panel-primary);
+  color: var(--panel-white);
+}
+
+.tab:not(:last-child) {
+  border-right: 1px solid var(--panel-primary-light);
+}
+
+/* Scrollbar Styling */
+.content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.content::-webkit-scrollbar-thumb {
+  background: var(--panel-primary-light);
+  border-radius: 4px;
+}
+
+.content::-webkit-scrollbar-thumb:hover {
+  background: var(--panel-primary);
+}

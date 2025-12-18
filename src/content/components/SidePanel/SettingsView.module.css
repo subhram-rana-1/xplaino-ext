@@ -1,0 +1,184 @@
+/* src/content/components/SidePanel/SettingsView.module.css */
+
+.settingsView {
+  padding: 16px;
+  height: 100%;
+  overflow-y: auto;
+  background: #1A202C;
+  color: #FFFFFF;
+}
+
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: #A0AEC0;
+}
+
+.section {
+  margin-bottom: 24px;
+}
+
+.sectionHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.sectionAccent {
+  width: 4px;
+  height: 20px;
+  background: #ED8936;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.sectionTitle {
+  font-size: 16px;
+  font-weight: 600;
+  color: #FFFFFF;
+  margin: 0;
+}
+
+.sectionContent {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.settingItem {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.settingLabel {
+  font-size: 14px;
+  font-weight: 500;
+  color: #E2E8F0;
+}
+
+.domainName {
+  color: #9527F5;
+  font-style: italic;
+}
+
+.tabGroup {
+  display: flex;
+  gap: 8px;
+  background: #2D3748;
+  border-radius: 10px;
+  padding: 4px;
+}
+
+.tab {
+  flex: 1;
+  padding: 8px 12px;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  color: #A0AEC0;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.tab:hover {
+  color: #FFFFFF;
+  background: rgba(149, 39, 245, 0.1);
+}
+
+.tabActive {
+  background: #9527F5;
+  color: #FFFFFF;
+}
+
+.themeToggle {
+  display: flex;
+  gap: 12px;
+}
+
+.themeOption {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px;
+  background: #2D3748;
+  border: 2px solid transparent;
+  border-radius: 10px;
+  color: #A0AEC0;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.themeOption:hover {
+  border-color: #9527F5;
+  color: #FFFFFF;
+}
+
+.themeActive {
+  background: #9527F5;
+  border-color: #9527F5;
+  color: #FFFFFF;
+}
+
+.themeOption svg {
+  width: 20px;
+  height: 20px;
+}
+
+.toggleContainer {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+}
+
+.toggleTrack {
+  position: relative;
+  width: 44px;
+  height: 24px;
+  border-radius: 12px;
+  background: #4A5568;
+  transition: background-color 0.2s ease;
+}
+
+.toggleTrack.checked {
+  background: #9527F5;
+}
+
+.toggleThumb {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #FFFFFF;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  transition: left 0.2s ease;
+}
+
+.toggleThumb.thumbChecked {
+  left: 23px;
+}
+
+.toggleSetting {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.toggleLabel {
+  font-size: 15px;
+  font-weight: 600;
+  color: #FFFFFF;
+  user-select: none;
+}
+

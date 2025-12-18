@@ -6,4 +6,5 @@
  */
 
 export type { DomainSettingsDTO } from './DomainSettingsDTO';
+export type { UserSettingsDTO } from './UserSettingsDTO';
 

@@ -1,6 +1,6 @@
 // src/storage/chrome-local/ChromeStorage.ts
 
-import type { DomainSettingsDTO } from './dto';
+import type { DomainSettingsDTO, UserSettingsDTO } from './dto';
 import type { DomainStatus } from '@/types/domain';
 
 /**
@@ -170,6 +170,74 @@ export class ChromeStorage {
   static async getAllDomainSettings(): Promise<Record<string, DomainStatus>> {
     const settings = await this.getExtensionSettings();
     return settings?.domainSettings ?? {};
+  }
+
+  // --- User Settings ---
+  static async getUserSettings(): Promise<UserSettingsDTO | null> {
+    return this.get<UserSettingsDTO>(this.KEYS.USER_SETTINGS);
+  }
+
+  static async setUserSettings(settings: UserSettingsDTO): Promise<void> {
+    return this.set(this.KEYS.USER_SETTINGS, settings);
+  }
+
+  static async getLanguage(): Promise<string | null> {
+    const settings = await this.getUserSettings();
+    return settings?.language ?? null;
+  }
+
+  static async setLanguage(language: string): Promise<void> {
+    const settings = await this.getUserSettings();
+    const updatedSettings: UserSettingsDTO = {
+      ...settings,
+      language,
+    };
+    return this.setUserSettings(updatedSettings);
+  }
+
+  static async getTranslationView(): Promise<'none' | 'append' | 'replace' | null> {
+    const settings = await this.getUserSettings();
+    return settings?.translationView ?? null;
+  }
+
+  static async setTranslationView(view: 'none' | 'append' | 'replace'): Promise<void> {
+    const settings = await this.getUserSettings();
+    const updatedSettings: UserSettingsDTO = {
+      ...settings,
+      translationView: view,
+    };
+    return this.setUserSettings(updatedSettings);
+  }
+
+  static async getGlobalTheme(): Promise<'light' | 'dark' | null> {
+    const settings = await this.getUserSettings();
+    return settings?.globalTheme ?? null;
+  }
+
+  static async setGlobalTheme(theme: 'light' | 'dark'): Promise<void> {
+    const settings = await this.getUserSettings();
+    const updatedSettings: UserSettingsDTO = {
+      ...settings,
+      globalTheme: theme,
+    };
+    return this.setUserSettings(updatedSettings);
+  }
+
+  static async getDomainTheme(domain: string): Promise<'light' | 'dark' | null> {
+    const settings = await this.getUserSettings();
+    return settings?.domainThemes?.[domain] ?? null;
+  }
+
+  static async setDomainTheme(domain: string, theme: 'light' | 'dark'): Promise<void> {
+    const settings = await this.getUserSettings();
+    const updatedSettings: UserSettingsDTO = {
+      ...settings,
+      domainThemes: {
+        ...(settings?.domainThemes ?? {}),
+        [domain]: theme,
+      },
+    };
+    return this.setUserSettings(updatedSettings);
   }
 }
 
