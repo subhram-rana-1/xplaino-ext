@@ -1,5 +1,5 @@
 // src/content/components/ContentActions/ContentActionsButtonGroup.tsx
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback } from 'react';
 import { ContentActionButton } from './ContentActionButton';
 import { DisablePopover } from './DisablePopover';
 
@@ -16,6 +16,14 @@ export interface ContentActionsButtonGroupProps {
   onTranslate: () => void;
   /** Callback when Bookmark is clicked */
   onBookmark: () => void;
+  /** Callback when mouse enters (to keep container active) */
+  onMouseEnter?: () => void;
+  /** Callback when mouse leaves (to hide container) */
+  onMouseLeave?: (e: React.MouseEvent) => void;
+  /** Callback to force keep states active (e.g., when popover opens) */
+  onKeepActive?: () => void;
+  /** Callback to show disable notification modal */
+  onShowModal?: () => void;
 }
 
 export const ContentActionsButtonGroup: React.FC<ContentActionsButtonGroupProps> = ({
@@ -25,29 +33,35 @@ export const ContentActionsButtonGroup: React.FC<ContentActionsButtonGroupProps>
   onGrammar,
   onTranslate,
   onBookmark,
+  onMouseEnter,
+  onMouseLeave,
+  onKeepActive,
+  onShowModal,
 }) => {
   const [showDisablePopover, setShowDisablePopover] = useState(false);
-  const hideTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const handlePowerMouseEnter = useCallback(() => {
-    if (hideTimeoutRef.current) {
-      clearTimeout(hideTimeoutRef.current);
-    }
-    setShowDisablePopover(true);
-  }, []);
-
-  const handlePowerMouseLeave = useCallback(() => {
-    hideTimeoutRef.current = setTimeout(() => {
-      setShowDisablePopover(false);
-    }, 150);
-  }, []);
+  const handleDisableExtensionButtonClick = useCallback(() => {
+    setShowDisablePopover((prev) => {
+      const newValue = !prev;
+      if (newValue) {
+        // Popover is opening - ensure states stay active
+        onKeepActive?.();
+      }
+      return newValue;
+    });
+  }, [onKeepActive]);
 
   const handleDisabled = useCallback(() => {
     setShowDisablePopover(false);
   }, []);
 
   return (
-    <div className={`contentActionsButtonGroup ${visible ? 'visible' : ''}`}>
+    <div
+      className={`contentActionsButtonGroup ${visible ? 'visible' : ''}`}
+      onMouseDown={(e) => e.stopPropagation()}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
+    >
       <ContentActionButton
         icon="explain"
         tooltip="Explain"
@@ -75,20 +89,21 @@ export const ContentActionsButtonGroup: React.FC<ContentActionsButtonGroupProps>
         delay={isWordSelection ? 3 : 2}
       />
       {/* Power button with disable popover */}
-      <div
-        className="powerButtonWrapper"
-        onMouseEnter={handlePowerMouseEnter}
-        onMouseLeave={handlePowerMouseLeave}
-      >
+      <div className="powerButtonWrapper">
         <ContentActionButton
           icon="power"
-          tooltip="Disable"
+          tooltip="Disable extension"
+          onClick={handleDisableExtensionButtonClick}
           delay={isWordSelection ? 4 : 3}
           className="powerButton"
+          hideTooltip={showDisablePopover}
         >
           <DisablePopover
             visible={showDisablePopover}
             onDisabled={handleDisabled}
+            onMouseEnter={onMouseEnter}
+            onMouseLeave={onMouseLeave}
+            onShowModal={onShowModal}
           />
         </ContentActionButton>
       </div>

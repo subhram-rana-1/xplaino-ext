@@ -13,6 +13,8 @@ export interface ContentActionsTriggerProps {
   onTranslate?: (selectedText: string) => void;
   /** Callback when Bookmark is clicked */
   onBookmark?: (selectedText: string) => void;
+  /** Callback to show disable notification modal */
+  onShowModal?: () => void;
 }
 
 interface SelectionState {
@@ -35,6 +37,7 @@ export const ContentActionsTrigger: React.FC<ContentActionsTriggerProps> = ({
   onGrammar,
   onTranslate,
   onBookmark,
+  onShowModal,
 }) => {
   const [selection, setSelection] = useState<SelectionState | null>(null);
   const [isHovering, setIsHovering] = useState(false);
@@ -42,6 +45,7 @@ export const ContentActionsTrigger: React.FC<ContentActionsTriggerProps> = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const hideTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastMousePosition = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  const popoverOpenRef = useRef(false);
 
   // Track mouse position for text selection
   useEffect(() => {
@@ -71,9 +75,9 @@ export const ContentActionsTrigger: React.FC<ContentActionsTriggerProps> = ({
 
     if (isDoubleClick) {
       // For word double-click: position above the word (not overlapping)
-      // Center horizontally above the word, with enough gap above
+      // Position slightly to the right of center, above the word
       return {
-        x: rect.left + rect.width / 2,
+        x: rect.left + rect.width / 2 + 15, // 15px to the right of center
         y: rect.top - 8, // Position above the word with 8px gap
       };
     } else {
@@ -110,11 +114,28 @@ export const ContentActionsTrigger: React.FC<ContentActionsTriggerProps> = ({
 
   // Handle mouse up (text selection)
   const handleMouseUp = useCallback((e: MouseEvent) => {
-    // Ignore if clicking on our own component
-    if (containerRef.current?.contains(e.target as Node)) return;
+    // Ignore if clicking on our own component - check both target and relatedTarget
+    const target = e.target as Node;
+    if (containerRef.current?.contains(target)) {
+      return;
+    }
+    
+    // Also check if the click originated from within our component
+    // by checking if the event path includes our container
+    const path = e.composedPath?.() || [];
+    if (path.some(node => node === containerRef.current || 
+        (node instanceof Node && containerRef.current?.contains(node)))) {
+      return;
+    }
 
     // Small delay to let selection complete
     setTimeout(() => {
+      // Double-check that we're not inside our container (in case selection changed)
+      const currentTarget = document.activeElement;
+      if (containerRef.current?.contains(currentTarget as Node)) {
+        return;
+      }
+
       const windowSelection = window.getSelection();
       if (!windowSelection) return;
 
@@ -126,38 +147,57 @@ export const ContentActionsTrigger: React.FC<ContentActionsTriggerProps> = ({
       const position = getSelectionPosition(false);
       if (!position) return;
 
+      // Check if this is the same selection we already have
+      if (selection && selection.text === text) {
+        // Same selection - don't reset UI state
+        return;
+      }
+
       setSelection({
         text,
         isWord: isWordSelection(text),
         position,
       });
+      // Only reset UI state if this is a NEW selection (not clicking on existing UI)
       setIsHovering(false);
       setShowButtonGroup(false);
     }, 10);
-  }, [getSelectionPosition, isWordSelection]);
+  }, [getSelectionPosition, isWordSelection, selection]);
 
-  // Handle click outside to dismiss
-  const handleClickOutside = useCallback((e: MouseEvent) => {
-    if (containerRef.current?.contains(e.target as Node)) return;
-    
-    // Dismiss if clicking outside
-    setSelection(null);
-    setIsHovering(false);
-    setShowButtonGroup(false);
-  }, []);
+  // Handle selection change (to hide component when selection is cleared)
+  const handleSelectionChange = useCallback(() => {
+    // Small delay to avoid race conditions with other handlers
+    setTimeout(() => {
+      const windowSelection = window.getSelection();
+      if (!windowSelection) {
+        // No selection object - clear our state
+        if (selection) {
+          setSelection(null);
+        }
+        return;
+      }
+
+      const text = windowSelection.toString().trim();
+      
+      // If selection is empty and we have a selection state, clear it
+      if (!text && selection) {
+        setSelection(null);
+      }
+    }, 10);
+  }, [selection]);
 
   // Set up event listeners
   useEffect(() => {
     document.addEventListener('dblclick', handleDoubleClick);
     document.addEventListener('mouseup', handleMouseUp);
-    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('selectionchange', handleSelectionChange);
 
     return () => {
       document.removeEventListener('dblclick', handleDoubleClick);
       document.removeEventListener('mouseup', handleMouseUp);
-      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('selectionchange', handleSelectionChange);
     };
-  }, [handleDoubleClick, handleMouseUp, handleClickOutside]);
+  }, [handleDoubleClick, handleMouseUp, handleSelectionChange]);
 
   // Clear timeout on unmount
   useEffect(() => {
@@ -181,18 +221,93 @@ export const ContentActionsTrigger: React.FC<ContentActionsTriggerProps> = ({
   }, []);
 
   // Handle mouse leave from container
-  const handleContainerMouseLeave = useCallback(() => {
-    hideTimeoutRef.current = setTimeout(() => {
-      setShowButtonGroup(false);
-      setIsHovering(false);
-    }, 200);
+  const handleContainerMouseLeave = useCallback((e: React.MouseEvent) => {
+    const relatedTarget = e.relatedTarget as Node | null;
+    const currentTarget = e.currentTarget as HTMLElement;
+    
+    // Check if we're leaving from the button group specifically
+    // Check both currentTarget and the actual target that triggered the event
+    const target = (e.target as HTMLElement) || currentTarget;
+    const isLeavingButtonGroup = 
+      target.classList?.contains('contentActionsButtonGroup') ||
+      target.closest?.('.contentActionsButtonGroup') ||
+      currentTarget.classList?.contains('contentActionsButtonGroup') ||
+      currentTarget.closest?.('.contentActionsButtonGroup');
+    
+    // Check if we're leaving from the popover
+    const isLeavingPopover = 
+      target.classList?.contains('disablePopover') ||
+      target.closest?.('.disablePopover') ||
+      currentTarget.classList?.contains('disablePopover') ||
+      currentTarget.closest?.('.disablePopover');
+    
+    // Check if moving to popover
+    const isMovingToPopover = relatedTarget && containerRef.current && (
+      (relatedTarget as HTMLElement).classList?.contains('disablePopover') ||
+      (relatedTarget as HTMLElement).closest?.('.disablePopover') ||
+      containerRef.current.querySelector('.disablePopover')?.contains(relatedTarget)
+    );
+    
+    // Special case: leaving popover and moving to button group - don't hide
+    if (isLeavingPopover && !isMovingToPopover) {
+      // Only return early if moving to button group, otherwise continue to hide logic
+      const isMovingToButtonGroup = relatedTarget && containerRef.current && (
+        (relatedTarget as HTMLElement).classList?.contains('contentActionsButtonGroup') ||
+        (relatedTarget as HTMLElement).closest?.('.contentActionsButtonGroup') ||
+        containerRef.current.querySelector('.contentActionsButtonGroup')?.contains(relatedTarget)
+      );
+      if (isMovingToButtonGroup) {
+        return;
+      }
+    }
+    
+    // Special case: leaving button group and moving to popover - don't hide
+    if (isLeavingButtonGroup && isMovingToPopover) {
+      return;
+    }
+    
+    // If leaving button group (and not moving to popover) - hide
+    if (isLeavingButtonGroup) {
+      const delay = popoverOpenRef.current ? 300 : 200;
+      hideTimeoutRef.current = setTimeout(() => {
+        setShowButtonGroup(false);
+        setIsHovering(false); // This will show the icon
+        popoverOpenRef.current = false;
+      }, delay);
+      return;
+    }
+    
+    // If leaving container entirely
+    if (!relatedTarget || !containerRef.current?.contains(relatedTarget)) {
+      const delay = popoverOpenRef.current ? 300 : 200;
+      hideTimeoutRef.current = setTimeout(() => {
+        setShowButtonGroup(false);
+        setIsHovering(false);
+        popoverOpenRef.current = false;
+      }, delay);
+    }
   }, []);
 
   // Handle mouse enter on container (to cancel hide timeout)
   const handleContainerMouseEnter = useCallback(() => {
     if (hideTimeoutRef.current) {
       clearTimeout(hideTimeoutRef.current);
+      hideTimeoutRef.current = null;
     }
+    // Ensure states are correct when mouse enters
+    setIsHovering(true);
+    setShowButtonGroup(true);
+  }, []);
+
+  // Handle keep active (for when popover opens)
+  const handleKeepActive = useCallback(() => {
+    if (hideTimeoutRef.current) {
+      clearTimeout(hideTimeoutRef.current);
+      hideTimeoutRef.current = null;
+    }
+    popoverOpenRef.current = true; // Mark popover as open
+    setIsHovering(true);
+    setShowButtonGroup(true);
   }, []);
 
   // Action handlers
@@ -269,6 +384,10 @@ export const ContentActionsTrigger: React.FC<ContentActionsTriggerProps> = ({
         onGrammar={handleGrammar}
         onTranslate={handleTranslate}
         onBookmark={handleBookmark}
+        onMouseEnter={handleContainerMouseEnter}
+        onMouseLeave={handleContainerMouseLeave}
+        onKeepActive={handleKeepActive}
+        onShowModal={onShowModal}
       />
     </div>
   );

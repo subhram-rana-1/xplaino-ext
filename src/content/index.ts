@@ -8,6 +8,7 @@ import ReactDOM from 'react-dom/client';
 import { FAB } from './components/FAB';
 import { SidePanel } from './components/SidePanel';
 import { ContentActionsTrigger } from './components/ContentActions';
+import { DisableNotificationModal } from './components/DisableNotificationModal';
 
 // Import Shadow DOM utilities
 import {
@@ -21,6 +22,7 @@ import {
 import fabStyles from './styles/fab.shadow.css?inline';
 import sidePanelStyles from './styles/sidePanel.shadow.css?inline';
 import contentActionsStyles from './styles/contentActions.shadow.css?inline';
+import disableNotificationModalStyles from './styles/disableNotificationModal.shadow.css?inline';
 
 // Import color CSS variables
 import { FAB_COLOR_VARIABLES } from '../constants/colors.css.js';
@@ -34,6 +36,7 @@ console.log('[Content Script] Initialized');
 const FAB_HOST_ID = 'xplaino-fab-host';
 const SIDE_PANEL_HOST_ID = 'xplaino-side-panel-host';
 const CONTENT_ACTIONS_HOST_ID = 'xplaino-content-actions-host';
+const DISABLE_MODAL_HOST_ID = 'xplaino-disable-modal-host';
 
 /**
  * Domain status enum (must match src/types/domain.ts)
@@ -53,6 +56,10 @@ enum DomainStatus {
 let fabRoot: ReactDOM.Root | null = null;
 let sidePanelRoot: ReactDOM.Root | null = null;
 let contentActionsRoot: ReactDOM.Root | null = null;
+let disableModalRoot: ReactDOM.Root | null = null;
+
+// Modal state
+let modalVisible = false;
 
 // Shared state for side panel
 let sidePanelOpen = false;
@@ -294,6 +301,7 @@ function injectContentActions(): void {
       onGrammar: (text: string) => console.log('[ContentActions] Grammar:', text),
       onTranslate: (text: string) => console.log('[ContentActions] Translate:', text),
       onBookmark: (text: string) => console.log('[ContentActions] Bookmark:', text),
+      onShowModal: showDisableModal,
     })
   );
 
@@ -307,6 +315,94 @@ function removeContentActions(): void {
   removeShadowHost(CONTENT_ACTIONS_HOST_ID, contentActionsRoot);
   contentActionsRoot = null;
   console.log('[Content Script] Content Actions removed');
+}
+
+// =============================================================================
+// DISABLE NOTIFICATION MODAL INJECTION
+// =============================================================================
+
+/**
+ * Inject Disable Notification Modal into the page with Shadow DOM
+ */
+function injectDisableModal(): void {
+  // Check if already injected
+  if (shadowHostExists(DISABLE_MODAL_HOST_ID)) {
+    console.log('[Content Script] Disable Modal already injected');
+    updateDisableModal();
+    return;
+  }
+
+  // Create Shadow DOM host
+  const { host, shadow, mountPoint } = createShadowHost({
+    id: DISABLE_MODAL_HOST_ID,
+    zIndex: 2147483647, // Highest z-index
+  });
+
+  // Inject color CSS variables first
+  injectStyles(shadow, FAB_COLOR_VARIABLES);
+  
+  // Inject component styles
+  injectStyles(shadow, disableNotificationModalStyles);
+
+  // Append to document
+  document.body.appendChild(host);
+
+  // Render React component
+  disableModalRoot = ReactDOM.createRoot(mountPoint);
+  updateDisableModal();
+
+  console.log('[Content Script] Disable Modal injected successfully');
+}
+
+/**
+ * Update modal visibility based on state
+ */
+async function updateDisableModal(): Promise<void> {
+  if (!disableModalRoot) return;
+
+  // Check if modal should be shown (not dismissed)
+  const { ChromeStorage } = await import('../storage/chrome-local/ChromeStorage');
+  const dismissed = await ChromeStorage.getDisableModalDismissed();
+
+  disableModalRoot.render(
+    React.createElement(DisableNotificationModal, {
+      visible: modalVisible && !dismissed,
+      onUnderstood: handleModalUnderstood,
+      onDontShowAgain: handleModalDontShowAgain,
+    })
+  );
+}
+
+/**
+ * Show the disable notification modal
+ */
+export function showDisableModal(): void {
+  modalVisible = true;
+  injectDisableModal();
+}
+
+/**
+ * Hide the disable notification modal
+ */
+function hideDisableModal(): void {
+  modalVisible = false;
+  updateDisableModal();
+}
+
+/**
+ * Handle "I understood" button click
+ */
+function handleModalUnderstood(): void {
+  hideDisableModal();
+}
+
+/**
+ * Handle "Don't show me again" button click
+ */
+async function handleModalDontShowAgain(): Promise<void> {
+  const { ChromeStorage } = await import('../storage/chrome-local/ChromeStorage');
+  await ChromeStorage.setDisableModalDismissed(true);
+  hideDisableModal();
 }
 
 // =============================================================================

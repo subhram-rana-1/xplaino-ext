@@ -19,6 +19,7 @@ export class ChromeStorage {
     LAST_SYNC: 'last_sync',
     AUTH_TOKEN: 'auth_token',
     EXTENSION_SETTINGS: 'extension_settings',
+    DISABLE_MODAL_DISMISSED: 'disable_modal_dismissed',
   } as const;
 
   // ============================================
@@ -238,6 +239,16 @@ export class ChromeStorage {
       },
     };
     return this.setUserSettings(updatedSettings);
+  }
+
+  // --- Disable Modal Preference ---
+  static async getDisableModalDismissed(): Promise<boolean> {
+    const value = await this.get<boolean>(this.KEYS.DISABLE_MODAL_DISMISSED);
+    return value ?? false;
+  }
+
+  static async setDisableModalDismissed(dismissed: boolean): Promise<void> {
+    return this.set(this.KEYS.DISABLE_MODAL_DISMISSED, dismissed);
   }
 }
 

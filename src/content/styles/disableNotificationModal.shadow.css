@@ -1,0 +1,159 @@
+/* src/content/styles/disableNotificationModal.shadow.css */
+/* Shadow DOM compatible styles for Disable Notification Modal component */
+/* 
+ * Color Variables: These are injected from src/constants/colors.css.ts
+ * NEVER use hardcoded hex or rgba values - always use CSS variables
+ * ALL properties use !important for Shadow DOM style isolation
+ */
+
+:host {
+  all: initial !important;
+  font-family: var(--font-family-primary) !important;
+}
+
+* {
+  box-sizing: border-box !important;
+}
+
+/* Color variable fallbacks */
+:host {
+  --color-primary: #9527F5 !important;
+  --color-primary-light: #BF7EFA !important;
+  --color-primary-very-light: #eaddf8 !important;
+  --color-primary-dark: #8607f5 !important;
+  --color-white: #FFFFFF !important;
+}
+
+/* Disable Notification Modal Container */
+.disableNotificationModal {
+  position: fixed !important;
+  top: 20px !important;
+  right: 20px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  z-index: 2147483647 !important;
+  pointer-events: auto !important;
+  animation: modalFadeIn 0.3s ease forwards !important;
+}
+
+/* Arrow pointing upward to extension icon */
+.disableNotificationModalArrow {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 32px !important;
+  height: 32px !important;
+  margin-bottom: 8px !important;
+  color: var(--color-primary) !important;
+  animation: arrowBounce 2s ease-in-out infinite !important;
+}
+
+.disableNotificationModalArrow svg {
+  width: 20px !important;
+  height: 20px !important;
+  stroke: var(--color-primary) !important;
+  stroke-width: 2.5 !important;
+  fill: none !important;
+}
+
+/* Modal Content Container */
+.disableNotificationModalContent {
+  background: var(--color-white) !important;
+  border-radius: 30px !important;
+  padding: 16px 20px !important;
+  box-shadow: 0 0 16px rgba(149, 39, 245, 0.35) !important;
+  min-width: 240px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 12px !important;
+}
+
+/* Message Text */
+.disableNotificationModalMessage {
+  margin: 0 !important;
+  padding: 0 !important;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
+  font-size: 16px !important;
+  font-weight: 500 !important;
+  color: var(--color-primary) !important;
+  text-align: center !important;
+  line-height: 1.4 !important;
+}
+
+/* Button Container */
+.disableNotificationModalButtons {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 8px !important;
+  width: 100% !important;
+}
+
+/* Button Base Styles */
+.disableNotificationModalButton {
+  padding: 10px 16px !important;
+  border: none !important;
+  border-radius: 8px !important;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  cursor: pointer !important;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  outline: none !important;
+  width: 100% !important;
+}
+
+/* "I understood" Button */
+.disableNotificationModalButton.understoodButton {
+  background: var(--color-primary-very-light) !important;
+  color: var(--color-primary-light) !important;
+}
+
+.disableNotificationModalButton.understoodButton:hover {
+  background: var(--color-primary-light) !important;
+  color: var(--color-white) !important;
+}
+
+.disableNotificationModalButton.understoodButton:active {
+  background: var(--color-primary-very-light) !important;
+  color: var(--color-primary-light) !important;
+}
+
+/* "Don't show me again" Button */
+.disableNotificationModalButton.dontShowButton {
+  background: transparent !important;
+  color: var(--color-primary-light) !important;
+  border: 1px solid var(--color-primary-very-light) !important;
+}
+
+.disableNotificationModalButton.dontShowButton:hover {
+  background: var(--color-primary-very-light) !important;
+  color: var(--color-primary) !important;
+  border-color: var(--color-primary-light) !important;
+}
+
+.disableNotificationModalButton.dontShowButton:active {
+  transform: scale(0.98) !important;
+}
+
+/* Animations */
+@keyframes modalFadeIn {
+  from {
+    opacity: 0 !important;
+    transform: translateY(-10px) scale(0.95) !important;
+  }
+  to {
+    opacity: 1 !important;
+    transform: translateY(0) scale(1) !important;
+  }
+}
+
+@keyframes arrowBounce {
+  0%, 100% {
+    transform: translateY(0) !important;
+  }
+  50% {
+    transform: translateY(-4px) !important;
+  }
+}
+

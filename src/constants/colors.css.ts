@@ -48,6 +48,8 @@ export const FAB_COLOR_VARIABLES = `
     --color-primary-dark: ${COLORS.PRIMARY_DARK};
     --color-white: ${COLORS.WHITE};
     --color-gray-600: ${COLORS.GRAY_600};
+    --color-secondary-medium: ${COLORS.SECONDARY_MEDIUM};
+    --color-secondary-light: ${COLORS.SECONDARY_LIGHT};
     --font-family-primary: ${FONT_FAMILY.PRIMARY};
   }
 `;

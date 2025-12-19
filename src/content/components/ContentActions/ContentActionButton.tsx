@@ -1,5 +1,5 @@
 // src/content/components/ContentActions/ContentActionButton.tsx
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { Sparkles, SpellCheck, Languages, Bookmark, Power } from 'lucide-react';
 
 export interface ContentActionButtonProps {
@@ -15,6 +15,8 @@ export interface ContentActionButtonProps {
   children?: React.ReactNode;
   /** Custom class name */
   className?: string;
+  /** Whether to hide the tooltip (e.g., when popover is open) */
+  hideTooltip?: boolean;
 }
 
 const iconMap = {
@@ -32,6 +34,7 @@ export const ContentActionButton: React.FC<ContentActionButtonProps> = ({
   delay = 0,
   children,
   className = '',
+  hideTooltip = false,
 }) => {
   const IconComponent = iconMap[icon];
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -40,12 +43,24 @@ export const ContentActionButton: React.FC<ContentActionButtonProps> = ({
   const handleMouseEnter = () => setShowTooltip(true);
   const handleMouseLeave = () => setShowTooltip(false);
 
+  // Sync tooltip state with hideTooltip prop
+  useEffect(() => {
+    if (hideTooltip) {
+      setShowTooltip(false);
+    }
+  }, [hideTooltip]);
+
   return (
     <div className={`contentActionButtonWrapper ${className}`}>
       <button
         ref={buttonRef}
         className="contentActionButton"
-        onClick={onClick}
+        onMouseDown={(e) => e.stopPropagation()}
+        onClick={(e) => {
+          e.stopPropagation();
+          setShowTooltip(false); // Clear tooltip on click
+          onClick?.();
+        }}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
         aria-label={tooltip}
@@ -56,7 +71,7 @@ export const ContentActionButton: React.FC<ContentActionButtonProps> = ({
           strokeWidth={2.5}
         />
       </button>
-      {showTooltip && !children && (
+      {showTooltip && !hideTooltip && (
         <div className="contentActionTooltip">
           {tooltip}
         </div>

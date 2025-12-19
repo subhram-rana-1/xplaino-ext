@@ -7,6 +7,12 @@ export interface DisablePopoverProps {
   visible: boolean;
   /** Callback after disable action is executed */
   onDisabled?: () => void;
+  /** Callback when mouse enters (to keep container active) */
+  onMouseEnter?: () => void;
+  /** Callback when mouse leaves (to hide container) */
+  onMouseLeave?: (e: React.MouseEvent) => void;
+  /** Callback to show disable notification modal */
+  onShowModal?: () => void;
 }
 
 /**
@@ -56,6 +62,9 @@ async function updateExtensionSettings(
 export const DisablePopover: React.FC<DisablePopoverProps> = ({
   visible,
   onDisabled,
+  onMouseEnter,
+  onMouseLeave,
+  onShowModal,
 }) => {
   const [currentDomain] = useState(() => extractDomain(window.location.href));
 
@@ -63,7 +72,8 @@ export const DisablePopover: React.FC<DisablePopoverProps> = ({
     await updateExtensionSettings({ globalDisabled: true });
     console.log('[ContentActions] Disabled globally');
     onDisabled?.();
-  }, [onDisabled]);
+    onShowModal?.();
+  }, [onDisabled, onShowModal]);
 
   const handleDisableOnSite = useCallback(async () => {
     if (!currentDomain) return;
@@ -72,25 +82,39 @@ export const DisablePopover: React.FC<DisablePopoverProps> = ({
     });
     console.log('[ContentActions] Disabled on:', currentDomain);
     onDisabled?.();
-  }, [currentDomain, onDisabled]);
+    onShowModal?.();
+  }, [currentDomain, onDisabled, onShowModal]);
 
   if (!visible) return null;
 
   return (
-    <div className="disablePopover">
+    <div
+      className="disablePopover"
+      onMouseDown={(e) => e.stopPropagation()}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
+    >
       <button
         className="disablePopoverOption"
-        onClick={handleDisableGlobally}
+        onMouseDown={(e) => e.stopPropagation()}
+        onClick={(e) => {
+          e.stopPropagation();
+          handleDisableGlobally();
+        }}
       >
         <Globe size={14} strokeWidth={2.5} />
-        <span>Disable globally</span>
+        <span>All sites</span>
       </button>
       <button
         className="disablePopoverOption"
-        onClick={handleDisableOnSite}
+        onMouseDown={(e) => e.stopPropagation()}
+        onClick={(e) => {
+          e.stopPropagation();
+          handleDisableOnSite();
+        }}
       >
         <Monitor size={14} strokeWidth={2.5} />
-        <span>Disable on this site</span>
+        <span>This site</span>
       </button>
     </div>
   );

@@ -22,6 +22,8 @@
   --color-primary-very-light: #eaddf8 !important;
   --color-primary-dark: #8607f5 !important;
   --color-white: #FFFFFF !important;
+  --color-secondary-medium: #34D399 !important;
+  --color-secondary-light: #D1FAE5 !important;
 }
 
 /* Main container */
@@ -36,7 +38,7 @@
   width: 24px !important;
   height: 24px !important;
   border-radius: 50% !important;
-  background: var(--color-white) !important;
+  background: var(--color-primary-very-light) !important;
   border: none !important;
   cursor: pointer !important;
   display: flex !important;
@@ -70,11 +72,13 @@
 }
 
 .xplainoIcon {
-  width: 18px !important;
-  height: 18px !important;
+  width: 20px !important;
+  height: 20px !important;
   object-fit: contain !important;
   display: block !important;
   pointer-events: none !important;
+  margin: auto !important;
+  flex-shrink: 0 !important;
 }
 
 /* Button Group - Pill shaped */
@@ -244,12 +248,12 @@
   flex-direction: column !important;
   gap: 2px !important;
   background: var(--color-white) !important;
-  border-radius: 10px !important;
+  border-radius: 15px !important;
   padding: 4px !important;
   box-shadow: 0 0 12px rgba(149, 39, 245, 0.35) !important;
   animation: popoverFadeInDown 0.15s ease forwards !important;
   z-index: 20 !important;
-  min-width: 150px !important;
+  width: fit-content !important;
 }
 
 .disablePopover::before {
@@ -269,7 +273,7 @@
   padding: 8px 12px !important;
   background: transparent !important;
   border: none !important;
-  border-radius: 8px !important;
+  border-radius: 10px !important;
   cursor: pointer !important;
   font-size: 13px !important;
   font-weight: 500 !important;
@@ -277,7 +281,7 @@
   white-space: nowrap !important;
   transition: all 0.15s ease !important;
   text-align: left !important;
-  width: 100% !important;
+  width: auto !important;
 }
 
 .disablePopoverOption:hover {
