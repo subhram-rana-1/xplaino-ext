@@ -25,7 +25,7 @@ type TabType = 'summary' | 'settings' | 'my';
 
 const MIN_WIDTH = 300;
 const MAX_WIDTH = 800;
-const DEFAULT_WIDTH = 400;
+const DEFAULT_WIDTH = 560;
 
 export const SidePanel: React.FC<SidePanelProps> = ({
   isOpen,

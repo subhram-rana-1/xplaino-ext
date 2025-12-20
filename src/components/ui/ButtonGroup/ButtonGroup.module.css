@@ -1,0 +1,99 @@
+/* src/components/ui/ButtonGroup/ButtonGroup.module.css */
+/* CSS Variables - values from src/constants/colors.ts */
+
+.buttonGroup {
+  /* CSS Variables */
+  --color-primary: #9527F5;
+  --color-primary-light: #BF7EFA;
+  --color-primary-medium: #8607f5;
+  --color-white: #FFFFFF;
+  --color-primary-hover-bg: rgba(149, 39, 245, 0.1);
+
+  display: flex;
+  align-items: center;
+  gap: 0;
+}
+
+.button {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: 9px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: background 0.2s ease;
+  box-sizing: border-box;
+  outline: none;
+}
+
+.button:hover {
+  background: var(--color-primary-hover-bg);
+}
+
+.button.active {
+  background: transparent;
+}
+
+.button.active:hover {
+  background: var(--color-primary-hover-bg);
+}
+
+.buttonIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.buttonIcon svg {
+  width: auto;
+  height: auto;
+  margin: 0;
+  padding: 0;
+  display: block;
+  color: #718096;
+  stroke: #718096;
+  fill: none;
+  pointer-events: none;
+  transition: color 0.2s ease, stroke 0.2s ease;
+}
+
+.button:hover .buttonIcon svg {
+  color: var(--color-primary);
+  stroke: var(--color-primary);
+}
+
+.button.active .buttonIcon svg {
+  color: var(--color-primary);
+  stroke: var(--color-primary);
+}
+
+.button.active:hover .buttonIcon svg {
+  color: var(--color-primary);
+  stroke: var(--color-primary);
+}
+
+.buttonLabel {
+  color: #718096;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  transition: color 0.2s ease;
+  white-space: nowrap;
+}
+
+.button:hover .buttonLabel {
+  color: var(--color-primary);
+}
+
+.button.active .buttonLabel {
+  color: var(--color-primary);
+}
+
+.button.active:hover .buttonLabel {
+  color: var(--color-primary);
+}
+

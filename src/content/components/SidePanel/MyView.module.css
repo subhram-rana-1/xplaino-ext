@@ -5,35 +5,40 @@
   padding: 16px !important;
   height: 100% !important;
   overflow-y: auto !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
 }
 
 .linksList {
   display: flex !important;
   flex-direction: column !important;
-  gap: 12px !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 8px !important;
 }
 
 .linkItem {
   display: flex !important;
   align-items: center !important;
-  gap: 12px !important;
-  padding: 16px !important;
+  gap: 8px !important;
+  padding: 10px 12px !important;
   background: #FFFFFF !important;
   border: 1px solid #E2E8F0 !important;
-  border-radius: 10px !important;
+  border-radius: 15px !important;
   cursor: pointer !important;
   transition: all 0.2s ease !important;
+  max-width: 280px !important;
 }
 
 .linkItem:hover {
   border-color: #9527F5 !important;
   background: rgba(149, 39, 245, 0.05) !important;
-  transform: translateX(4px) !important;
 }
 
 .linkIcon {
-  width: 24px !important;
-  height: 24px !important;
+  width: 20px !important;
+  height: 20px !important;
   color: #9527F5 !important;
   flex-shrink: 0 !important;
   display: flex !important;
@@ -49,13 +54,13 @@
 .linkText {
   flex: 1 !important;
   color: #1A202C !important;
-  font-size: 14px !important;
+  font-size: 13px !important;
   font-weight: 500 !important;
 }
 
 .linkRefIcon {
-  width: 20px !important;
-  height: 20px !important;
+  width: 16px !important;
+  height: 16px !important;
   color: #718096 !important;
   flex-shrink: 0 !important;
   display: flex !important;

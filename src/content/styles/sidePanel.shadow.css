@@ -26,7 +26,7 @@
   top: 80px !important;
   right: 0 !important;
   bottom: 80px !important;
-  width: var(--panel-width, 400px) !important;
+  width: var(--panel-width, 560px) !important;
   min-width: 300px !important;
   max-width: 800px !important;
   background: var(--color-white) !important;
@@ -297,22 +297,113 @@
   flex: 1 !important;
   overflow-y: auto !important;
   overflow-x: hidden !important;
-  padding: 0 !important;
+  padding: 10px 15px !important;
   position: relative !important;
   color: var(--color-text-primary) !important;
-  border-top: 1px solid var(--color-primary-light) !important;
-  border-bottom: 1px solid var(--color-primary-light) !important;
+  border-top: 2px solid var(--color-primary-light) !important;
 }
 
 /* Footer */
 .footer {
   background: transparent !important;
   padding: 0 !important;
+  padding-bottom: 20px !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
   flex-shrink: 0 !important;
   height: 50px !important;
+}
+
+/* ButtonGroup - Button Group Container */
+.buttonGroup {
+  display: flex !important;
+  align-items: center !important;
+  gap: 0 !important;
+}
+
+/* ButtonGroup - Button */
+.button {
+  position: relative !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  padding: 8px 16px !important;
+  border-radius: 9px !important;
+  background: transparent !important;
+  border: none !important;
+  cursor: pointer !important;
+  transition: background 0.2s ease !important;
+  box-sizing: border-box !important;
+  outline: none !important;
+}
+
+.button:hover {
+  background: rgba(149, 39, 245, 0.1) !important;
+}
+
+.button.active {
+  background: transparent !important;
+}
+
+.button.active:hover {
+  background: rgba(149, 39, 245, 0.1) !important;
+}
+
+.buttonIcon {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  flex-shrink: 0 !important;
+}
+
+.buttonIcon svg {
+  width: auto !important;
+  height: auto !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  display: block !important;
+  color: #718096 !important;
+  stroke: #718096 !important;
+  fill: none !important;
+  pointer-events: none !important;
+  transition: color 0.2s ease, stroke 0.2s ease !important;
+}
+
+.button:hover .buttonIcon svg {
+  color: var(--color-primary) !important;
+  stroke: var(--color-primary) !important;
+}
+
+.button.active .buttonIcon svg {
+  color: var(--color-primary) !important;
+  stroke: var(--color-primary) !important;
+}
+
+.button.active:hover .buttonIcon svg {
+  color: var(--color-primary) !important;
+  stroke: var(--color-primary) !important;
+}
+
+.buttonLabel {
+  color: #718096 !important;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  transition: color 0.2s ease !important;
+  white-space: nowrap !important;
+}
+
+.button:hover .buttonLabel {
+  color: var(--color-primary) !important;
+}
+
+.button.active .buttonLabel {
+  color: var(--color-primary) !important;
+}
+
+.button.active:hover .buttonLabel {
+  color: var(--color-primary) !important;
 }
 
 /* IconTabGroup - Tab Group Container */
@@ -1056,35 +1147,40 @@
   padding: 16px !important;
   height: 100% !important;
   overflow-y: auto !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
 }
 
 .linksList {
   display: flex !important;
   flex-direction: column !important;
-  gap: 12px !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 8px !important;
 }
 
 .linkItem {
   display: flex !important;
   align-items: center !important;
-  gap: 12px !important;
-  padding: 16px !important;
+  gap: 8px !important;
+  padding: 10px 12px !important;
   background: #FFFFFF !important;
   border: 1px solid #E2E8F0 !important;
-  border-radius: 10px !important;
+  border-radius: 15px !important;
   cursor: pointer !important;
   transition: all 0.2s ease !important;
+  max-width: 280px !important;
 }
 
 .linkItem:hover {
   border-color: #9527F5 !important;
   background: rgba(149, 39, 245, 0.05) !important;
-  transform: translateX(4px) !important;
 }
 
 .linkIcon {
-  width: 24px !important;
-  height: 24px !important;
+  width: 20px !important;
+  height: 20px !important;
   color: #9527F5 !important;
   flex-shrink: 0 !important;
   display: flex !important;
@@ -1100,13 +1196,13 @@
 .linkText {
   flex: 1 !important;
   color: #1A202C !important;
-  font-size: 14px !important;
+  font-size: 13px !important;
   font-weight: 500 !important;
 }
 
 .linkRefIcon {
-  width: 20px !important;
-  height: 20px !important;
+  width: 16px !important;
+  height: 16px !important;
   color: #718096 !important;
   flex-shrink: 0 !important;
   display: flex !important;
@@ -1220,6 +1316,7 @@
 .languageSettingRow {
   display: flex !important;
   align-items: center !important;
+  justify-content: space-between !important;
   gap: 12px !important;
   min-height: 40px !important;
 }
@@ -1230,8 +1327,20 @@
 }
 
 .languageSettingRow .dropdownContainer {
-  flex: 1 !important;
-  min-width: 0 !important;
+  width: auto !important;
+  min-width: 200px !important;
+  flex-shrink: 0 !important;
+}
+
+.languageSettingRow .dropdown {
+  width: auto !important;
+  min-width: 200px !important;
+}
+
+.languageSettingRow .dropdownButton {
+  width: auto !important;
+  min-width: 200px !important;
+  padding: 10px 12px !important;
 }
 
 .domainName {

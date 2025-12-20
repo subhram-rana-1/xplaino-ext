@@ -22,6 +22,10 @@ export interface IconTabGroupProps {
   iconSize?: number;
   /** Icon stroke width (thickness) */
   strokeWidth?: number;
+  /** Tab size in pixels (applies to both height and width) */
+  tabSize?: number;
+  /** Distance between consecutive tabs in pixels */
+  tabGap?: number;
 }
 
 export const IconTabGroup: React.FC<IconTabGroupProps> = ({
@@ -31,6 +35,8 @@ export const IconTabGroup: React.FC<IconTabGroupProps> = ({
   useShadowDom = false,
   iconSize = 24,
   strokeWidth = 2.0,
+  tabSize = 32,
+  tabGap = 0,
 }) => {
   const tabGroupRef = useRef<HTMLDivElement>(null);
   const sliderRef = useRef<HTMLDivElement>(null);
@@ -132,13 +138,13 @@ export const IconTabGroup: React.FC<IconTabGroupProps> = ({
     // Use offsetLeft which gives position relative to offset parent (tabGroup)
     // This properly accounts for padding and layout
     const offsetX = activeWrapper.offsetLeft;
-    // Use fixed width from CSS (32px) instead of measuring to avoid subpixel rounding issues
-    const width = 32;
+    // Use tabSize prop instead of hardcoded value
+    const width = tabSize;
 
     sliderRef.current.style.transform = `translateX(${offsetX}px)`;
     sliderRef.current.style.width = `${width}px`;
     return true;
-  }, [activeTabId, tabs, useShadowDom, styles]);
+  }, [activeTabId, tabs, useShadowDom, styles, tabSize]);
 
   // Use layout effect for initial mount to ensure slider is positioned before paint
   useLayoutEffect(() => {
@@ -221,7 +227,11 @@ export const IconTabGroup: React.FC<IconTabGroupProps> = ({
   };
 
   return (
-    <div className={getClassName('tabGroup')} ref={tabGroupRef}>
+    <div 
+      className={getClassName('tabGroup')} 
+      ref={tabGroupRef}
+      style={{ gap: `${tabGap}px` }}
+    >
       <div 
         className={getClassName('tabSlider')}
         ref={sliderRef} 
@@ -250,6 +260,7 @@ export const IconTabGroup: React.FC<IconTabGroupProps> = ({
                 tabRefs.current[index] = el;
               }}
               className={tabClassName}
+              style={{ width: `${tabSize}px`, height: `${tabSize}px`, minWidth: `${tabSize}px`, minHeight: `${tabSize}px`, maxWidth: `${tabSize}px`, maxHeight: `${tabSize}px` }}
               onClick={() => {
                 // Mark this tab as clicked so we know to animate
                 clickedTabId.current = tab.id;

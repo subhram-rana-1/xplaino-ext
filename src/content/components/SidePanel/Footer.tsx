@@ -2,7 +2,7 @@
 import React from 'react';
 import { FileText, Settings, User } from 'lucide-react';
 import styles from './Footer.module.css';
-import { IconTabGroup, IconTab } from '@/components/ui/IconTabGroup';
+import { ButtonGroup, ButtonItem } from '@/components/ui/ButtonGroup';
 
 export type TabType = 'summary' | 'settings' | 'my';
 
@@ -15,7 +15,7 @@ export interface FooterProps {
   useShadowDom?: boolean;
 }
 
-const tabs: IconTab[] = [
+const buttons: ButtonItem[] = [
   { id: 'summary', icon: FileText, label: 'Summary' },
   { id: 'settings', icon: Settings, label: 'Settings' },
   { id: 'my', icon: User, label: 'My' },
@@ -30,21 +30,23 @@ export const Footer: React.FC<FooterProps> = ({ activeTab, onTabChange, useShado
     return styleClass || baseClass;
   };
 
-  const handleTabChange = (tabId: string) => {
-    // Type guard to ensure tabId is a valid TabType
-    if (tabId === 'summary' || tabId === 'settings' || tabId === 'my') {
-      onTabChange(tabId);
+  const handleButtonChange = (buttonId: string) => {
+    // Type guard to ensure buttonId is a valid TabType
+    if (buttonId === 'summary' || buttonId === 'settings' || buttonId === 'my') {
+      onTabChange(buttonId);
     }
   };
 
   return (
     <div className={getClassName('footer')}>
-      <IconTabGroup
-        tabs={tabs}
-        activeTabId={activeTab}
-        onTabChange={handleTabChange}
+      <ButtonGroup
+        buttons={buttons}
+        activeButtonId={activeTab}
+        onButtonChange={handleButtonChange}
         useShadowDom={useShadowDom}
-        iconSize={24}
+        iconSize={20}
+        strokeWidth={2.5}
+        gap={12}
       />
     </div>
   );

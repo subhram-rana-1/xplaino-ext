@@ -12,7 +12,7 @@
   --panel-transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
   --panel-min-width: 300px !important;
   --panel-max-width: 800px !important;
-  --panel-default-width: 400px !important;
+  --panel-default-width: 560px !important;
 }
 
 /* Side Panel Container */
@@ -88,10 +88,9 @@
   flex: 1 !important;
   overflow-y: auto !important;
   overflow-x: hidden !important;
-  padding: 0 !important;
+  padding: 10px 15px !important;
   position: relative !important;
-  border-top: 1px solid var(--panel-primary-light) !important;
-  border-bottom: 1px solid var(--panel-primary-light) !important;
+  border-top: 2px solid var(--panel-primary-light) !important;
 }
 
 /* Footer */

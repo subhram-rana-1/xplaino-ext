@@ -95,14 +95,16 @@ const Toggle: React.FC<{
         domain ? ChromeStorage.getDomainStatus(domain) : null,
       ]);
 
-      if (lang) setLanguage(lang);
+      if (lang) {
+        setLanguage(lang);
+      }
       if (transView) setTranslationView(transView);
       if (gTheme) setGlobalTheme(gTheme);
       if (dTheme) setDomainTheme(dTheme);
       setGlobalDisabled(gDisabled);
       if (dStatus) setDomainStatus(dStatus);
     } catch (error) {
-      console.error('Error loading settings:', error);
+      console.error('[SettingsView] Error loading settings:', error);
     } finally {
       setLoading(false);
     }
@@ -110,7 +112,11 @@ const Toggle: React.FC<{
 
   const handleLanguageChange = async (value: string) => {
     setLanguage(value);
-    await ChromeStorage.setUserSettingNativeLanguage(value);
+    try {
+      await ChromeStorage.setUserSettingNativeLanguage(value);
+    } catch (error) {
+      console.error('Error saving language to Chrome storage:', error);
+    }
   };
 
   const handleTranslationViewChange = async (view: 'append' | 'replace') => {

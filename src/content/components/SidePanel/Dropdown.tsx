@@ -43,24 +43,37 @@ export const Dropdown: React.FC<DropdownProps> = ({
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (
-        dropdownRef.current &&
-        !dropdownRef.current.contains(event.target as Node)
-      ) {
+      // More defensive check - ensure dropdown ref exists and event target is a Node
+      if (!dropdownRef.current || !event.target) {
+        return;
+      }
+      
+      const target = event.target as Node;
+      // Check if click is outside the dropdown container
+      if (!dropdownRef.current.contains(target)) {
         setIsOpen(false);
       }
     };
 
     if (isOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
+      // Use a small delay to ensure the menu is fully rendered and event handlers are attached
+      // Use click event in bubble phase so item handlers fire first
+      const timeoutId = setTimeout(() => {
+        document.addEventListener('click', handleClickOutside, false);
+      }, 10);
+      
+      return () => {
+        clearTimeout(timeoutId);
+        document.removeEventListener('click', handleClickOutside, false);
+      };
     }
 
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
+    return undefined;
   }, [isOpen]);
 
-  const handleSelect = (optionValue: string) => {
+  const handleSelect = (optionValue: string, event: React.MouseEvent) => {
+    event.stopPropagation();
+    event.preventDefault();
     onChange?.(optionValue);
     setIsOpen(false);
   };
@@ -71,7 +84,13 @@ export const Dropdown: React.FC<DropdownProps> = ({
       <div className={getClassName('dropdown')} ref={dropdownRef}>
         <button
           className={`${getClassName('dropdownButton')} ${isOpen ? getClassName('open') : ''}`}
-          onClick={() => setIsOpen(!isOpen)}
+          onMouseDown={(e) => {
+            e.stopPropagation();
+          }}
+          onClick={(e) => {
+            e.stopPropagation();
+            setIsOpen(!isOpen);
+          }}
           type="button"
         >
           <span className={getClassName('dropdownValue')}>
@@ -92,17 +111,28 @@ export const Dropdown: React.FC<DropdownProps> = ({
         </button>
         {isOpen && (
           <div className={getClassName('dropdownMenu')}>
-            {options.map((option) => (
-              <div
-                key={option.value}
-                className={`${getClassName('dropdownItem')} ${
-                  value === option.value ? getClassName('selected') : ''
-                }`}
-                onClick={() => handleSelect(option.value)}
-              >
-                {option.label}
-              </div>
-            ))}
+            {options.map((option) => {
+              const isSelected = value === option.value;
+              return (
+                <div
+                  key={option.value}
+                  className={`${getClassName('dropdownItem')} ${
+                    isSelected ? getClassName('selected') : ''
+                  }`}
+                  onMouseDown={(e) => {
+                    e.stopPropagation();
+                    handleSelect(option.value, e);
+                  }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                  }}
+                  style={{ cursor: 'pointer' }}
+                >
+                  {option.label}
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
