@@ -1,6 +1,6 @@
 // src/content/components/SidePanel/SummaryView.tsx
 import React, { useRef, useEffect, useState, useCallback } from 'react';
-import { Mic, ArrowUp, Trash2, Plus, Square } from 'lucide-react';
+import { ArrowUp, Trash2, Plus, Square } from 'lucide-react';
 import { useAtom } from 'jotai';
 import ReactMarkdown from 'react-markdown';
 import styles from './SummaryView.module.css';
@@ -8,6 +8,7 @@ import { SummariseService } from '@/api-services/SummariseService';
 import { AskService, ChatMessage } from '@/api-services/AskService';
 import { extractAndStorePageContent, getStoredPageContent } from '@/content/utils/pageContentExtractor';
 import { OnHoverMessage } from '../OnHoverMessage/OnHoverMessage';
+import { LoadingDots } from './LoadingDots';
 import {
   pageReadingStateAtom,
   summariseStateAtom,
@@ -16,10 +17,11 @@ import {
   streamingTextAtom,
   askStreamingTextAtom,
   chatMessagesAtom,
-  suggestedQuestionsAtom,
+  messageQuestionsAtom,
   summaryErrorAtom,
   hasContentAtom,
 } from '@/store/summaryAtoms';
+import { findMatchingElement } from '@/content/utils/referenceMatcher';
 
 export interface SummaryViewProps {
   /** Whether to use Shadow DOM styling */
@@ -46,22 +48,38 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
   const [streamingText, setStreamingText] = useAtom(streamingTextAtom);
   const [askStreamingText, setAskStreamingText] = useAtom(askStreamingTextAtom);
   const [chatMessages, setChatMessages] = useAtom(chatMessagesAtom);
-  const [suggestedQuestions, setSuggestedQuestions] = useAtom(suggestedQuestionsAtom);
+  const [messageQuestions, setMessageQuestions] = useAtom(messageQuestionsAtom);
   const [errorMessage, setErrorMessage] = useAtom(summaryErrorAtom);
   const [hasContent] = useAtom(hasContentAtom);
   
   const abortControllerRef = useRef<AbortController | null>(null);
+  
+  // Store reference link mappings: refText -> HTMLElement
+  const referenceMappingsRef = useRef<Map<string, HTMLElement>>(new Map());
+  
+  // Store currently highlighted element
+  const highlightedElementRef = useRef<HTMLElement | undefined>(undefined);
+  const highlightTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  
+  // Track currently active reference (for button highlighting)
+  const [activeRefText, setActiveRefText] = useState<string | null>(null);
+  
 
   // Animated dots state for "Reading page..."
   const [dotCount, setDotCount] = useState(1);
+  
+  // Animated dots state for loading animation before first chunk (summary)
+  const [summaryLoadingDotCount, setSummaryLoadingDotCount] = useState(1);
+  
+  // Animated dots state for loading animation before first chunk (ask)
+  const [askLoadingDotCount, setAskLoadingDotCount] = useState(1);
 
   // Hover state for tooltips
-  const [hoveredIcon, setHoveredIcon] = useState<'mic' | 'send' | 'delete' | null>(null);
+  const [hoveredIcon, setHoveredIcon] = useState<'send' | 'delete' | null>(null);
   const [showTooltip, setShowTooltip] = useState(false);
   const hoverTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   
   // Refs for tooltip positioning
-  const micButtonRef = useRef<HTMLButtonElement>(null);
   const sendButtonRef = useRef<HTMLButtonElement>(null);
   const deleteButtonRef = useRef<HTMLButtonElement>(null);
 
@@ -104,6 +122,29 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
     return () => clearInterval(interval);
   }, [pageReadingState]);
 
+  // Animate dots for summarising loading state (before first chunk)
+  useEffect(() => {
+    if (summariseState !== 'summarising' || streamingText.length > 0) return;
+
+    const interval = setInterval(() => {
+      setSummaryLoadingDotCount((prev) => (prev % 3) + 1);
+    }, 400);
+
+    return () => clearInterval(interval);
+  }, [summariseState, streamingText]);
+
+  // Animate dots for ask loading state (before first chunk)
+  useEffect(() => {
+    if (askingState !== 'asking' || askStreamingText.length > 0) return;
+
+    const interval = setInterval(() => {
+      setAskLoadingDotCount((prev) => (prev % 3) + 1);
+    }, 400);
+
+    return () => clearInterval(interval);
+  }, [askingState, askStreamingText]);
+
+
   // Extract page content on mount (only if not already done)
   useEffect(() => {
     if (pageReadingState !== 'reading') return;
@@ -142,19 +183,237 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
     }
   }, [summary, streamingText, askStreamingText, chatMessages]);
 
+  // Handle reference link click - scroll and highlight
+  const handleReferenceClick = useCallback((refText: string) => {
+    console.log('========================================');
+    console.log('[SummaryView] ===== REFERENCE LINK CLICKED =====');
+    console.log('[SummaryView] Reference text:', refText);
+    console.log('[SummaryView] Reference text length:', refText.length);
+    console.log('[SummaryView] Reference text trimmed:', refText.trim());
+    console.log('[SummaryView] Currently active ref:', activeRefText);
+    console.log('[SummaryView] Reference mappings size:', referenceMappingsRef.current.size);
+    console.log('[SummaryView] Reference mappings keys:', Array.from(referenceMappingsRef.current.keys()));
+    console.log('[SummaryView] Reference mappings entries:', Array.from(referenceMappingsRef.current.entries()).map(([key, el]) => ({
+      key,
+      keyLength: key.length,
+      tagName: el.tagName,
+      textSnippet: el.textContent?.substring(0, 50),
+    })));
+    
+    // Check if clicking the same ref (toggle off)
+    if (activeRefText === refText && highlightedElementRef.current) {
+      console.log('[SummaryView] Toggling off - same ref clicked');
+      // Clear highlight
+      highlightedElementRef.current.style.backgroundColor = '';
+      highlightedElementRef.current.style.borderRadius = '';
+      highlightedElementRef.current.style.transition = '';
+      highlightedElementRef.current = undefined;
+      setActiveRefText(null);
+      if (highlightTimeoutRef.current) {
+        clearTimeout(highlightTimeoutRef.current);
+        highlightTimeoutRef.current = null;
+      }
+      console.log('========================================');
+      return;
+    }
+    
+    // Clear previous highlight (different ref clicked)
+    if (highlightedElementRef.current) {
+      console.log('[SummaryView] Step 1: Clearing previous highlight on element:', highlightedElementRef.current.tagName);
+      highlightedElementRef.current.style.backgroundColor = '';
+      highlightedElementRef.current.style.borderRadius = '';
+      highlightedElementRef.current.style.transition = '';
+      highlightedElementRef.current = undefined;
+    } else {
+      console.log('[SummaryView] Step 1: No previous highlight to clear');
+    }
+    if (highlightTimeoutRef.current) {
+      clearTimeout(highlightTimeoutRef.current);
+      highlightTimeoutRef.current = null;
+      console.log('[SummaryView] Step 1: Cleared previous timeout');
+    }
+
+    // Find or get stored element
+    console.log('[SummaryView] Step 2: Looking up element in storage...');
+    let element = referenceMappingsRef.current.get(refText);
+    console.log('[SummaryView] Step 2 result - Element from storage:', element ? 'FOUND' : 'NOT FOUND');
+    if (element) {
+      console.log('[SummaryView] Element details from storage:', {
+        tagName: element.tagName,
+        id: element.id,
+        className: element.className,
+        textContentSnippet: element.textContent?.substring(0, 100),
+        isConnected: element.isConnected,
+        offsetParent: element.offsetParent !== null,
+        boundingRect: element.getBoundingClientRect(),
+      });
+    }
+    
+    if (!element) {
+      console.log('[SummaryView] Step 3: Element not in storage, searching for match...');
+      console.log('[SummaryView] Calling findMatchingElement with:', refText);
+      // Try to find it now
+      const foundElement = findMatchingElement(refText);
+      console.log('[SummaryView] Step 3 result - Search result:', foundElement ? 'FOUND' : 'NOT FOUND');
+      if (foundElement) {
+        console.log('[SummaryView] Found element details:', {
+          tagName: foundElement.tagName,
+          id: foundElement.id,
+          className: foundElement.className,
+          textContentSnippet: foundElement.textContent?.substring(0, 100),
+          isConnected: foundElement.isConnected,
+          offsetParent: foundElement.offsetParent !== null,
+          boundingRect: foundElement.getBoundingClientRect(),
+        });
+        referenceMappingsRef.current.set(refText, foundElement);
+        element = foundElement;
+        console.log('[SummaryView] Element stored in mappings');
+      } else {
+        console.warn('[SummaryView] findMatchingElement returned null/undefined');
+      }
+    }
+
+    if (element) {
+      console.log('[SummaryView] Step 4: Element found, proceeding with scroll and highlight');
+      console.log('[SummaryView] Element final details:', {
+        tagName: element.tagName,
+        id: element.id,
+        className: element.className,
+        textContentSnippet: element.textContent?.substring(0, 100),
+        isConnected: element.isConnected,
+        offsetParent: element.offsetParent !== null,
+        boundingRect: element.getBoundingClientRect(),
+        scrollTop: window.scrollY,
+        scrollLeft: window.scrollX,
+      });
+      
+      // Scroll to element
+      console.log('[SummaryView] Step 5: Calling scrollIntoView...');
+      try {
+        // Get element position before scroll
+        const rectBefore = element.getBoundingClientRect();
+        console.log('[SummaryView] Element position before scroll:', {
+          top: rectBefore.top,
+          left: rectBefore.left,
+          windowScrollY: window.scrollY,
+          windowScrollX: window.scrollX,
+        });
+        
+        // Scroll to element
+        element.scrollIntoView({ 
+          behavior: 'smooth', 
+          block: 'center',
+          inline: 'nearest'
+        });
+        
+        console.log('[SummaryView] Step 5: scrollIntoView called successfully');
+        
+        // Wait a bit and check if scroll happened
+        setTimeout(() => {
+          const rectAfter = element.getBoundingClientRect();
+          console.log('[SummaryView] After scroll - window.scrollY:', window.scrollY, 'element.getBoundingClientRect():', rectAfter);
+          console.log('[SummaryView] Scroll difference:', {
+            scrollY: window.scrollY - (rectBefore.top + window.scrollY - rectAfter.top),
+            elementMoved: Math.abs(rectBefore.top - rectAfter.top),
+          });
+        }, 500);
+      } catch (error) {
+        console.error('[SummaryView] Step 5: Error calling scrollIntoView:', error);
+        // Fallback: try manual scroll calculation
+        try {
+          const rect = element.getBoundingClientRect();
+          const scrollY = window.scrollY + rect.top - window.innerHeight / 2;
+          window.scrollTo({ top: scrollY, behavior: 'smooth' });
+          console.log('[SummaryView] Fallback scroll executed');
+        } catch (fallbackError) {
+          console.error('[SummaryView] Fallback scroll also failed:', fallbackError);
+        }
+      }
+
+      // Highlight element
+      console.log('[SummaryView] Step 6: Applying highlight styles...');
+      try {
+        const originalStyles = {
+          backgroundColor: element.style.backgroundColor,
+          borderRadius: element.style.borderRadius,
+        };
+        console.log('[SummaryView] Original element styles:', originalStyles);
+        
+        element.style.backgroundColor = 'rgba(144, 238, 144, 0.3)';
+        element.style.borderRadius = '20px';
+        element.style.transition = 'background-color 0.3s ease, border-radius 0.3s ease';
+        // Don't add padding or negative margin to avoid layout shifts
+        
+        console.log('[SummaryView] Step 6: Highlight styles applied');
+        console.log('[SummaryView] Element computed styles after highlight:', {
+          backgroundColor: window.getComputedStyle(element).backgroundColor,
+          borderRadius: window.getComputedStyle(element).borderRadius,
+        });
+        
+        highlightedElementRef.current = element;
+        setActiveRefText(refText);
+        console.log('[SummaryView] Step 6: Highlight reference stored, will persist until toggled or another ref clicked');
+      } catch (error) {
+        console.error('[SummaryView] Step 6: Error applying highlight:', error);
+      }
+    } else {
+      console.error('[SummaryView] ===== ELEMENT NOT FOUND =====');
+      console.error('[SummaryView] Could not find element for reference:', refText);
+      console.error('[SummaryView] Available mappings:', Array.from(referenceMappingsRef.current.entries()).map(([key, el]) => ({
+        key,
+        keyLength: key.length,
+        keyMatches: key === refText,
+        keyTrimmedMatches: key.trim() === refText.trim(),
+        tagName: el.tagName,
+        textSnippet: el.textContent?.substring(0, 50),
+      })));
+      console.error('[SummaryView] ===== END ERROR =====');
+    }
+    console.log('========================================');
+  }, [activeRefText]);
+
   // Parse summary text and replace reference links with numbered buttons
-  const parseReferences = (text: string): { parsedText: string; references: string[] } => {
+  // Also stores reference mappings for later use
+  const parseReferences = useCallback((text: string): { parsedText: string; references: string[] } => {
     const references: string[] = [];
     let refIndex = 0;
 
-    const parsedText = text.replace(REF_LINK_PATTERN, (_, refText) => {
+    // Replace reference patterns with a unique placeholder that won't break markdown parsing
+    // Using a code-like syntax that ReactMarkdown will render inline
+    const parsedText = text.replace(REF_LINK_PATTERN, (_match, refText) => {
       refIndex++;
-      references.push(refText.trim());
-      return `{{REF_${refIndex}}}`;
+      const trimmedRefText = refText.trim();
+      references.push(trimmedRefText);
+      
+      console.log(`[SummaryView] Parsing reference ${refIndex}:`, trimmedRefText);
+      
+      // Find and store matching element
+      console.log(`[SummaryView] Searching for element matching: "${trimmedRefText}"`);
+      const element = findMatchingElement(trimmedRefText);
+      if (element) {
+        console.log(`[SummaryView] Found matching element for ref ${refIndex}:`, {
+          tagName: element.tagName,
+          id: element.id,
+          className: element.className,
+          textContentSnippet: element.textContent?.substring(0, 100),
+          isConnected: element.isConnected,
+          offsetParent: element.offsetParent !== null,
+        });
+        referenceMappingsRef.current.set(trimmedRefText, element as HTMLElement);
+        console.log(`[SummaryView] Stored reference mapping: "${trimmedRefText}" -> element`);
+      } else {
+        console.warn(`[SummaryView] No matching element found for reference ${refIndex}: "${trimmedRefText}"`);
+      }
+      
+      // Use a unique placeholder that looks like inline code to ReactMarkdown
+      return `\`REF_${refIndex}_PLACEHOLDER\``;
     });
+    
+    console.log(`[SummaryView] parseReferences completed. Found ${references.length} references.`);
+    console.log(`[SummaryView] Reference mappings stored:`, Array.from(referenceMappingsRef.current.keys()));
 
     return { parsedText, references };
-  };
+  }, []);
 
   // Render summary with markdown and reference links
   const renderSummaryContent = (text: string) => {
@@ -174,58 +433,71 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
             li: ({ children }) => <li className={getClassName('markdownLi')}>{children}</li>,
             strong: ({ children }) => <strong className={getClassName('markdownStrong')}>{children}</strong>,
             em: ({ children }) => <em className={getClassName('markdownEm')}>{children}</em>,
-            code: ({ children }) => <code className={getClassName('markdownCode')}>{children}</code>,
+            code: ({ children }) => {
+              // Check if this is a reference placeholder
+              const codeText = String(children);
+              const refMatch = codeText.match(/^REF_(\d+)_PLACEHOLDER$/);
+              if (refMatch) {
+                const refNum = parseInt(refMatch[1], 10);
+                const refText = references[refNum - 1];
+                const isActive = activeRefText === refText;
+                return (
+                  <button
+                    className={`${getClassName('refButton')} ${isActive ? getClassName('refButtonActive') : ''}`}
+                    title={refText}
+                    onClick={() => handleReferenceClick(refText)}
+                  >
+                    {refNum}
+                  </button>
+                );
+              }
+              // Regular code element
+              return <code className={getClassName('markdownCode')}>{children}</code>;
+            },
           }}
         >
-          {text}
+          {parsedText}
         </ReactMarkdown>
       );
     }
 
-    // Handle references by splitting text and rendering each part
-    const parts = parsedText.split(/({{REF_\d+}})/g);
-    
+    // If there are references, render with custom code component handler
     return (
-      <>
-        {parts.map((part, index) => {
-          const match = part.match(/{{REF_(\d+)}}/);
-          if (match) {
-            const refNum = parseInt(match[1], 10);
-            const refText = references[refNum - 1];
-            return (
-              <button
-                key={index}
-                className={getClassName('refButton')}
-                title={refText}
-                onClick={() => {
-                  console.log('Reference clicked:', refText);
-                }}
-              >
-                {refNum}
-              </button>
-            );
-          }
-          return (
-            <ReactMarkdown
-              key={index}
-              components={{
-                h1: ({ children }) => <h1 className={getClassName('markdownH1')}>{children}</h1>,
-                h2: ({ children }) => <h2 className={getClassName('markdownH2')}>{children}</h2>,
-                h3: ({ children }) => <h3 className={getClassName('markdownH3')}>{children}</h3>,
-                p: ({ children }) => <p className={getClassName('markdownP')}>{children}</p>,
-                ul: ({ children }) => <ul className={getClassName('markdownUl')}>{children}</ul>,
-                ol: ({ children }) => <ol className={getClassName('markdownOl')}>{children}</ol>,
-                li: ({ children }) => <li className={getClassName('markdownLi')}>{children}</li>,
-                strong: ({ children }) => <strong className={getClassName('markdownStrong')}>{children}</strong>,
-                em: ({ children }) => <em className={getClassName('markdownEm')}>{children}</em>,
-                code: ({ children }) => <code className={getClassName('markdownCode')}>{children}</code>,
-              }}
-            >
-              {part}
-            </ReactMarkdown>
-          );
-        })}
-      </>
+      <ReactMarkdown
+        components={{
+          h1: ({ children }) => <h1 className={getClassName('markdownH1')}>{children}</h1>,
+          h2: ({ children }) => <h2 className={getClassName('markdownH2')}>{children}</h2>,
+          h3: ({ children }) => <h3 className={getClassName('markdownH3')}>{children}</h3>,
+          p: ({ children }) => <p className={getClassName('markdownP')}>{children}</p>,
+          ul: ({ children }) => <ul className={getClassName('markdownUl')}>{children}</ul>,
+          ol: ({ children }) => <ol className={getClassName('markdownOl')}>{children}</ol>,
+          li: ({ children }) => <li className={getClassName('markdownLi')}>{children}</li>,
+          strong: ({ children }) => <strong className={getClassName('markdownStrong')}>{children}</strong>,
+          em: ({ children }) => <em className={getClassName('markdownEm')}>{children}</em>,
+          code: ({ children }) => {
+            // Check if this is a reference placeholder
+            const codeText = String(children);
+            const refMatch = codeText.match(/^REF_(\d+)_PLACEHOLDER$/);
+            if (refMatch) {
+              const refNum = parseInt(refMatch[1], 10);
+              const refText = references[refNum - 1];
+              return (
+                <button
+                  className={getClassName('refButton')}
+                  title={refText}
+                  onClick={() => handleReferenceClick(refText)}
+                >
+                  {refNum}
+                </button>
+              );
+            }
+            // Regular code element
+            return <code className={getClassName('markdownCode')}>{children}</code>;
+          },
+        }}
+      >
+        {parsedText}
+      </ReactMarkdown>
     );
   };
 
@@ -235,23 +507,28 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
     // If already summarising, stop the request
     if (summariseState === 'summarising') {
       abortControllerRef.current?.abort();
-      setSummariseState('idle');
+      // Save accumulated text to summary before clearing
+      if (streamingText) {
+        setSummary(streamingText);
+        setSummariseState('done');
+      } else {
+        setSummariseState('idle');
+      }
       setStreamingText('');
       return;
     }
 
-    // If done, clear the summary
-    if (summariseState === 'done') {
-      setSummary('');
-      setSuggestedQuestions([]);
-      setSummariseState('idle');
-      return;
-    }
+    // If done, allow re-summarizing (will overwrite existing summary)
+    // No need to clear - just start a new summarisation
 
     setSummariseState('summarising');
     setStreamingText('');
     setSummary('');
-    setSuggestedQuestions([]);
+    // Clear summary questions (keep chat message questions)
+    setMessageQuestions((prev) => {
+      const { [-1]: _, ...rest } = prev;
+      return rest;
+    });
     setErrorMessage('');
 
     // Create abort controller for this request
@@ -275,9 +552,17 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
             setStreamingText(accumulated);
           },
           onComplete: (finalSummary, questions) => {
+            // Log the complete API response for debugging
+            console.log('[SummaryView] Complete API response:', finalSummary);
             setSummary(finalSummary);
             setStreamingText('');
-            setSuggestedQuestions(questions);
+            // Store questions for summary (use -1 as key for summary)
+            if (questions.length > 0) {
+              setMessageQuestions((prev) => ({
+                ...prev,
+                [-1]: questions,
+              }));
+            }
             setSummariseState('done');
           },
           onError: (errorCode, errorMsg) => {
@@ -307,7 +592,8 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
       content: question.trim(),
     };
 
-    setChatMessages((prev) => [...prev, userMessage]);
+    // Don't add userMessage here - API response will include it
+    // This prevents duplicate messages
     setInputValue('');
     setAskingState('asking');
     setAskStreamingText('');
@@ -330,8 +616,24 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
             setAskStreamingText(accumulated);
           },
           onComplete: (updatedChatHistory, questions) => {
+            // Log the complete API response for debugging
+            const lastMessage = updatedChatHistory[updatedChatHistory.length - 1];
+            if (lastMessage && lastMessage.role === 'assistant') {
+              console.log('[SummaryView] Complete Ask API response:', lastMessage.content);
+            }
             setChatMessages(updatedChatHistory);
-            setSuggestedQuestions(questions);
+            // Store questions for the last assistant message (by index)
+            if (questions.length > 0) {
+              const assistantMessageIndex = updatedChatHistory.findIndex(
+                (msg, idx) => msg.role === 'assistant' && idx === updatedChatHistory.length - 1
+              );
+              if (assistantMessageIndex >= 0) {
+                setMessageQuestions((prev) => ({
+                  ...prev,
+                  [assistantMessageIndex]: questions,
+                }));
+              }
+            }
             setAskStreamingText('');
             setAskingState('idle');
           },
@@ -369,20 +671,30 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
     }
   };
 
-  const handleVoiceRecord = () => {
-    // TODO: Implement voice recording
-    console.log('Voice recording not yet implemented');
-  };
 
   const handleClearChat = () => {
     setChatMessages([]);
     setSummary('');
     setStreamingText('');
     setAskStreamingText('');
-    setSuggestedQuestions([]);
+    setMessageQuestions({});
     setSummariseState('idle');
     setAskingState('idle');
     setErrorMessage('');
+    // Clear reference mappings
+    referenceMappingsRef.current.clear();
+    // Clear active ref and highlight
+    if (highlightedElementRef.current) {
+      highlightedElementRef.current.style.backgroundColor = '';
+      highlightedElementRef.current.style.borderRadius = '';
+      highlightedElementRef.current.style.transition = '';
+      highlightedElementRef.current = undefined;
+    }
+    setActiveRefText(null);
+    if (highlightTimeoutRef.current) {
+      clearTimeout(highlightTimeoutRef.current);
+      highlightTimeoutRef.current = null;
+    }
   };
 
   const handleQuestionClick = (question: string) => {
@@ -399,8 +711,9 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
     if (summariseState === 'summarising') {
       return { text: 'Stop', icon: <Square size={14} /> };
     }
+    // When done, show "Summarise page" to allow re-summarizing
     if (summariseState === 'done') {
-      return { text: 'Clear summary', icon: null };
+      return { text: 'Summarise page', icon: null };
     }
     return { text: 'Summarise page', icon: null };
   };
@@ -411,8 +724,6 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
   // Get tooltip message based on hovered icon
   const getTooltipMessage = () => {
     switch (hoveredIcon) {
-      case 'mic':
-        return 'Voice input';
       case 'send':
         return 'Ask question';
       case 'delete':
@@ -424,8 +735,6 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
 
   const getTooltipRef = () => {
     switch (hoveredIcon) {
-      case 'mic':
-        return micButtonRef;
       case 'send':
         return sendButtonRef;
       case 'delete':
@@ -439,6 +748,16 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
     <div className={getClassName('summaryView')}>
       {/* Scrollable Content Area */}
       <div className={getClassName('chatContainer')} ref={chatContainerRef}>
+        {/* 3-Dot Loading Animation - Show when summarising and no chunks received yet */}
+        {summariseState === 'summarising' && streamingText.length === 0 && (
+          <LoadingDots dotCount={summaryLoadingDotCount} getClassName={getClassName} />
+        )}
+
+        {/* 3-Dot Loading Animation - Show when asking and no chunks received yet */}
+        {askingState === 'asking' && askStreamingText.length === 0 && (
+          <LoadingDots dotCount={askLoadingDotCount} getClassName={getClassName} />
+        )}
+
         {/* Summary Content with Header */}
         {(summary || streamingText) && (
           <div className={getClassName('summaryContent')}>
@@ -452,10 +771,10 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
           </div>
         )}
 
-        {/* Suggested Questions */}
-        {suggestedQuestions.length > 0 && (
+        {/* Suggested Questions for Summary */}
+        {messageQuestions[-1] && messageQuestions[-1].length > 0 && (
           <div className={getClassName('suggestedQuestions')}>
-            {suggestedQuestions.map((question, index) => (
+            {messageQuestions[-1].map((question, index) => (
               <button
                 key={index}
                 className={getClassName('questionItem')}
@@ -472,42 +791,37 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
         {chatMessages.length > 0 && (
           <div className={getClassName('messages')}>
             {chatMessages.map((message, index) => (
-              <div
-                key={index}
-                className={`${getClassName('message')} ${getClassName(message.role === 'user' ? 'userMessage' : 'assistantMessage')}`}
-              >
-                {message.role === 'assistant' ? (
-                  <ReactMarkdown
-                    components={{
-                      h1: ({ children }) => <h1 className={getClassName('markdownH1')}>{children}</h1>,
-                      h2: ({ children }) => <h2 className={getClassName('markdownH2')}>{children}</h2>,
-                      h3: ({ children }) => <h3 className={getClassName('markdownH3')}>{children}</h3>,
-                      p: ({ children }) => <p className={getClassName('markdownP')}>{children}</p>,
-                      ul: ({ children }) => <ul className={getClassName('markdownUl')}>{children}</ul>,
-                      ol: ({ children }) => <ol className={getClassName('markdownOl')}>{children}</ol>,
-                      li: ({ children }) => <li className={getClassName('markdownLi')}>{children}</li>,
-                      strong: ({ children }) => <strong className={getClassName('markdownStrong')}>{children}</strong>,
-                      em: ({ children }) => <em className={getClassName('markdownEm')}>{children}</em>,
-                      code: ({ children }) => <code className={getClassName('markdownCode')}>{children}</code>,
-                    }}
-                  >
-                    {message.content}
-                  </ReactMarkdown>
-                ) : (
-                  message.content
+              <React.Fragment key={index}>
+                <div
+                  className={`${getClassName('message')} ${getClassName(message.role === 'user' ? 'userMessage' : 'assistantMessage')}`}
+                >
+                  {message.role === 'assistant' ? (
+                    renderSummaryContent(message.content)
+                  ) : (
+                    message.content
+                  )}
+                </div>
+                {/* Show questions for this assistant message */}
+                {message.role === 'assistant' && messageQuestions[index] && messageQuestions[index].length > 0 && (
+                  <div className={getClassName('suggestedQuestions')}>
+                    {messageQuestions[index].map((question, qIndex) => (
+                      <button
+                        key={qIndex}
+                        className={getClassName('questionItem')}
+                        onClick={() => handleQuestionClick(question)}
+                      >
+                        <Plus size={14} className={getClassName('questionIcon')} />
+                        <span className={getClassName('questionText')}>{question}</span>
+                      </button>
+                    ))}
+                  </div>
                 )}
-              </div>
+              </React.Fragment>
             ))}
             {/* Show streaming assistant response */}
             {askStreamingText && (
               <div className={`${getClassName('message')} ${getClassName('assistantMessage')}`}>
-                <ReactMarkdown
-                  components={{
-                    p: ({ children }) => <p className={getClassName('markdownP')}>{children}</p>,
-                  }}
-                >
-                  {askStreamingText}
-                </ReactMarkdown>
+                {renderSummaryContent(askStreamingText)}
                 <span className={getClassName('cursor')}>|</span>
               </div>
             )}
@@ -517,9 +831,11 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
         {/* Empty State */}
         {!summary && !streamingText && chatMessages.length === 0 && summariseState === 'idle' && (
           <div className={getClassName('emptyState')}>
-            <p>Click "Summarise page" to get started</p>
-            <p>or</p>
-            <p>Ask AI anything about the page</p>
+            <p>
+              Click "Summarise page" to get started<br />
+              or<br />
+              Ask AI anything about the page
+            </p>
           </div>
         )}
 
@@ -531,17 +847,19 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
         )}
       </div>
 
-      {/* Summarise Button Row */}
-      <div className={getClassName('summariseButtonRow')}>
-        <button
-          className={`${getClassName('summariseButton')} ${summariseState === 'summarising' ? getClassName('stopButton') : ''}`}
-          onClick={handleSummarise}
-          disabled={isButtonDisabled}
-        >
-          {buttonIcon}
-          {buttonText}
-        </button>
-      </div>
+      {/* Summarise Button Row - Only show when summary is not done */}
+      {summariseState !== 'done' && (
+        <div className={getClassName('summariseButtonRow')}>
+          <button
+            className={`${getClassName('summariseButton')} ${summariseState === 'summarising' ? getClassName('stopButton') : ''}`}
+            onClick={handleSummarise}
+            disabled={isButtonDisabled}
+          >
+            {buttonIcon}
+            {buttonText}
+          </button>
+        </div>
+      )}
 
       {/* User Input Bar */}
       <div className={getClassName('inputBar')}>
@@ -555,17 +873,6 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
             onKeyPress={handleKeyPress}
             disabled={askingState === 'asking'}
           />
-          <button
-            ref={micButtonRef}
-            className={getClassName('micButton')}
-            onClick={handleVoiceRecord}
-            onMouseEnter={() => setHoveredIcon('mic')}
-            onMouseLeave={() => setHoveredIcon(null)}
-            aria-label="Voice input"
-            type="button"
-          >
-            <Mic size={16} />
-          </button>
         </div>
         
         {/* Send Button */}

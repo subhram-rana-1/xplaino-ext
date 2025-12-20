@@ -1,0 +1,13 @@
+/* src/content/components/SidePanel/LoadingDots.module.css */
+/* ALL properties use !important for style isolation */
+
+.loadingDots {
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+  padding: 16px 0 !important;
+  font-size: 24px !important;
+  color: var(--color-primary, #9527F5) !important;
+  font-weight: 600 !important;
+}
+

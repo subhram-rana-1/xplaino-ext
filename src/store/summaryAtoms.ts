@@ -41,7 +41,10 @@ export const possibleQuestionsAtom = atom<ChatMessage[]>([]);
 /** Chat messages */
 export const chatMessagesAtom = atom<ChatMessage[]>([]);
 
-/** Suggested questions from API */
+/** Suggested questions from API - stored per message index */
+export const messageQuestionsAtom = atom<Record<number, string[]>>({});
+
+/** Legacy atom for backward compatibility - will be removed */
 export const suggestedQuestionsAtom = atom<string[]>([]);
 
 /** Error message */
