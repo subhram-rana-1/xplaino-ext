@@ -1,30 +1,35 @@
 /* src/content/components/SidePanel/Header.module.css */
 /* ALL properties use !important for style isolation */
+/* CSS Variables - values from src/constants/colors.ts */
 
 .header {
+  /* CSS Variables defined on component */
+  --color-primary: #9527F5 !important;
+  --color-primary-light: #BF7EFA !important;
+  --color-primary-medium: #8607f5 !important;
+  --color-white: #FFFFFF !important;
+  --color-gray-600: #718096 !important;
+  --color-primary-hover-bg: rgba(149, 39, 245, 0.1) !important;
+  
   display: flex !important;
   align-items: center !important;
   justify-content: space-between !important;
-  padding: 16px 24px !important;
-  background: #FFFFFF !important;
-  border-bottom: 1px solid #BF7EFA !important;
-  height: 60px !important;
+  padding: 8px 12px !important;
+  background: var(--color-white) !important;
+  height: 48px !important;
+  flex-shrink: 0 !important;
+  box-sizing: border-box !important;
+}
+
+/* Left Section: Action Icons */
+.headerLeft {
+  display: flex !important;
+  align-items: center !important;
+  gap: 4px !important;
   flex-shrink: 0 !important;
 }
 
-.brandImage {
-  max-width: 150px !important;
-  height: auto !important;
-  object-fit: contain !important;
-  cursor: pointer !important;
-  transition: transform 0.2s ease !important;
-}
-
-.brandImage:hover {
-  transform: scale(1.05) !important;
-}
-
-.closeButton {
+.headerIconButton {
   width: 32px !important;
   height: 32px !important;
   border: none !important;
@@ -33,18 +38,81 @@
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
-  border-radius: 6px !important;
-  transition: background 0.2s ease !important;
-  color: #718096 !important;
+  border-radius: 10px !important;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
   padding: 0 !important;
+  outline: none !important;
 }
 
-.closeButton:hover {
-  background: #F7FAFC !important;
-  color: #9527F5 !important;
+.headerIconButton:hover {
+  background: var(--color-primary-hover-bg) !important;
 }
 
-.closeButton svg {
-  width: 20px !important;
-  height: 20px !important;
+.headerIconButton:active {
+  transform: scale(0.95) !important;
+}
+
+.headerIconButton svg {
+  width: 18px !important;
+  height: 18px !important;
+  color: var(--color-primary-light) !important;
+  stroke: var(--color-primary-light) !important;
+  stroke-width: 2.5 !important;
+  fill: none !important;
+  pointer-events: none !important;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.headerIconButton:hover svg {
+  color: var(--color-primary) !important;
+  stroke: var(--color-primary) !important;
+}
+
+/* Center Section: Branding */
+.headerCenter {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  flex: 1 !important;
+}
+
+.headerBrand {
+  height: 24px !important;
+  width: auto !important;
+  max-width: 100px !important;
+  object-fit: contain !important;
+  cursor: pointer !important;
+  transition: transform 0.2s ease !important;
+}
+
+.headerBrand:hover {
+  transform: scale(1.05) !important;
+}
+
+/* Right Section: Login */
+.headerRight {
+  display: flex !important;
+  align-items: center !important;
+  flex-shrink: 0 !important;
+}
+
+.loginButton {
+  padding: 6px 14px !important;
+  border: none !important;
+  background: var(--color-primary-hover-bg) !important;
+  color: var(--color-primary) !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  cursor: pointer !important;
+  border-radius: 6px !important;
+  transition: all 0.2s ease !important;
+}
+
+.loginButton:hover {
+  background: var(--color-primary-medium) !important;
+  color: var(--color-white) !important;
+}
+
+.loginButton:active {
+  transform: scale(0.95) !important;
 }

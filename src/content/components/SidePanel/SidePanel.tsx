@@ -1,6 +1,8 @@
 // src/content/components/SidePanel/SidePanel.tsx
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import styles from './SidePanel.module.css';
+import { Header } from './Header';
+import { Footer } from './Footer';
 
 export interface SidePanelProps {
   /** Whether panel is open */
@@ -25,6 +27,8 @@ export const SidePanel: React.FC<SidePanelProps> = ({
   const [activeTab, setActiveTab] = useState<TabType>('summary');
   const [width, setWidth] = useState(DEFAULT_WIDTH);
   const [isResizing, setIsResizing] = useState(false);
+  const [isVerticallyExpanded, setIsVerticallyExpanded] = useState(false);
+  const [isSlidingOut, setIsSlidingOut] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
   const startXRef = useRef<number>(0);
   const startWidthRef = useRef<number>(DEFAULT_WIDTH);
@@ -81,36 +85,33 @@ export const SidePanel: React.FC<SidePanelProps> = ({
     };
   }, [isResizing]);
 
-  // Reset tab when panel closes
+  // Reset tab and states when panel closes
   useEffect(() => {
     if (!isOpen) {
       setActiveTab('summary');
+      setIsVerticallyExpanded(false);
+      setIsSlidingOut(false);
     }
   }, [isOpen]);
 
-  const handleClose = useCallback(() => {
-    onClose?.();
+  const handleSlideOut = useCallback(() => {
+    setIsSlidingOut(true);
+    setTimeout(() => {
+      onClose?.();
+    }, 300); // Match transition duration
   }, [onClose]);
 
-  if (!isOpen) {
-    return null;
-  }
+  const handleVerticalExpand = useCallback(() => {
+    setIsVerticallyExpanded((prev) => !prev);
+  }, []);
 
   // Class names for Shadow DOM vs CSS Modules
   const sidePanelClass = getClassName(
-    `sidePanel ${isOpen ? 'open' : ''}`,
-    `${styles.sidePanel} ${isOpen ? styles.open : ''}`
+    `sidePanel ${isOpen ? 'open' : ''} ${isSlidingOut ? 'slidingOut' : ''} ${isVerticallyExpanded ? 'verticallyExpanded' : ''}`,
+    `${styles.sidePanel} ${isOpen ? styles.open : ''} ${isSlidingOut ? styles.slidingOut : ''} ${isVerticallyExpanded ? styles.verticallyExpanded : ''}`
   );
-  const resizeHandlesClass = getClassName('resizeHandles', styles.resizeHandles);
-  const resizeHandleTopLeftClass = getClassName('resizeHandleTopLeft', styles.resizeHandleTopLeft);
-  const resizeHandleLeftClass = getClassName('resizeHandleLeft', styles.resizeHandleLeft);
-  const resizeHandleBottomLeftClass = getClassName('resizeHandleBottomLeft', styles.resizeHandleBottomLeft);
-  const headerClass = getClassName('header', styles.header);
-  const headerBrandClass = getClassName('headerBrand', styles.headerBrand);
-  const closeButtonClass = getClassName('closeButton', styles.closeButton);
+  const resizeHandleClass = getClassName('resizeHandle', styles.resizeHandle);
   const contentClass = getClassName('content', styles.content);
-  const footerClass = getClassName('footer', styles.footer);
-  const tabGroupClass = getClassName('tabGroup', styles.tabGroup);
 
   return (
     <div
@@ -118,82 +119,32 @@ export const SidePanel: React.FC<SidePanelProps> = ({
       className={sidePanelClass}
       style={{ width: `${width}px` }}
     >
-      {/* Resize Handles */}
-      <div className={resizeHandlesClass}>
-        <div
-          className={resizeHandleTopLeftClass}
-          onMouseDown={handleResizeStart}
-        />
-        <div
-          className={resizeHandleLeftClass}
-          onMouseDown={handleResizeStart}
-        />
-        <div
-          className={resizeHandleBottomLeftClass}
-          onMouseDown={handleResizeStart}
-        />
-      </div>
+      {/* Resize Handle */}
+      <div
+        className={resizeHandleClass}
+        onMouseDown={handleResizeStart}
+      />
 
       {/* Header */}
-      <div className={headerClass}>
-        <span className={headerBrandClass}>Xplaino</span>
-        <button
-          className={closeButtonClass}
-          onClick={handleClose}
-          aria-label="Close panel"
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <line x1="18" y1="6" x2="6" y2="18" />
-            <line x1="6" y1="6" x2="18" y2="18" />
-          </svg>
-        </button>
-      </div>
+      <Header
+        onSlideOut={handleSlideOut}
+        onVerticalExpand={handleVerticalExpand}
+        brandImageSrc={chrome.runtime.getURL('src/assets/photos/brand-name.png')}
+        useShadowDom={useShadowDom}
+        isExpanded={isVerticallyExpanded}
+      />
 
       {/* Content */}
       <div className={contentClass}>
-        Content for {activeTab} tab
+        {/* Content components empty for now */}
       </div>
 
       {/* Footer */}
-      <div className={footerClass}>
-        <div className={tabGroupClass}>
-          <button
-            className={getClassName(
-              `tab ${activeTab === 'summary' ? 'active' : ''}`,
-              `${styles.tab} ${activeTab === 'summary' ? styles.active : ''}`
-            )}
-            onClick={() => setActiveTab('summary')}
-          >
-            Summary
-          </button>
-          <button
-            className={getClassName(
-              `tab ${activeTab === 'settings' ? 'active' : ''}`,
-              `${styles.tab} ${activeTab === 'settings' ? styles.active : ''}`
-            )}
-            onClick={() => setActiveTab('settings')}
-          >
-            Settings
-          </button>
-          <button
-            className={getClassName(
-              `tab ${activeTab === 'my' ? 'active' : ''}`,
-              `${styles.tab} ${activeTab === 'my' ? styles.active : ''}`
-            )}
-            onClick={() => setActiveTab('my')}
-          >
-            My
-          </button>
-        </div>
-      </div>
+      <Footer
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+        useShadowDom={useShadowDom}
+      />
     </div>
   );
 };

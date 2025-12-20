@@ -1,41 +1,82 @@
 /* src/content/components/SidePanel/Footer.module.css */
 /* ALL properties use !important for style isolation */
+/* CSS Variables - values from src/constants/colors.ts */
 
 .footer {
+  /* CSS Variables defined on component */
+  --color-primary: #9527F5 !important;
+  --color-primary-light: #BF7EFA !important;
+  --color-white: #FFFFFF !important;
+  --color-primary-hover-bg: rgba(149, 39, 245, 0.1) !important;
+  
   display: flex !important;
   align-items: center !important;
-  justify-content: space-around !important;
+  justify-content: center !important;
   padding: 0 !important;
-  background: #FFFFFF !important;
-  border-top: 1px solid #E2E8F0 !important;
+  background: var(--color-white) !important;
   height: 50px !important;
   flex-shrink: 0 !important;
-  gap: 0 !important;
 }
 
-.tab {
-  flex: 1 !important;
-  height: 100% !important;
-  border: none !important;
-  background: transparent !important;
-  color: #9527F5 !important;
-  font-size: 14px !important;
-  font-weight: 600 !important;
-  cursor: pointer !important;
-  transition: all 0.2s ease !important;
-  border-bottom: 3px solid transparent !important;
-  padding: 0 !important;
+.tabGroup {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 8px !important;
+  padding: 0 16px !important;
+}
+
+.tabWrapper {
+  position: relative !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
 }
 
+.tab {
+  width: 26px !important;
+  height: 26px !important;
+  border-radius: 50% !important;
+  background: transparent !important;
+  border: none !important;
+  cursor: pointer !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  padding: 0 !important;
+  outline: none !important;
+}
+
 .tab:hover {
-  background: rgba(149, 39, 245, 0.05) !important;
+  background: var(--color-primary-hover-bg) !important;
+}
+
+.tab:active {
+  transform: scale(0.92) !important;
 }
 
 .tab.active {
-  background: #9527F5 !important;
-  color: #FFFFFF !important;
-  border-bottom-color: #9527F5 !important;
+  background: var(--color-primary) !important;
+}
+
+.tab svg {
+  width: 18px !important;
+  height: 18px !important;
+  color: var(--color-primary-light) !important;
+  stroke: var(--color-primary-light) !important;
+  stroke-width: 2.5 !important;
+  fill: none !important;
+  pointer-events: none !important;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.tab:hover svg {
+  color: var(--color-primary) !important;
+  stroke: var(--color-primary) !important;
+}
+
+.tab.active svg {
+  color: var(--color-white) !important;
+  stroke: var(--color-white) !important;
 }

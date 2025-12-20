@@ -31,7 +31,7 @@
   display: flex !important;
   flex-direction: column !important;
   transform: translateX(100%) !important;
-  transition: transform var(--panel-transition) !important;
+  transition: transform var(--panel-transition), top var(--panel-transition), bottom var(--panel-transition) !important;
   overflow: hidden !important;
 }
 
@@ -39,124 +39,37 @@
   transform: translateX(0) !important;
 }
 
-/* Resize Handle Container */
-.resizeHandles {
-  position: absolute !important;
-  left: 0 !important;
+.sidePanel.slidingOut {
+  transform: translateX(100%) !important;
+}
+
+.sidePanel.verticallyExpanded {
   top: 0 !important;
   bottom: 0 !important;
-  width: 8px !important;
-  pointer-events: none !important;
-  z-index: 10 !important;
+  border-radius: 0 !important;
 }
 
-/* Resize Handle - Top Left */
-.resizeHandleTopLeft {
+/* Resize Handle - Small Centered Strip */
+.resizeHandle {
   position: absolute !important;
-  top: 0 !important;
   left: 0 !important;
-  width: 8px !important;
-  height: 30px !important;
-  background: var(--panel-primary) !important;
-  border-radius: var(--panel-border-radius) 0 0 0 !important;
-  cursor: nw-resize !important;
-  pointer-events: all !important;
-  z-index: 11 !important;
-}
-
-.resizeHandleTopLeft:hover {
-  background: var(--panel-primary-medium) !important;
-}
-
-/* Resize Handle - Left */
-.resizeHandleLeft {
-  position: absolute !important;
-  top: 30px !important;
-  left: 0 !important;
-  bottom: 30px !important;
-  width: 8px !important;
-  background: var(--panel-primary) !important;
-  cursor: ew-resize !important;
-  pointer-events: all !important;
-  z-index: 11 !important;
-}
-
-.resizeHandleLeft:hover {
-  background: var(--panel-primary-medium) !important;
-}
-
-/* Resize Handle - Bottom Left */
-.resizeHandleBottomLeft {
-  position: absolute !important;
-  bottom: 0 !important;
-  left: 0 !important;
-  width: 8px !important;
-  height: 30px !important;
-  background: var(--panel-primary) !important;
-  border-radius: 0 0 0 var(--panel-border-radius) !important;
-  cursor: sw-resize !important;
-  pointer-events: all !important;
-  z-index: 11 !important;
-}
-
-.resizeHandleBottomLeft:hover {
-  background: var(--panel-primary-medium) !important;
-}
-
-/* Header */
-.header {
-  background: var(--panel-white) !important;
-  border-bottom: 1px solid var(--panel-primary-light) !important;
-  padding: 16px 24px !important;
-  display: flex !important;
-  align-items: center !important;
-  flex-shrink: 0 !important;
+  top: 50% !important;
+  transform: translateY(-50%) !important;
+  width: 5px !important;
   height: 60px !important;
-  box-sizing: border-box !important;
+  background: var(--panel-primary-light) !important;
+  border-radius: 0 4px 4px 0 !important;
+  cursor: ew-resize !important;
+  pointer-events: auto !important;
+  z-index: 11 !important;
+  transition: background 0.2s ease, height 0.2s ease !important;
 }
 
-.headerBrand {
-  height: 32px !important;
-  width: auto !important;
-  object-fit: contain !important;
-  cursor: pointer !important;
-  transition: transform 0.2s ease !important;
+.resizeHandle:hover {
+  background: var(--panel-primary) !important;
+  height: 80px !important;
 }
 
-.headerBrand:hover {
-  transform: scale(1.05) !important;
-}
-
-.closeButton {
-  margin-left: auto !important;
-  width: 32px !important;
-  height: 32px !important;
-  border-radius: 50% !important;
-  background: transparent !important;
-  border: none !important;
-  color: #718096 !important;
-  cursor: pointer !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  transition: all 0.2s ease !important;
-  padding: 0 !important;
-  flex-shrink: 0 !important;
-}
-
-.closeButton:hover {
-  background: rgba(149, 39, 245, 0.1) !important;
-  color: #9527F5 !important;
-}
-
-.closeButton:active {
-  transform: scale(0.95) !important;
-}
-
-.closeButton svg {
-  width: 18px !important;
-  height: 18px !important;
-}
 
 /* Content Area */
 .content {
@@ -165,6 +78,8 @@
   overflow-x: hidden !important;
   padding: 0 !important;
   position: relative !important;
+  border-top: 1px solid var(--panel-primary-medium) !important;
+  border-bottom: 1px solid var(--panel-primary-medium) !important;
 }
 
 /* Footer */

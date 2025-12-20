@@ -22,12 +22,12 @@
   max-width: 800px !important;
   background: var(--color-white) !important;
   border-radius: 30px 0 0 30px !important;
-  box-shadow: 0 0 20px var(--color-primary-light) !important;
+  box-shadow: 0 0 20px rgba(149, 39, 245, 0.3) !important;
   z-index: 2147483647 !important;
   display: flex !important;
   flex-direction: column !important;
   transform: translateX(100%) !important;
-  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), top 0.3s cubic-bezier(0.4, 0, 0.2, 1), bottom 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
   overflow: hidden !important;
 }
 
@@ -35,117 +35,145 @@
   transform: translateX(0) !important;
 }
 
-/* Resize Handle Container */
-.resizeHandles {
-  position: absolute !important;
-  left: 0 !important;
+.sidePanel.slidingOut {
+  transform: translateX(100%) !important;
+}
+
+.sidePanel.verticallyExpanded {
   top: 0 !important;
   bottom: 0 !important;
-  width: 8px !important;
-  pointer-events: none !important;
-  z-index: 10 !important;
+  border-radius: 0 !important;
 }
 
-/* Resize Handle - Top Left */
-.resizeHandleTopLeft {
+/* Resize Handle - Small Centered Strip */
+.resizeHandle {
   position: absolute !important;
-  top: 0 !important;
   left: 0 !important;
+  top: 50% !important;
+  transform: translateY(-50%) !important;
   width: 8px !important;
-  height: 30px !important;
-  background: var(--color-primary) !important;
-  border-radius: 30px 0 0 0 !important;
-  cursor: nw-resize !important;
-  pointer-events: all !important;
-  z-index: 11 !important;
-}
-
-.resizeHandleTopLeft:hover {
-  background: var(--color-primary-dark) !important;
-}
-
-/* Resize Handle - Left */
-.resizeHandleLeft {
-  position: absolute !important;
-  top: 30px !important;
-  left: 0 !important;
-  bottom: 30px !important;
-  width: 8px !important;
-  background: var(--color-primary) !important;
+  height: 60px !important;
+  background: var(--color-primary-light) !important;
+  border-radius: 0 4px 4px 0 !important;
   cursor: ew-resize !important;
-  pointer-events: all !important;
+  pointer-events: auto !important;
   z-index: 11 !important;
+  transition: background 0.2s ease, height 0.2s ease !important;
+  user-select: none !important;
+  -webkit-user-select: none !important;
 }
 
-.resizeHandleLeft:hover {
-  background: var(--color-primary-dark) !important;
-}
-
-/* Resize Handle - Bottom Left */
-.resizeHandleBottomLeft {
-  position: absolute !important;
-  bottom: 0 !important;
-  left: 0 !important;
-  width: 8px !important;
-  height: 30px !important;
+.resizeHandle:hover {
   background: var(--color-primary) !important;
-  border-radius: 0 0 0 30px !important;
-  cursor: sw-resize !important;
-  pointer-events: all !important;
-  z-index: 11 !important;
-}
-
-.resizeHandleBottomLeft:hover {
-  background: var(--color-primary-dark) !important;
+  height: 80px !important;
 }
 
 /* Header */
 .header {
   background: var(--color-white) !important;
-  border-bottom: 1px solid var(--color-primary-light) !important;
-  padding: 16px 24px !important;
+  padding: 8px 12px !important;
   display: flex !important;
   align-items: center !important;
+  justify-content: space-between !important;
   flex-shrink: 0 !important;
-  height: 60px !important;
+  height: 48px !important;
   box-sizing: border-box !important;
 }
 
-.headerBrand {
-  color: var(--color-primary) !important;
-  font-size: 20px !important;
-  font-weight: 700 !important;
+/* Header Left - Action Icons */
+.headerLeft {
+  display: flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+  flex-shrink: 0 !important;
 }
 
-.closeButton {
-  margin-left: auto !important;
+.headerIconButton {
   width: 32px !important;
   height: 32px !important;
-  border-radius: 50% !important;
-  background: transparent !important;
   border: none !important;
-  color: var(--color-gray-600) !important;
+  background: transparent !important;
   cursor: pointer !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
-  transition: all 0.2s ease !important;
+  border-radius: 10px !important;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
   padding: 0 !important;
-  flex-shrink: 0 !important;
+  outline: none !important;
 }
 
-.closeButton:hover {
-  background: var(--color-primary-light) !important;
-  color: var(--color-primary) !important;
+.headerIconButton:hover {
+  background: rgba(149, 39, 245, 0.1) !important;
 }
 
-.closeButton:active {
+.headerIconButton:active {
   transform: scale(0.95) !important;
 }
 
-.closeButton svg {
+.headerIconButton svg {
   width: 18px !important;
   height: 18px !important;
+  color: var(--color-primary-light) !important;
+  stroke: var(--color-primary-light) !important;
+  stroke-width: 2.5 !important;
+  fill: none !important;
+  pointer-events: none !important;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.headerIconButton:hover svg {
+  color: var(--color-primary) !important;
+  stroke: var(--color-primary) !important;
+}
+
+/* Header Center - Branding */
+.headerCenter {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  flex: 1 !important;
+}
+
+.headerBrand {
+  height: 24px !important;
+  width: auto !important;
+  max-width: 100px !important;
+  object-fit: contain !important;
+  cursor: pointer !important;
+  transition: transform 0.2s ease !important;
+}
+
+.headerBrand:hover {
+  transform: scale(1.05) !important;
+}
+
+/* Header Right - Login */
+.headerRight {
+  display: flex !important;
+  align-items: center !important;
+  flex-shrink: 0 !important;
+}
+
+.loginButton {
+  padding: 6px 14px !important;
+  border: none !important;
+  background: rgba(149, 39, 245, 0.1) !important;
+  color: var(--color-primary) !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  cursor: pointer !important;
+  border-radius: 6px !important;
+  transition: all 0.2s ease !important;
+}
+
+.loginButton:hover {
+  background: var(--color-primary-dark) !important;
+  color: var(--color-white) !important;
+}
+
+.loginButton:active {
+  transform: scale(0.95) !important;
 }
 
 /* Content Area */
@@ -153,17 +181,20 @@
   flex: 1 !important;
   overflow-y: auto !important;
   overflow-x: hidden !important;
-  padding: 16px !important;
+  padding: 0 !important;
   position: relative !important;
   color: var(--color-text-primary) !important;
+  border-top: 1px solid var(--color-primary-dark) !important;
+  border-bottom: 1px solid var(--color-primary-dark) !important;
 }
 
 /* Footer */
 .footer {
   background: var(--color-white) !important;
-  border-top: 1px solid var(--color-primary-light) !important;
   padding: 0 !important;
   display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
   flex-shrink: 0 !important;
   height: 50px !important;
 }
@@ -171,36 +202,67 @@
 /* Tab Group */
 .tabGroup {
   display: flex !important;
-  width: 100% !important;
-  height: 100% !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 8px !important;
+  padding: 0 16px !important;
 }
 
-.tab {
-  flex: 1 !important;
-  background: transparent !important;
-  border: none !important;
-  color: var(--color-primary) !important;
-  font-size: 14px !important;
-  font-weight: 600 !important;
-  cursor: pointer !important;
-  transition: all 0.2s ease !important;
+/* Tab Wrapper */
+.tabWrapper {
+  position: relative !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
-  position: relative !important;
+}
+
+/* Tab Button - Icon Only */
+.tab {
+  width: 26px !important;
+  height: 26px !important;
+  border-radius: 50% !important;
+  background: transparent !important;
+  border: none !important;
+  cursor: pointer !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  padding: 0 !important;
+  outline: none !important;
 }
 
 .tab:hover {
-  background: var(--color-primary-light) !important;
+  background: rgba(149, 39, 245, 0.1) !important;
+}
+
+.tab:active {
+  transform: scale(0.92) !important;
 }
 
 .tab.active {
   background: var(--color-primary) !important;
-  color: var(--color-white) !important;
 }
 
-.tab:not(:last-child) {
-  border-right: 1px solid var(--color-primary-light) !important;
+.tab svg {
+  width: 18px !important;
+  height: 18px !important;
+  color: var(--color-primary-light) !important;
+  stroke: var(--color-primary-light) !important;
+  stroke-width: 2.5 !important;
+  fill: none !important;
+  pointer-events: none !important;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.tab:hover svg {
+  color: var(--color-primary) !important;
+  stroke: var(--color-primary) !important;
+}
+
+.tab.active svg {
+  color: var(--color-white) !important;
+  stroke: var(--color-white) !important;
 }
 
 /* Scrollbar Styling */
