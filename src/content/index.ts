@@ -9,6 +9,7 @@ import { FAB } from './components/FAB';
 import { SidePanel } from './components/SidePanel';
 import { ContentActionsTrigger } from './components/ContentActions';
 import { DisableNotificationModal } from './components/DisableNotificationModal';
+import { LoginModal } from './components/LoginModal';
 
 // Import Shadow DOM utilities
 import {
@@ -23,6 +24,7 @@ import fabStyles from './styles/fab.shadow.css?inline';
 import sidePanelStyles from './styles/sidePanel.shadow.css?inline';
 import contentActionsStyles from './styles/contentActions.shadow.css?inline';
 import disableNotificationModalStyles from './styles/disableNotificationModal.shadow.css?inline';
+import loginModalStyles from './styles/loginModal.shadow.css?inline';
 
 // Import color CSS variables
 import { FAB_COLOR_VARIABLES } from '../constants/colors.css.js';
@@ -37,6 +39,7 @@ const FAB_HOST_ID = 'xplaino-fab-host';
 const SIDE_PANEL_HOST_ID = 'xplaino-side-panel-host';
 const CONTENT_ACTIONS_HOST_ID = 'xplaino-content-actions-host';
 const DISABLE_MODAL_HOST_ID = 'xplaino-disable-modal-host';
+const LOGIN_MODAL_HOST_ID = 'xplaino-login-modal-host';
 
 /**
  * Domain status enum (must match src/types/domain.ts)
@@ -57,6 +60,7 @@ let fabRoot: ReactDOM.Root | null = null;
 let sidePanelRoot: ReactDOM.Root | null = null;
 let contentActionsRoot: ReactDOM.Root | null = null;
 let disableModalRoot: ReactDOM.Root | null = null;
+let loginModalRoot: ReactDOM.Root | null = null;
 
 // Modal state
 let modalVisible = false;
@@ -406,6 +410,55 @@ async function handleModalDontShowAgain(): Promise<void> {
 }
 
 // =============================================================================
+// LOGIN MODAL INJECTION
+// =============================================================================
+
+/**
+ * Inject Login Modal into the page with Shadow DOM
+ */
+function injectLoginModal(): void {
+  // Check if already injected
+  if (shadowHostExists(LOGIN_MODAL_HOST_ID)) {
+    console.log('[Content Script] Login Modal already injected');
+    return;
+  }
+
+  // Create Shadow DOM host
+  const { host, shadow, mountPoint } = createShadowHost({
+    id: LOGIN_MODAL_HOST_ID,
+    zIndex: 2147483647, // Highest z-index for modal
+  });
+
+  // Inject color CSS variables first
+  injectStyles(shadow, FAB_COLOR_VARIABLES);
+  
+  // Inject component styles
+  injectStyles(shadow, loginModalStyles);
+
+  // Append to document
+  document.body.appendChild(host);
+
+  // Render React component
+  loginModalRoot = ReactDOM.createRoot(mountPoint);
+  loginModalRoot.render(
+    React.createElement(LoginModal, {
+      useShadowDom: true,
+    })
+  );
+
+  console.log('[Content Script] Login Modal injected successfully');
+}
+
+/**
+ * Remove Login Modal from the page
+ */
+function removeLoginModal(): void {
+  removeShadowHost(LOGIN_MODAL_HOST_ID, loginModalRoot);
+  loginModalRoot = null;
+  console.log('[Content Script] Login Modal removed');
+}
+
+// =============================================================================
 // INITIALIZATION
 // =============================================================================
 
@@ -420,11 +473,13 @@ async function initContentScript(): Promise<void> {
     injectFAB();
     injectSidePanel();
     injectContentActions();
+    injectLoginModal();
   } else {
     console.log('[Content Script] Not running - extension not allowed on this page');
     removeFAB();
     removeSidePanel();
     removeContentActions();
+    removeLoginModal();
   }
 }
 

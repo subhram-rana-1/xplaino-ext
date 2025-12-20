@@ -13,5 +13,7 @@ export interface UserSettingsDTO {
   globalTheme?: 'light' | 'dark';
   /** Domain-specific theme preferences */
   domainThemes?: Record<string, 'light' | 'dark'>;
+  /** Per-domain side panel expanded state */
+  sidePanelExpanded?: Record<string, boolean>;
 }
 

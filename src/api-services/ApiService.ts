@@ -1,6 +1,7 @@
 // src/api-services/ApiService.ts
 
 import type { GetAllDomainsResponseDTO } from './dto/DomainDTO';
+import { ChromeStorage } from '@/storage/chrome-local/ChromeStorage';
 
 /**
  * Central class for all API calls
@@ -109,15 +110,12 @@ export class ApiService {
   }
 
   /**
-   * Get auth token from storage
-   * Uses direct chrome.storage.local to avoid bundler issues in service worker context
+   * Get auth token from XPLAINO_AUTH_INFO
+   * Returns accessToken from the auth info object stored after login
    */
   private static async getAuthToken(): Promise<string | null> {
-    return new Promise((resolve) => {
-      chrome.storage.local.get(['auth_token'], (result) => {
-        resolve(result.auth_token ?? null);
-      });
-    });
+    const authInfo = await ChromeStorage.getAuthInfo();
+    return authInfo?.accessToken || null;
   }
 
   // ============================================

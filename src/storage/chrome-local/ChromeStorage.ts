@@ -17,9 +17,10 @@ export class ChromeStorage {
     SAVED_WORDS: 'saved_words',
     SESSION_DATA: 'session_data',
     LAST_SYNC: 'last_sync',
-    AUTH_TOKEN: 'auth_token',
     EXTENSION_SETTINGS: 'extension_settings',
     DISABLE_MODAL_DISMISSED: 'disable_modal_dismissed',
+    XPLAINO_AUTH_INFO: 'xplaino_ext_user_auth_info',
+    PAGE_CONTENT: 'page_content',
   } as const;
 
   // ============================================
@@ -105,19 +106,6 @@ export class ChromeStorage {
   // ============================================
 
   // Example placeholder methods - implement with actual DTOs
-
-  // --- Auth Token ---
-  static async getAuthToken(): Promise<string | null> {
-    return this.get<string>(this.KEYS.AUTH_TOKEN);
-  }
-
-  static async setAuthToken(token: string): Promise<void> {
-    return this.set(this.KEYS.AUTH_TOKEN, token);
-  }
-
-  static async removeAuthToken(): Promise<void> {
-    return this.remove(this.KEYS.AUTH_TOKEN);
-  }
 
   // --- Last Sync ---
   static async getLastSync(): Promise<number | null> {
@@ -241,6 +229,24 @@ export class ChromeStorage {
     return this.setUserSettings(updatedSettings);
   }
 
+  // --- Side Panel Expanded State ---
+  static async getSidePanelExpanded(domain: string): Promise<boolean> {
+    const settings = await this.getUserSettings();
+    return settings?.sidePanelExpanded?.[domain] ?? false;
+  }
+
+  static async setSidePanelExpanded(domain: string, expanded: boolean): Promise<void> {
+    const settings = await this.getUserSettings();
+    const updatedSettings: UserSettingsDTO = {
+      ...settings,
+      sidePanelExpanded: {
+        ...(settings?.sidePanelExpanded ?? {}),
+        [domain]: expanded,
+      },
+    };
+    return this.setUserSettings(updatedSettings);
+  }
+
   // --- Disable Modal Preference ---
   static async getDisableModalDismissed(): Promise<boolean> {
     const value = await this.get<boolean>(this.KEYS.DISABLE_MODAL_DISMISSED);
@@ -249,6 +255,79 @@ export class ChromeStorage {
 
   static async setDisableModalDismissed(dismissed: boolean): Promise<void> {
     return this.set(this.KEYS.DISABLE_MODAL_DISMISSED, dismissed);
+  }
+
+  // --- Xplaino Auth Info ---
+  /**
+   * Auth info stored after successful login
+   */
+  static async getAuthInfo(): Promise<{
+    accessToken: string;
+    refreshToken?: string;
+    accessTokenExpiresAt?: number;
+    refreshTokenExpiresAt?: number;
+    userSessionPk?: string;
+    user?: {
+      id: string;
+      name: string;
+      firstName?: string;
+      lastName?: string;
+      email: string;
+      picture?: string;
+      role?: string;
+    };
+  } | null> {
+    return this.get(this.KEYS.XPLAINO_AUTH_INFO);
+  }
+
+  static async setAuthInfo(authInfo: {
+    accessToken: string;
+    refreshToken?: string;
+    accessTokenExpiresAt?: number;
+    refreshTokenExpiresAt?: number;
+    userSessionPk?: string;
+    user?: {
+      id: string;
+      name: string;
+      firstName?: string;
+      lastName?: string;
+      email: string;
+      picture?: string;
+      role?: string;
+    };
+  }): Promise<void> {
+    return this.set(this.KEYS.XPLAINO_AUTH_INFO, authInfo);
+  }
+
+  static async removeAuthInfo(): Promise<void> {
+    return this.remove(this.KEYS.XPLAINO_AUTH_INFO);
+  }
+
+  // --- Page Content (per domain) ---
+  static async getPageContent(domain: string): Promise<string | null> {
+    const pageContentMap = await this.get<Record<string, string>>(this.KEYS.PAGE_CONTENT);
+    return pageContentMap?.[domain] ?? null;
+  }
+
+  static async setPageContent(domain: string, content: string): Promise<void> {
+    const pageContentMap = await this.get<Record<string, string>>(this.KEYS.PAGE_CONTENT) ?? {};
+    const updatedMap = {
+      ...pageContentMap,
+      [domain]: content,
+    };
+    return this.set(this.KEYS.PAGE_CONTENT, updatedMap);
+  }
+
+  static async removePageContent(domain: string): Promise<void> {
+    const pageContentMap = await this.get<Record<string, string>>(this.KEYS.PAGE_CONTENT);
+    if (pageContentMap && pageContentMap[domain]) {
+      delete pageContentMap[domain];
+      return this.set(this.KEYS.PAGE_CONTENT, pageContentMap);
+    }
+  }
+
+  static async clearAllPageContent(): Promise<void> {
+    return this.remove(this.KEYS.PAGE_CONTENT);
   }
 }
 

@@ -1,5 +1,5 @@
 // src/content/components/SidePanel/Dropdown.tsx
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import styles from './Dropdown.module.css';
 
 export interface DropdownOption {
@@ -18,6 +18,8 @@ export interface DropdownProps {
   placeholder?: string;
   /** Label text */
   label?: string;
+  /** Whether to use Shadow DOM styling */
+  useShadowDom?: boolean;
 }
 
 export const Dropdown: React.FC<DropdownProps> = ({
@@ -26,7 +28,14 @@ export const Dropdown: React.FC<DropdownProps> = ({
   onChange,
   placeholder = 'Select option',
   label,
+  useShadowDom = false,
 }) => {
+  const getClassName = useCallback((baseClass: string) => {
+    if (useShadowDom) {
+      return baseClass;
+    }
+    return styles[baseClass as keyof typeof styles] || baseClass;
+  }, [useShadowDom]);
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -57,19 +66,19 @@ export const Dropdown: React.FC<DropdownProps> = ({
   };
 
   return (
-    <div className={styles.dropdownContainer}>
-      {label && <label className={styles.label}>{label}</label>}
-      <div className={styles.dropdown} ref={dropdownRef}>
+    <div className={getClassName('dropdownContainer')}>
+      {label && <label className={getClassName('label')}>{label}</label>}
+      <div className={getClassName('dropdown')} ref={dropdownRef}>
         <button
-          className={`${styles.dropdownButton} ${isOpen ? styles.open : ''}`}
+          className={`${getClassName('dropdownButton')} ${isOpen ? getClassName('open') : ''}`}
           onClick={() => setIsOpen(!isOpen)}
           type="button"
         >
-          <span className={styles.dropdownValue}>
+          <span className={getClassName('dropdownValue')}>
             {selectedOption ? selectedOption.label : placeholder}
           </span>
           <svg
-            className={`${styles.chevron} ${isOpen ? styles.chevronOpen : ''}`}
+            className={`${getClassName('chevron')} ${isOpen ? getClassName('chevronOpen') : ''}`}
             xmlns="http://www.w3.org/2000/svg"
             viewBox="0 0 24 24"
             fill="none"
@@ -82,12 +91,12 @@ export const Dropdown: React.FC<DropdownProps> = ({
           </svg>
         </button>
         {isOpen && (
-          <div className={styles.dropdownMenu}>
+          <div className={getClassName('dropdownMenu')}>
             {options.map((option) => (
               <div
                 key={option.value}
-                className={`${styles.dropdownItem} ${
-                  value === option.value ? styles.selected : ''
+                className={`${getClassName('dropdownItem')} ${
+                  value === option.value ? getClassName('selected') : ''
                 }`}
                 onClick={() => handleSelect(option.value)}
               >

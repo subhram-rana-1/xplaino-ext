@@ -1,0 +1,104 @@
+/* src/components/ui/IconTabGroup/IconTabGroup.module.css */
+/* CSS Variables - values from src/constants/colors.ts */
+
+.tabGroup {
+  /* CSS Variables */
+  --color-primary: #9527F5;
+  --color-primary-light: #BF7EFA;
+  --color-primary-medium: #8607f5;
+  --color-white: #FFFFFF;
+  --color-primary-hover-bg: rgba(149, 39, 245, 0.1);
+
+  display: flex;
+  align-items: center;
+  position: relative;
+  padding: 2px;
+  border-radius: 13px;
+  background: transparent;
+  gap: 0;
+}
+
+.tabSlider {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  height: calc(100% - 4px);
+  background: var(--color-primary);
+  border-radius: 11px;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 0;
+  pointer-events: none;
+}
+
+.tab {
+  position: relative;
+  z-index: 1;
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  min-height: 40px;
+  max-width: 40px;
+  max-height: 40px;
+  aspect-ratio: 1;
+  border-radius: 11px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  margin: 0;
+  outline: none;
+  transition: background 0.2s ease;
+  box-sizing: border-box;
+  line-height: 1;
+  vertical-align: middle;
+}
+
+.tab:hover {
+  background: var(--color-primary-hover-bg);
+}
+
+.tab.active {
+  background: transparent;
+}
+
+.tab.active:hover {
+  background: transparent;
+}
+
+.tab svg {
+  width: 24px;
+  height: 24px;
+  min-width: 24px;
+  min-height: 24px;
+  max-width: 24px;
+  max-height: 24px;
+  margin: 0;
+  padding: 0;
+  display: block;
+  color: var(--color-primary-light);
+  stroke: var(--color-primary-light);
+  stroke-width: 3;
+  fill: none;
+  pointer-events: none;
+  transition: color 0.2s ease, stroke 0.2s ease;
+  flex-shrink: 0;
+}
+
+.tab:hover svg {
+  color: var(--color-primary);
+  stroke: var(--color-primary);
+}
+
+.tab.active svg {
+  color: var(--color-white);
+  stroke: var(--color-white);
+}
+
+.tab.active:hover svg {
+  color: var(--color-white);
+  stroke: var(--color-white);
+}
+

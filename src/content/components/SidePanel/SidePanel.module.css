@@ -31,7 +31,10 @@
   display: flex !important;
   flex-direction: column !important;
   transform: translateX(100%) !important;
-  transition: transform var(--panel-transition), top var(--panel-transition), bottom var(--panel-transition) !important;
+  transition: transform var(--panel-transition), 
+              top var(--panel-transition), 
+              bottom var(--panel-transition),
+              border-radius 0.2s ease !important;
   overflow: hidden !important;
 }
 
@@ -47,6 +50,10 @@
   top: 0 !important;
   bottom: 0 !important;
   border-radius: 0 !important;
+  transition: transform var(--panel-transition), 
+              top var(--panel-transition), 
+              bottom var(--panel-transition),
+              border-radius 0.2s ease 0.3s !important;
 }
 
 /* Resize Handle - Small Centered Strip */
@@ -55,19 +62,23 @@
   left: 0 !important;
   top: 50% !important;
   transform: translateY(-50%) !important;
-  width: 5px !important;
-  height: 60px !important;
+  width: 4px !important;
+  height: 50px !important;
   background: var(--panel-primary-light) !important;
-  border-radius: 0 4px 4px 0 !important;
+  border-radius: 0 3px 3px 0 !important;
   cursor: ew-resize !important;
   pointer-events: auto !important;
   z-index: 11 !important;
-  transition: background 0.2s ease, height 0.2s ease !important;
+  transition: background 0.2s ease, height 0.2s ease, width 0.2s ease !important;
+  user-select: none !important;
+  -webkit-user-select: none !important;
 }
 
-.resizeHandle:hover {
+.resizeHandle:hover,
+.resizeHandle:active {
   background: var(--panel-primary) !important;
-  height: 80px !important;
+  width: 6px !important;
+  height: 70px !important;
 }
 
 
@@ -78,8 +89,8 @@
   overflow-x: hidden !important;
   padding: 0 !important;
   position: relative !important;
-  border-top: 1px solid var(--panel-primary-medium) !important;
-  border-bottom: 1px solid var(--panel-primary-medium) !important;
+  border-top: 1px solid var(--panel-primary-light) !important;
+  border-bottom: 1px solid var(--panel-primary-light) !important;
 }
 
 /* Footer */

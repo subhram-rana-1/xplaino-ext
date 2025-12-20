@@ -138,9 +138,56 @@ chrome.tabs.onUpdated.addListener((_tabId, changeInfo, tab) => {
   }
 });
 
-// Placeholder for message listener
+/**
+ * Extract ID token from redirect URL
+ */
+function extractIdTokenFromUrl(url: string): string | null {
+  try {
+    const hashParams = new URLSearchParams(url.split('#')[1]);
+    return hashParams.get('id_token');
+  } catch {
+    return null;
+  }
+}
+
+// Message listener for handling OAuth flow
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-  // Handle messages from content scripts or popup
+  // Handle Google OAuth login from content script
+  if (message.type === 'GOOGLE_LOGIN') {
+    const authUrl = message.authUrl;
+
+    chrome.identity.launchWebAuthFlow(
+      {
+        url: authUrl,
+        interactive: true,
+      },
+      (redirectUrl) => {
+        if (chrome.runtime.lastError) {
+          console.error('[Background] Chrome identity error:', chrome.runtime.lastError);
+          sendResponse({ error: chrome.runtime.lastError.message || 'Authentication failed' });
+          return;
+        }
+
+        if (!redirectUrl) {
+          sendResponse({ error: 'No redirect URL received' });
+          return;
+        }
+
+        const idToken = extractIdTokenFromUrl(redirectUrl);
+        if (!idToken) {
+          sendResponse({ error: 'Failed to extract ID token from response' });
+          return;
+        }
+
+        sendResponse({ idToken });
+      }
+    );
+
+    // Return true to indicate we'll send response asynchronously
+    return true;
+  }
+
+  // Handle other messages
   console.log('Message received:', message);
   sendResponse({ status: 'ok' });
   return true;

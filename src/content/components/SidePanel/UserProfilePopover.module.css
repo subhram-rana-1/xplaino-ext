@@ -1,0 +1,65 @@
+/* src/content/components/SidePanel/UserProfilePopover.module.css */
+/* ALL properties use !important for style isolation */
+
+.userProfilePopover {
+  position: absolute !important;
+  top: calc(100% + 8px) !important;
+  right: 0 !important;
+  background: var(--color-white, #FFFFFF) !important;
+  border-radius: 12px !important;
+  box-shadow: 0 4px 20px rgba(149, 39, 245, 0.25) !important;
+  padding: 12px !important;
+  min-width: 180px !important;
+  z-index: 1000 !important;
+}
+
+.userName {
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  color: #1A202C !important;
+  margin-bottom: 12px !important;
+  padding-bottom: 12px !important;
+  border-bottom: 1px solid #E2E8F0 !important;
+  word-break: break-word !important;
+}
+
+.logoutButton {
+  width: fit-content !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 6px !important;
+  padding: 8px 12px !important;
+  border: 2px solid var(--color-error, #EF4444) !important;
+  border-radius: 10px !important;
+  background: transparent !important;
+  color: var(--color-error, #EF4444) !important;
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  cursor: pointer !important;
+  transition: all 0.2s ease !important;
+  margin: 0 auto !important;
+}
+
+.logoutButton:hover {
+  background: rgba(239, 68, 68, 0.1) !important;
+  border-color: var(--color-error, #EF4444) !important;
+}
+
+.logoutButton:active {
+  transform: scale(0.98) !important;
+}
+
+.logoutButton svg {
+  width: 18px !important;
+  height: 18px !important;
+  stroke-width: 2.5 !important;
+  color: var(--color-error, #EF4444) !important;
+}
+
+.logoutButtonText {
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  color: var(--color-error, #EF4444) !important;
+}
+

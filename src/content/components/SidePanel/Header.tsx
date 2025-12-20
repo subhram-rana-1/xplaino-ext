@@ -1,7 +1,12 @@
 // src/content/components/SidePanel/Header.tsx
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { useAtomValue, useSetAtom } from 'jotai';
 import { ChevronRight } from 'lucide-react';
 import styles from './Header.module.css';
+import { UserProfilePopover } from './UserProfilePopover';
+import { userAuthInfoAtom } from '@/store/uiAtoms';
+import { ChromeStorage } from '@/storage/chrome-local/ChromeStorage';
+import { ENV } from '@/config/env';
 
 // Custom expand icon - arrows pointing away from center (up and down)
 const ExpandVerticalIcon: React.FC<{ size?: number }> = ({ size = 18 }) => (
@@ -73,6 +78,37 @@ export const Header: React.FC<HeaderProps> = ({
   useShadowDom = false,
   isExpanded = false,
 }) => {
+  const userAuthInfo = useAtomValue(userAuthInfoAtom);
+  const setUserAuthInfo = useSetAtom(userAuthInfoAtom);
+  const [showPopover, setShowPopover] = useState(false);
+  const profileRef = useRef<HTMLDivElement>(null);
+  const profileButtonRef = useRef<HTMLButtonElement>(null);
+  const popoverCloseRef = useRef<(() => Promise<void>) | null>(null);
+
+  // Load auth info on mount
+  useEffect(() => {
+    const loadAuthInfo = async () => {
+      const authInfo = await ChromeStorage.getAuthInfo();
+      setUserAuthInfo(authInfo);
+    };
+    loadAuthInfo();
+  }, [setUserAuthInfo]);
+
+  // Listen for storage changes
+  useEffect(() => {
+    const handleStorageChange = (changes: { [key: string]: chrome.storage.StorageChange }) => {
+      if (changes[ChromeStorage.KEYS.XPLAINO_AUTH_INFO]) {
+        const newValue = changes[ChromeStorage.KEYS.XPLAINO_AUTH_INFO].newValue;
+        setUserAuthInfo(newValue || null);
+      }
+    };
+
+    chrome.storage.onChanged.addListener(handleStorageChange);
+    return () => {
+      chrome.storage.onChanged.removeListener(handleStorageChange);
+    };
+  }, [setUserAuthInfo]);
+
   const getClassName = (baseClass: string) => {
     if (useShadowDom) {
       return baseClass;
@@ -86,7 +122,7 @@ export const Header: React.FC<HeaderProps> = ({
       onBrandClick();
     } else {
       // Default: open xplaino.com in new tab
-      window.open('https://xplaino.com', '_blank');
+      window.open(ENV.XPLAINO_WEBSITE_BASE_URL, '_blank');
     }
   };
 
@@ -103,9 +139,29 @@ export const Header: React.FC<HeaderProps> = ({
       onLogin();
     } else {
       // Default: open xplaino.com login page
-      chrome.tabs.create({ url: 'https://xplaino.com/login' });
+      chrome.tabs.create({ url: `${ENV.XPLAINO_WEBSITE_BASE_URL}/login` });
     }
   };
+
+  const handleProfileClick = async () => {
+    if (showPopover && popoverCloseRef.current) {
+      // If popover is already open, close it with animation
+      await popoverCloseRef.current();
+    } else {
+      // If popover is closed, open it
+      setShowPopover(true);
+    }
+  };
+
+  const handleClosePopover = () => {
+    setShowPopover(false);
+  };
+
+  const handlePopoverCloseRequest = (closeFn: () => Promise<void>) => {
+    popoverCloseRef.current = closeFn;
+  };
+
+  const isLoggedIn = userAuthInfo?.user && userAuthInfo?.accessToken;
 
   return (
     <div className={getClassName('header')}>
@@ -148,16 +204,43 @@ export const Header: React.FC<HeaderProps> = ({
         )}
       </div>
 
-      {/* Right: Login */}
+      {/* Right: Login or Profile */}
       <div className={getClassName('headerRight')}>
-        <button
-          className={getClassName('loginButton')}
-          onClick={handleLogin}
-          aria-label="Login"
-          type="button"
-        >
-          Login
-        </button>
+        {isLoggedIn ? (
+          <div className={getClassName('profileContainer')} ref={profileRef}>
+            <button
+              ref={profileButtonRef}
+              className={getClassName('profilePictureButton')}
+              onClick={handleProfileClick}
+              aria-label="User profile"
+              type="button"
+            >
+              <img
+                src={userAuthInfo.user?.picture || ''}
+                alt={userAuthInfo.user?.name || 'User'}
+                className={getClassName('profilePicture')}
+              />
+            </button>
+            {showPopover && (
+              <UserProfilePopover
+                userName={userAuthInfo.user?.name || ''}
+                useShadowDom={useShadowDom}
+                onClose={handleClosePopover}
+                sourceRef={profileButtonRef}
+                onCloseRequest={handlePopoverCloseRequest}
+              />
+            )}
+          </div>
+        ) : (
+          <button
+            className={getClassName('loginButton')}
+            onClick={handleLogin}
+            aria-label="Login"
+            type="button"
+          >
+            Login
+          </button>
+        )}
       </div>
     </div>
   );

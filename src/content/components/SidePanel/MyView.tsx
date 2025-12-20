@@ -1,6 +1,7 @@
 // src/content/components/SidePanel/MyView.tsx
-import React from 'react';
+import React, { useCallback } from 'react';
 import styles from './MyView.module.css';
+import { ENV } from '@/config/env';
 
 interface LinkItem {
   icon: React.ReactNode;
@@ -8,7 +9,18 @@ interface LinkItem {
   url: string;
 }
 
-export const MyView: React.FC = () => {
+export interface MyViewProps {
+  /** Whether to use Shadow DOM styling */
+  useShadowDom?: boolean;
+}
+
+export const MyView: React.FC<MyViewProps> = ({ useShadowDom = false }) => {
+  const getClassName = useCallback((baseClass: string) => {
+    if (useShadowDom) {
+      return baseClass;
+    }
+    return styles[baseClass as keyof typeof styles] || baseClass;
+  }, [useShadowDom]);
   const links: LinkItem[] = [
     {
       icon: (
@@ -26,7 +38,7 @@ export const MyView: React.FC = () => {
         </svg>
       ),
       text: 'View my saved words',
-      url: 'https://xplaino.com/my-words',
+      url: `${ENV.XPLAINO_WEBSITE_BASE_URL}/my-words`,
     },
     {
       icon: (
@@ -47,7 +59,7 @@ export const MyView: React.FC = () => {
         </svg>
       ),
       text: 'View my saved paragraphs',
-      url: 'https://xplaino.com/my-paragraphs',
+      url: `${ENV.XPLAINO_WEBSITE_BASE_URL}/my-paragraphs`,
     },
     {
       icon: (
@@ -65,26 +77,26 @@ export const MyView: React.FC = () => {
         </svg>
       ),
       text: 'View my saved pages',
-      url: 'https://xplaino.com/my-pages',
+      url: `${ENV.XPLAINO_WEBSITE_BASE_URL}/my-pages`,
     },
   ];
 
   const handleLinkClick = (url: string) => {
-    chrome.tabs.create({ url });
+    window.open(url, '_blank');
   };
 
   return (
-    <div className={styles.myView}>
-      <div className={styles.linksList}>
+    <div className={getClassName('myView')}>
+      <div className={getClassName('linksList')}>
         {links.map((link, index) => (
           <div
             key={index}
-            className={styles.linkItem}
+            className={getClassName('linkItem')}
             onClick={() => handleLinkClick(link.url)}
           >
-            <div className={styles.linkIcon}>{link.icon}</div>
-            <span className={styles.linkText}>{link.text}</span>
-            <div className={styles.linkRefIcon}>
+            <div className={getClassName('linkIcon')}>{link.icon}</div>
+            <span className={getClassName('linkText')}>{link.text}</span>
+            <div className={getClassName('linkRefIcon')}>
               <svg
                 xmlns="http://www.w3.org/2000/svg"
                 viewBox="0 0 24 24"

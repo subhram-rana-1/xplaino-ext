@@ -7,6 +7,7 @@ import { ChromeStorage } from '@/storage/chrome-local/ChromeStorage';
 import { extractDomain } from '@/utils/domain';
 import { DomainStatus } from '@/types/domain';
 import brandNameImage from '@/assets/photos/brand-name.png';
+import { ENV } from '@/config/env';
 
 export const Popup: React.FC = () => {
   const [globalDisabled, setGlobalDisabled] = useState<boolean>(false);
@@ -86,7 +87,7 @@ export const Popup: React.FC = () => {
   }
 
   const handleGlobeClick = () => {
-    chrome.tabs.create({ url: 'https://xplaino.com' });
+    chrome.tabs.create({ url: ENV.XPLAINO_WEBSITE_BASE_URL });
   };
 
   return (

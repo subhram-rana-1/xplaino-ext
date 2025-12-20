@@ -1,8 +1,14 @@
 // src/content/components/SidePanel/SidePanel.tsx
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { useSetAtom } from 'jotai';
 import styles from './SidePanel.module.css';
 import { Header } from './Header';
 import { Footer } from './Footer';
+import { SummaryView } from './SummaryView';
+import { SettingsView } from './SettingsView';
+import { MyView } from './MyView';
+import { ChromeStorage } from '@/storage/chrome-local/ChromeStorage';
+import { showLoginModalAtom } from '@/store/uiAtoms';
 
 export interface SidePanelProps {
   /** Whether panel is open */
@@ -11,6 +17,8 @@ export interface SidePanelProps {
   onClose?: () => void;
   /** Whether component is rendered in Shadow DOM (uses plain class names) */
   useShadowDom?: boolean;
+  /** Callback when login is required (401 error) */
+  onLoginRequired?: () => void;
 }
 
 type TabType = 'summary' | 'settings' | 'my';
@@ -23,73 +31,89 @@ export const SidePanel: React.FC<SidePanelProps> = ({
   isOpen,
   onClose,
   useShadowDom = false,
+  onLoginRequired,
 }) => {
   const [activeTab, setActiveTab] = useState<TabType>('summary');
   const [width, setWidth] = useState(DEFAULT_WIDTH);
-  const [isResizing, setIsResizing] = useState(false);
   const [isVerticallyExpanded, setIsVerticallyExpanded] = useState(false);
   const [isSlidingOut, setIsSlidingOut] = useState(false);
+  const [expandedLoaded, setExpandedLoaded] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
-  const startXRef = useRef<number>(0);
-  const startWidthRef = useRef<number>(DEFAULT_WIDTH);
+  
+  // Jotai setter for login modal
+  const setShowLoginModal = useSetAtom(showLoginModalAtom);
+
+  // Handle login button click - show login modal
+  const handleLoginClick = useCallback(() => {
+    setShowLoginModal(true);
+  }, [setShowLoginModal]);
+
+  // Handle login required callback (from API errors)
+  const handleLoginRequired = useCallback(() => {
+    setShowLoginModal(true);
+    onLoginRequired?.();
+  }, [onLoginRequired, setShowLoginModal]);
 
   // Get class name based on context (Shadow DOM vs CSS Modules)
   const getClassName = useCallback((shadowClass: string, moduleClass: string) => {
     return useShadowDom ? shadowClass : moduleClass;
   }, [useShadowDom]);
 
-  // Handle resize start
+  // Handle resize start - attach listeners directly for Shadow DOM compatibility
   const handleResizeStart = useCallback(
     (e: React.MouseEvent) => {
       e.preventDefault();
       e.stopPropagation();
-      setIsResizing(true);
-      startXRef.current = e.clientX;
-      startWidthRef.current = width;
+      
+      const startX = e.clientX;
+      const startWidth = width;
       
       // Prevent text selection during resize
       document.body.style.userSelect = 'none';
       document.body.style.cursor = 'ew-resize';
+      
+      const handleMouseMove = (moveEvent: MouseEvent) => {
+        // Since panel is on the right, dragging left increases width
+        const deltaX = startX - moveEvent.clientX;
+        const newWidth = Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, startWidth + deltaX));
+        setWidth(newWidth);
+      };
+      
+      const handleMouseUp = () => {
+        window.removeEventListener('mousemove', handleMouseMove);
+        window.removeEventListener('mouseup', handleMouseUp);
+        document.body.style.userSelect = '';
+        document.body.style.cursor = '';
+      };
+      
+      window.addEventListener('mousemove', handleMouseMove);
+      window.addEventListener('mouseup', handleMouseUp);
     },
     [width]
   );
 
-  // Handle resize move
+  // Load expanded state from storage on mount
   useEffect(() => {
-    if (!isResizing) return;
-
-    const handleMouseMove = (e: MouseEvent) => {
-      e.preventDefault();
-      const deltaX = startXRef.current - e.clientX;
-      let newWidth = startWidthRef.current + deltaX;
-
-      // Clamp width
-      newWidth = Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, newWidth));
-      setWidth(newWidth);
+    const loadExpandedState = async () => {
+      const domain = window.location.hostname;
+      const expanded = await ChromeStorage.getSidePanelExpanded(domain);
+      setIsVerticallyExpanded(expanded);
+      setExpandedLoaded(true);
     };
+    loadExpandedState();
+  }, []);
 
-    const handleMouseUp = () => {
-      setIsResizing(false);
-      document.body.style.userSelect = '';
-      document.body.style.cursor = '';
-    };
+  // Save expanded state when it changes (after initial load)
+  useEffect(() => {
+    if (!expandedLoaded) return;
+    const domain = window.location.hostname;
+    ChromeStorage.setSidePanelExpanded(domain, isVerticallyExpanded);
+  }, [isVerticallyExpanded, expandedLoaded]);
 
-    document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('mouseup', handleMouseUp);
-
-    return () => {
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
-      document.body.style.userSelect = '';
-      document.body.style.cursor = '';
-    };
-  }, [isResizing]);
-
-  // Reset tab and states when panel closes
+  // Reset tab and sliding state when panel closes (but keep expanded state)
   useEffect(() => {
     if (!isOpen) {
       setActiveTab('summary');
-      setIsVerticallyExpanded(false);
       setIsSlidingOut(false);
     }
   }, [isOpen]);
@@ -129,6 +153,7 @@ export const SidePanel: React.FC<SidePanelProps> = ({
       <Header
         onSlideOut={handleSlideOut}
         onVerticalExpand={handleVerticalExpand}
+        onLogin={handleLoginClick}
         brandImageSrc={chrome.runtime.getURL('src/assets/photos/brand-name.png')}
         useShadowDom={useShadowDom}
         isExpanded={isVerticallyExpanded}
@@ -136,7 +161,18 @@ export const SidePanel: React.FC<SidePanelProps> = ({
 
       {/* Content */}
       <div className={contentClass}>
-        {/* Content components empty for now */}
+        {activeTab === 'summary' && (
+          <SummaryView
+            useShadowDom={useShadowDom}
+            onLoginRequired={handleLoginRequired}
+          />
+        )}
+        {activeTab === 'settings' && (
+          <SettingsView useShadowDom={useShadowDom} />
+        )}
+        {activeTab === 'my' && (
+          <MyView useShadowDom={useShadowDom} />
+        )}
       </div>
 
       {/* Footer */}
