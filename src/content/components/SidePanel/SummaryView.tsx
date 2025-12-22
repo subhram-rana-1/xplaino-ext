@@ -592,8 +592,8 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
       content: question.trim(),
     };
 
-    // Don't add userMessage here - API response will include it
-    // This prevents duplicate messages
+    // Add user message immediately for instant UI feedback
+    setChatMessages((prev) => [...prev, userMessage]);
     setInputValue('');
     setAskingState('asking');
     setAskStreamingText('');
@@ -607,7 +607,9 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
       await AskService.ask(
         {
           question: question.trim(),
-          chat_history: [...chatMessages, userMessage],
+          // Send OLD chat history without the new user message
+          // API will add the user message from the 'question' field
+          chat_history: chatMessages,
           initial_context: pageContent || undefined,
           context_type: 'PAGE',
         },
@@ -621,6 +623,7 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
             if (lastMessage && lastMessage.role === 'assistant') {
               console.log('[SummaryView] Complete Ask API response:', lastMessage.content);
             }
+            // Replace with authoritative server response
             setChatMessages(updatedChatHistory);
             // Store questions for the last assistant message (by index)
             if (questions.length > 0) {
@@ -698,8 +701,7 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
   };
 
   const handleQuestionClick = (question: string) => {
-    // Auto-populate AND call API
-    setInputValue(question);
+    // Call API directly - question will be displayed immediately by handleAskQuestion
     handleAskQuestion(question);
   };
 
