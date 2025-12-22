@@ -25,6 +25,7 @@ export class ChromeStorage {
     USER_SETTING_PAGE_TRANSLATION_VIEW: 'user_setting_page_translation_view',
     USER_SETTING_THEME_ON_SITE: 'user_setting_theme_on_site',
     USER_SETTING_NATIVE_LANGUAGE: 'user_setting_native_language',
+    UNAUTHENTICATED_USER_ID: 'x_unauthenticated_user_id',
   } as const;
 
   // ============================================
@@ -266,6 +267,7 @@ export class ChromeStorage {
    * Auth info stored after successful login
    */
   static async getAuthInfo(): Promise<{
+    isLoggedIn?: boolean;
     accessToken: string;
     refreshToken?: string;
     accessTokenExpiresAt?: number;
@@ -285,6 +287,7 @@ export class ChromeStorage {
   }
 
   static async setAuthInfo(authInfo: {
+    isLoggedIn?: boolean;
     accessToken: string;
     refreshToken?: string;
     accessTokenExpiresAt?: number;
@@ -436,6 +439,25 @@ export class ChromeStorage {
 
   static async setUserSettingNativeLanguage(language: string): Promise<void> {
     return this.set(this.KEYS.USER_SETTING_NATIVE_LANGUAGE, language);
+  }
+
+  // --- Unauthenticated User ID ---
+  /**
+   * Get unauthenticated user ID
+   * This ID is used for tracking unauthenticated users and is sent with all API requests
+   * CRITICAL: This ID must never be deleted and persists across login/logout
+   */
+  static async getUnauthenticatedUserId(): Promise<string | null> {
+    return this.get<string>(this.KEYS.UNAUTHENTICATED_USER_ID);
+  }
+
+  /**
+   * Set unauthenticated user ID
+   * This is set when the backend returns X-Unauthenticated-User-Id header
+   * CRITICAL: This ID must never be deleted and persists across login/logout
+   */
+  static async setUnauthenticatedUserId(id: string): Promise<void> {
+    return this.set(this.KEYS.UNAUTHENTICATED_USER_ID, id);
   }
 }
 

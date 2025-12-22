@@ -3,6 +3,7 @@ import { atom } from 'jotai';
 
 // Types
 export interface UserAuthInfo {
+  isLoggedIn?: boolean;
   accessToken: string;
   refreshToken?: string;
   accessTokenExpiresAt?: number;

@@ -46,15 +46,23 @@ export class SummariseService {
 
   /**
    * Get authorization headers if auth info exists
+   * Also includes X-Unauthenticated-User-Id if available
    */
   private static async getAuthHeaders(): Promise<Record<string, string>> {
+    const headers: Record<string, string> = {};
+    
     const authInfo = await ChromeStorage.getAuthInfo();
     if (authInfo?.accessToken) {
-      return {
-        'Authorization': `Bearer ${authInfo.accessToken}`,
-      };
+      headers['Authorization'] = `Bearer ${authInfo.accessToken}`;
     }
-    return {};
+
+    // Always include unauthenticated user ID if available
+    const unauthenticatedUserId = await ChromeStorage.getUnauthenticatedUserId();
+    if (unauthenticatedUserId) {
+      headers['X-Unauthenticated-User-Id'] = unauthenticatedUserId;
+    }
+    
+    return headers;
   }
 
   /**
@@ -81,6 +89,13 @@ export class SummariseService {
         credentials: 'include',
       });
 
+      // Check for and store X-Unauthenticated-User-Id from response headers
+      const responseUnauthenticatedUserId = response.headers.get('X-Unauthenticated-User-Id');
+      if (responseUnauthenticatedUserId) {
+        await ChromeStorage.setUnauthenticatedUserId(responseUnauthenticatedUserId);
+        console.log('[SummariseService] Stored unauthenticated user ID:', responseUnauthenticatedUserId);
+      }
+
       // Handle 401 errors
       if (response.status === 401) {
         // Clone response to read body without consuming it
@@ -96,22 +111,41 @@ export class SummariseService {
             const refreshResponse = await TokenRefreshService.refreshAccessToken();
             
             // Retry the request with new token directly from refresh response
+            const retryHeaders: Record<string, string> = {
+              'Content-Type': 'application/json',
+              'Accept': 'text/event-stream',
+              'Authorization': `Bearer ${refreshResponse.accessToken}`,
+            };
+
+            // Always include unauthenticated user ID if available
+            const unauthenticatedUserId = await ChromeStorage.getUnauthenticatedUserId();
+            if (unauthenticatedUserId) {
+              retryHeaders['X-Unauthenticated-User-Id'] = unauthenticatedUserId;
+            }
+
             const retryResponse = await fetch(url, {
               method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Accept': 'text/event-stream',
-                'Authorization': `Bearer ${refreshResponse.accessToken}`,
-              },
+              headers: retryHeaders,
               body: JSON.stringify(request),
               signal: abortController?.signal,
               credentials: 'include',
             });
 
+            // Check for and store X-Unauthenticated-User-Id from retry response headers
+            const retryResponseUnauthUserId = retryResponse.headers.get('X-Unauthenticated-User-Id');
+            if (retryResponseUnauthUserId) {
+              await ChromeStorage.setUnauthenticatedUserId(retryResponseUnauthUserId);
+              console.log('[SummariseService] Stored unauthenticated user ID from retry:', retryResponseUnauthUserId);
+            }
+
             // Handle 401 errors on retry
             if (retryResponse.status === 401) {
               const retryErrorData = await retryResponse.json().catch(() => ({}));
-              if (retryErrorData.error_code === 'LOGIN_REQUIRED' || retryErrorData.detail?.includes('LOGIN_REQUIRED')) {
+              if (
+                retryErrorData.error_code === 'LOGIN_REQUIRED' ||
+                (typeof retryErrorData.detail === 'string' && retryErrorData.detail.includes('LOGIN_REQUIRED')) ||
+                (typeof retryErrorData.detail === 'object' && retryErrorData.detail?.errorCode === 'LOGIN_REQUIRED')
+              ) {
                 callbacks.onLoginRequired();
                 return;
               }
@@ -193,7 +227,11 @@ export class SummariseService {
         }
         
         // Handle other 401 errors (LOGIN_REQUIRED, etc.)
-        if (errorData.error_code === 'LOGIN_REQUIRED' || errorData.detail?.includes('LOGIN_REQUIRED')) {
+        if (
+          errorData.error_code === 'LOGIN_REQUIRED' ||
+          (typeof errorData.detail === 'string' && errorData.detail.includes('LOGIN_REQUIRED')) ||
+          (typeof errorData.detail === 'object' && errorData.detail?.errorCode === 'LOGIN_REQUIRED')
+        ) {
           callbacks.onLoginRequired();
           return;
         }

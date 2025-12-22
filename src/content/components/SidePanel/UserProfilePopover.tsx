@@ -3,6 +3,7 @@ import React, { useEffect, useCallback, useRef } from 'react';
 import type { RefObject } from 'react';
 import { LogOut } from 'lucide-react';
 import { AuthService } from '@/api-services/AuthService';
+import { ChromeStorage } from '@/storage/chrome-local/ChromeStorage';
 import { useSetAtom } from 'jotai';
 import { userAuthInfoAtom } from '@/store/uiAtoms';
 import { useEmergeAnimation } from '@/hooks/useEmergeAnimation';
@@ -153,18 +154,31 @@ export const UserProfilePopover: React.FC<UserProfilePopoverProps> = ({
   }, [handleClose]);
 
   // Handle logout
-  const handleLogout = async () => {
+  const handleLogout = async (event: React.MouseEvent<HTMLButtonElement>) => {
+    // Stop event propagation to prevent any interference with click handling
+    event.preventDefault();
+    event.stopPropagation();
+    
     console.log('[UserProfilePopover] Logout button clicked, calling AuthService.logout()');
     try {
       await AuthService.logout();
-      console.log('[UserProfilePopover] Logout successful, clearing auth info');
-      // Only clear auth info atom if logout API succeeded
-      // AuthService.logout() already removes from storage on success
-      setUserAuthInfo(null);
+      console.log('[UserProfilePopover] Logout successful, updating auth info atom');
+      
+      // Get the updated auth info from storage (which now has isLoggedIn: false and updated fields)
+      const updatedAuthInfo = await ChromeStorage.getAuthInfo();
+      console.log('[UserProfilePopover] Retrieved updated auth info from storage:', {
+        isLoggedIn: updatedAuthInfo?.isLoggedIn,
+        hasAccessToken: !!updatedAuthInfo?.accessToken,
+      });
+      
+      // Update atom with the merged auth info (not null)
+      // This preserves all fields including refreshToken while marking user as logged out
+      setUserAuthInfo(updatedAuthInfo);
+      
       await handleClose();
     } catch (error) {
       console.error('[UserProfilePopover] Logout error:', error);
-      // Don't clear auth info if API call failed
+      // Don't update auth info if API call failed
       // Just close the popover
       await handleClose();
     }
@@ -190,6 +204,7 @@ export const UserProfilePopover: React.FC<UserProfilePopoverProps> = ({
       <button
         className={getClassName('logoutButton')}
         onClick={handleLogout}
+        onMouseDown={(e) => e.stopPropagation()}
         type="button"
         aria-label="Logout"
       >

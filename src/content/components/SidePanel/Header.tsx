@@ -88,7 +88,19 @@ export const Header: React.FC<HeaderProps> = ({
   // Load auth info on mount
   useEffect(() => {
     const loadAuthInfo = async () => {
+      console.log('[Header] Loading auth info from Chrome storage...');
       const authInfo = await ChromeStorage.getAuthInfo();
+      console.log('[Header] Auth info loaded:', {
+        hasAuthInfo: !!authInfo,
+        hasAccessToken: !!authInfo?.accessToken,
+        hasRefreshToken: !!authInfo?.refreshToken,
+        hasUser: !!authInfo?.user,
+        userId: authInfo?.user?.id,
+        userEmail: authInfo?.user?.email,
+        userName: authInfo?.user?.name,
+        userPicture: authInfo?.user?.picture,
+        accessTokenExpiresAt: authInfo?.accessTokenExpiresAt,
+      });
       setUserAuthInfo(authInfo);
     };
     loadAuthInfo();
@@ -99,6 +111,12 @@ export const Header: React.FC<HeaderProps> = ({
     const handleStorageChange = (changes: { [key: string]: chrome.storage.StorageChange }) => {
       if (changes[ChromeStorage.KEYS.XPLAINO_AUTH_INFO]) {
         const newValue = changes[ChromeStorage.KEYS.XPLAINO_AUTH_INFO].newValue;
+        console.log('[Header] Auth info changed in storage:', {
+          hasNewValue: !!newValue,
+          hasAccessToken: !!newValue?.accessToken,
+          hasUser: !!newValue?.user,
+          userPicture: newValue?.user?.picture,
+        });
         setUserAuthInfo(newValue || null);
       }
     };
@@ -161,7 +179,24 @@ export const Header: React.FC<HeaderProps> = ({
     popoverCloseRef.current = closeFn;
   };
 
-  const isLoggedIn = userAuthInfo?.user && userAuthInfo?.accessToken;
+  // Check isLoggedIn from Chrome storage first, then fall back to checking user and accessToken
+  const isLoggedIn = userAuthInfo && (
+    userAuthInfo.isLoggedIn !== undefined 
+      ? userAuthInfo.isLoggedIn 
+      : (userAuthInfo.user && userAuthInfo.accessToken)
+  );
+
+  // Log login state decision
+  console.log('[Header] Rendering with login state:', {
+    isLoggedIn,
+    hasUserAuthInfo: !!userAuthInfo,
+    isLoggedInProperty: userAuthInfo?.isLoggedIn,
+    hasAccessToken: !!userAuthInfo?.accessToken,
+    hasUser: !!userAuthInfo?.user,
+    userPicture: userAuthInfo?.user?.picture,
+    willShowProfileIcon: isLoggedIn,
+    willShowLoginButton: !isLoggedIn,
+  });
 
   return (
     <div className={getClassName('header')}>
@@ -206,7 +241,7 @@ export const Header: React.FC<HeaderProps> = ({
 
       {/* Right: Login or Profile */}
       <div className={getClassName('headerRight')}>
-        {isLoggedIn ? (
+        {isLoggedIn && userAuthInfo ? (
           <div className={getClassName('profileContainer')} ref={profileRef}>
             <button
               ref={profileButtonRef}
@@ -238,7 +273,7 @@ export const Header: React.FC<HeaderProps> = ({
             aria-label="Login"
             type="button"
           >
-            Login
+            LOGIN
           </button>
         )}
       </div>

@@ -3,6 +3,7 @@
 import type { GetAllDomainsResponseDTO } from './dto/DomainDTO';
 import { ChromeStorage } from '@/storage/chrome-local/ChromeStorage';
 import { TokenRefreshService } from './TokenRefreshService';
+import { ApiErrorHandler } from './ApiErrorHandler';
 
 /**
  * Central class for all API calls
@@ -53,6 +54,13 @@ export class ApiService {
         `Bearer ${token}`;
     }
 
+    // Add unauthenticated user ID if available (always send, even when authenticated)
+    const unauthenticatedUserId = await ChromeStorage.getUnauthenticatedUserId();
+    if (unauthenticatedUserId) {
+      (defaultHeaders as Record<string, string>)['X-Unauthenticated-User-Id'] =
+        unauthenticatedUserId;
+    }
+
     const response = await fetch(url, {
       ...options,
       headers: {
@@ -61,9 +69,16 @@ export class ApiService {
       },
     });
 
+    // Check for and store X-Unauthenticated-User-Id from response headers
+    const responseUnauthenticatedUserId = response.headers.get('X-Unauthenticated-User-Id');
+    if (responseUnauthenticatedUserId) {
+      await ChromeStorage.setUnauthenticatedUserId(responseUnauthenticatedUserId);
+      console.log('[ApiService] Stored unauthenticated user ID:', responseUnauthenticatedUserId);
+    }
+
     if (!response.ok) {
-      // Check for token expiration
-      if (response.status === 401 && retryOnTokenExpired) {
+      // Check for 401 errors
+      if (response.status === 401) {
         try {
           // Clone response to read body without consuming it
           const responseClone = response.clone();
@@ -75,7 +90,19 @@ export class ApiService {
             errorBody = errorBodyText;
           }
 
-          if (TokenRefreshService.isTokenExpiredError(response.status, errorBody)) {
+          // Check for LOGIN_REQUIRED error code (supports multiple response formats)
+          if (
+            errorBody &&
+            (errorBody.errorCode === 'LOGIN_REQUIRED' ||
+              (typeof errorBody.detail === 'object' && errorBody.detail?.errorCode === 'LOGIN_REQUIRED'))
+          ) {
+            console.log('[ApiService] LOGIN_REQUIRED error detected, triggering login modal');
+            ApiErrorHandler.triggerLoginRequired();
+            throw new Error('Login required');
+          }
+
+          // Check for token expiration (only retry if retryOnTokenExpired is true)
+          if (retryOnTokenExpired && TokenRefreshService.isTokenExpiredError(response.status, errorBody)) {
             console.log('[ApiService] Token expired, attempting refresh');
             
             try {
@@ -96,6 +123,13 @@ export class ApiService {
                 },
               });
 
+              // Check for and store X-Unauthenticated-User-Id from retry response headers
+              const retryResponseUnauthUserId = retryResponse.headers.get('X-Unauthenticated-User-Id');
+              if (retryResponseUnauthUserId) {
+                await ChromeStorage.setUnauthenticatedUserId(retryResponseUnauthUserId);
+                console.log('[ApiService] Stored unauthenticated user ID from retry:', retryResponseUnauthUserId);
+              }
+
               if (!retryResponse.ok) {
                 const retryErrorBody = await retryResponse.text();
                 throw new Error(
@@ -114,6 +148,10 @@ export class ApiService {
             }
           }
         } catch (parseError) {
+          // If it's the "Login required" error we threw, re-throw it
+          if (parseError instanceof Error && parseError.message === 'Login required') {
+            throw parseError;
+          }
           console.error('[ApiService] Error parsing 401 response:', parseError);
         }
       }

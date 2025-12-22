@@ -39,6 +39,7 @@ import { SummariseService } from '../api-services/SummariseService';
 import { SimplifyService } from '../api-services/SimplifyService';
 import { TranslateService, getLanguageCode } from '../api-services/TranslateService';
 import { AskService } from '../api-services/AskService';
+import { ApiErrorHandler } from '../api-services/ApiErrorHandler';
 import { extractAndStorePageContent, getStoredPageContent } from './utils/pageContentExtractor';
 import { addTextUnderline, removeTextUnderline, pulseTextBackground, type UnderlineState } from './utils/textSelectionUnderline';
 import {
@@ -49,7 +50,7 @@ import {
   messageQuestionsAtom,
   pageReadingStateAtom,
 } from '../store/summaryAtoms';
-import { showLoginModalAtom } from '../store/uiAtoms';
+import { showLoginModalAtom, userAuthInfoAtom } from '../store/uiAtoms';
 import {
   textExplanationsAtom,
   activeTextExplanationIdAtom,
@@ -57,6 +58,7 @@ import {
   activeTextExplanationAtom,
   type TextExplanationState,
 } from '../store/textExplanationAtoms';
+import { ChromeStorage } from '../storage/chrome-local/ChromeStorage';
 
 console.log('[Content Script] Initialized');
 
@@ -122,6 +124,71 @@ interface TextExplanationChatMessage {
 
 const textExplanationChatHistory: Map<string, TextExplanationChatMessage[]> = new Map();
 const textExplanationMessageQuestions: Map<string, Record<number, string[]>> = new Map();
+
+/**
+ * Initialize authentication state from Chrome storage
+ * Loads auth info and sets the userAuthInfoAtom
+ */
+async function initializeAuthState(): Promise<void> {
+  try {
+    console.log('[Content Script] Initializing auth state...');
+    
+    // Register global LOGIN_REQUIRED error handler
+    ApiErrorHandler.registerLoginRequiredHandler(() => {
+      console.log('[Content Script] LOGIN_REQUIRED handler triggered, showing login modal');
+      store.set(showLoginModalAtom, true);
+    });
+    console.log('[Content Script] Registered LOGIN_REQUIRED error handler');
+    
+    const authInfo = await ChromeStorage.getAuthInfo();
+    
+    if (authInfo) {
+      console.log('[Content Script] Auth info loaded from storage:', {
+        hasAccessToken: !!authInfo.accessToken,
+        hasRefreshToken: !!authInfo.refreshToken,
+        hasUser: !!authInfo.user,
+        userId: authInfo.user?.id,
+        userEmail: authInfo.user?.email,
+        userName: authInfo.user?.name,
+        userPicture: authInfo.user?.picture,
+        accessTokenExpiresAt: authInfo.accessTokenExpiresAt,
+      });
+      store.set(userAuthInfoAtom, authInfo);
+      console.log('[Content Script] userAuthInfoAtom initialized with auth data');
+    } else {
+      console.log('[Content Script] No auth info found in storage');
+      store.set(userAuthInfoAtom, null);
+    }
+  } catch (error) {
+    console.error('[Content Script] Error initializing auth state:', error);
+    store.set(userAuthInfoAtom, null);
+  }
+}
+
+/**
+ * Setup global storage listener for auth changes
+ * This ensures auth state is updated even when components are unmounted
+ */
+function setupGlobalAuthListener(): void {
+  chrome.storage.onChanged.addListener((changes, areaName) => {
+    if (areaName === 'local' && changes[ChromeStorage.KEYS.XPLAINO_AUTH_INFO]) {
+      const change = changes[ChromeStorage.KEYS.XPLAINO_AUTH_INFO];
+      const newValue = change.newValue;
+      
+      console.log('[Content Script] Auth info changed in storage:', {
+        hasNewValue: !!newValue,
+        hasAccessToken: !!newValue?.accessToken,
+        hasUser: !!newValue?.user,
+        userPicture: newValue?.user?.picture,
+      });
+      
+      store.set(userAuthInfoAtom, newValue || null);
+      console.log('[Content Script] userAuthInfoAtom updated from storage change');
+    }
+  });
+  
+  console.log('[Content Script] Global auth storage listener setup complete');
+}
 
 /**
  * Toggle side panel open/closed state
@@ -745,12 +812,10 @@ async function handleExplainClick(
         },
         onLoginRequired: () => {
           console.log('[Content Script] Login required for text explanation');
+          // Remove the text explanation completely (icon, underline, panel)
+          removeTextExplanation(explanationId);
+          // Show login modal
           store.set(showLoginModalAtom, true);
-          updateExplanationInMap(explanationId, (state) => ({
-            ...state,
-            isSpinning: false,
-          }));
-          updateTextExplanationIconContainer();
         },
       },
       newExplanation.abortController || undefined
@@ -1930,6 +1995,9 @@ function removeLoginModal(): void {
  * Main content script logic
  */
 async function initContentScript(): Promise<void> {
+  // Initialize auth state before any component injection
+  await initializeAuthState();
+  
   const allowed = await isExtensionAllowed();
   
   if (allowed) {
@@ -1948,6 +2016,9 @@ async function initContentScript(): Promise<void> {
     removeTextExplanationIconContainer();
   }
 }
+
+// Setup global auth listener (runs once at script initialization)
+setupGlobalAuthListener();
 
 /**
  * Listen for storage changes to dynamically enable/disable

@@ -25,7 +25,16 @@ export interface LoginResponse {
   user: UserInfo;
 }
 
+export interface LogoutResponse {
+  isLoggedIn: boolean;
+  accessToken: string;
+  accessTokenExpiresAt: number;
+  userSessionPk: string;
+  user: UserInfo;
+}
+
 export interface AuthInfo {
+  isLoggedIn?: boolean;
   accessToken: string;
   refreshToken?: string;
   accessTokenExpiresAt?: number;
@@ -123,17 +132,32 @@ export class AuthService {
   private static async callLoginAPI(idToken: string): Promise<LoginResponse> {
     const url = `${ENV.API_BASE_URL}${this.LOGIN_ENDPOINT}`;
 
+    // Include unauthenticated user ID if available
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'X-Source': 'chrome-extension',
+    };
+
+    const unauthenticatedUserId = await ChromeStorage.getUnauthenticatedUserId();
+    if (unauthenticatedUserId) {
+      headers['X-Unauthenticated-User-Id'] = unauthenticatedUserId;
+    }
+
     const response = await fetch(url, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Source': 'chrome-extension',
-      },
+      headers: headers,
       body: JSON.stringify({
         authVendor: 'GOOGLE',
         idToken: idToken,
       }),
     });
+
+    // Check for and store X-Unauthenticated-User-Id from response headers
+    const responseUnauthenticatedUserId = response.headers.get('X-Unauthenticated-User-Id');
+    if (responseUnauthenticatedUserId) {
+      await ChromeStorage.setUnauthenticatedUserId(responseUnauthenticatedUserId);
+      console.log('[AuthService] Stored unauthenticated user ID:', responseUnauthenticatedUserId);
+    }
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -149,6 +173,7 @@ export class AuthService {
    */
   private static async saveAuthInfo(loginResponse: LoginResponse): Promise<void> {
     const authInfo: AuthInfo = {
+      isLoggedIn: loginResponse.isLoggedIn,
       accessToken: loginResponse.accessToken,
       refreshToken: loginResponse.refreshToken,
       accessTokenExpiresAt: loginResponse.accessTokenExpiresAt,
@@ -167,17 +192,15 @@ export class AuthService {
 
   /**
    * Logout user
-   * Calls logout API first, then removes auth info from storage only if API call succeeds
+   * Calls logout API, then updates auth info in storage with response data (merging with existing fields)
    */
-  static async logout(): Promise<void> {
+  static async logout(): Promise<LogoutResponse> {
     console.log('[AuthService] logout() called');
     const authInfo = await ChromeStorage.getAuthInfo();
     
     if (!authInfo?.accessToken) {
-      console.log('[AuthService] No access token found, clearing storage if any exists');
-      // No auth info, just clear storage if any exists
-      await ChromeStorage.removeAuthInfo();
-      return;
+      console.log('[AuthService] No access token found, throwing error');
+      throw new Error('No access token found - user not logged in');
     }
 
     // Call backend logout API
@@ -190,16 +213,31 @@ export class AuthService {
     });
     
     try {
+      // Include unauthenticated user ID if available
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authInfo.accessToken}`,
+      };
+
+      const unauthenticatedUserId = await ChromeStorage.getUnauthenticatedUserId();
+      if (unauthenticatedUserId) {
+        headers['X-Unauthenticated-User-Id'] = unauthenticatedUserId;
+      }
+
       const response = await fetch(url, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${authInfo.accessToken}`,
-        },
+        headers: headers,
         body: JSON.stringify({
           authVendor: 'GOOGLE',
         }),
       });
+
+      // Check for and store X-Unauthenticated-User-Id from response headers
+      const responseUnauthenticatedUserId = response.headers.get('X-Unauthenticated-User-Id');
+      if (responseUnauthenticatedUserId) {
+        await ChromeStorage.setUnauthenticatedUserId(responseUnauthenticatedUserId);
+        console.log('[AuthService] Stored unauthenticated user ID:', responseUnauthenticatedUserId);
+      }
 
       console.log('[AuthService] Logout API response:', {
         status: response.status,
@@ -217,10 +255,34 @@ export class AuthService {
         throw new Error(`Logout failed: ${response.status} - ${errorText}`);
       }
 
-      // Only remove auth info from storage if API call succeeds
-      console.log('[AuthService] Logout API succeeded, removing auth info from storage');
-      await ChromeStorage.removeAuthInfo();
-      console.log('[AuthService] User logged out successfully');
+      // Parse logout response
+      const logoutResponse = await response.json() as LogoutResponse;
+      console.log('[AuthService] Logout response data:', {
+        isLoggedIn: logoutResponse.isLoggedIn,
+        hasUser: !!logoutResponse.user,
+        userSessionPk: logoutResponse.userSessionPk,
+      });
+
+      // Merge logout response with existing auth info (preserving all existing fields)
+      const updatedAuthInfo: AuthInfo = {
+        ...authInfo, // Keep all existing fields (refreshToken, refreshTokenExpiresAt, etc.)
+        isLoggedIn: logoutResponse.isLoggedIn,
+        accessToken: logoutResponse.accessToken,
+        accessTokenExpiresAt: logoutResponse.accessTokenExpiresAt,
+        userSessionPk: logoutResponse.userSessionPk,
+        user: logoutResponse.user,
+      };
+
+      // Update auth info in storage with merged data
+      console.log('[AuthService] Updating auth info in storage with merged data');
+      await ChromeStorage.setAuthInfo(updatedAuthInfo);
+      
+      // Trigger storage change event to update atoms in components
+      // This ensures immediate UI updates without waiting for the listener
+      chrome.storage.local.set({ [ChromeStorage.KEYS.XPLAINO_AUTH_INFO]: updatedAuthInfo });
+      
+      console.log('[AuthService] User logged out successfully, auth info updated');
+      return logoutResponse;
     } catch (error) {
       console.error('[AuthService] Logout API error:', error);
       // Re-throw error so caller can handle it
