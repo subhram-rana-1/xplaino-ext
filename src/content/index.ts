@@ -50,6 +50,13 @@ import {
   pageReadingStateAtom,
 } from '../store/summaryAtoms';
 import { showLoginModalAtom } from '../store/uiAtoms';
+import {
+  textExplanationsAtom,
+  activeTextExplanationIdAtom,
+  textExplanationPanelOpenAtom,
+  activeTextExplanationAtom,
+  type TextExplanationState,
+} from '../store/textExplanationAtoms';
 
 console.log('[Content Script] Initialized');
 
@@ -103,31 +110,7 @@ let summariseAbortController: AbortController | null = null;
 let firstChunkReceived = false;
 let canHideFABActions = true;
 
-// Text explanation state
-interface TextExplanationState {
-  id: string;
-  selectedText: string;
-  range: Range | null;
-  iconPosition: { x: number; y: number };
-  isSpinning: boolean;
-  streamingText: string;
-  underlineState: UnderlineState | null;
-  abortController: AbortController | null;
-  firstChunkReceived: boolean;
-  iconRef: React.MutableRefObject<HTMLElement | null> | null;
-  possibleQuestions: string[];
-  textStartIndex: number;
-  textLength: number;
-  pendingQuestion?: string; // Track the question being asked for stop handler
-  shouldAllowSimplifyMore: boolean; // Whether Simplify button should be shown
-  previousSimplifiedTexts: string[]; // Array of previous simplified texts for context
-  simplifiedExplanationCount: number; // Count of simplified explanations (1, 2, 3, etc.)
-  isSimplifyRequest?: boolean; // Track if current request is a Simplify request (not Ask request)
-  translations: Array<{ language: string; translated_content: string }>; // Array of translations for this selected text
-}
-
-let textExplanationState: TextExplanationState | null = null;
-let textExplanationPanelOpen = false;
+// Text explanation view mode (not stored in atoms as it's UI state)
 let textExplanationViewMode: 'contextual' | 'translation' = 'contextual';
 let isTranslating = false;
 
@@ -565,6 +548,23 @@ function calculateTextStartIndex(range: Range): number {
 }
 
 /**
+ * Helper function to update an explanation in the map
+ */
+function updateExplanationInMap(
+  explanationId: string,
+  updater: (state: TextExplanationState) => TextExplanationState
+): void {
+  const explanations = store.get(textExplanationsAtom);
+  const currentState = explanations.get(explanationId);
+  if (currentState) {
+    const updatedState = updater(currentState);
+    const newMap = new Map(explanations);
+    newMap.set(explanationId, updatedState);
+    store.set(textExplanationsAtom, newMap);
+  }
+}
+
+/**
  * Handle Explain button click from ContentActionsTrigger
  */
 async function handleExplainClick(
@@ -579,9 +579,18 @@ async function handleExplainClick(
     return;
   }
 
-  // If there's an existing explanation, abort it
-  if (textExplanationState?.abortController) {
-    textExplanationState.abortController.abort();
+  // Get current explanations and active ID
+  const explanations = store.get(textExplanationsAtom);
+  const activeId = store.get(activeTextExplanationIdAtom);
+  
+  // If there's an active explanation, abort it and close its panel
+  if (activeId) {
+    const activeExplanation = explanations.get(activeId);
+    if (activeExplanation?.abortController) {
+      activeExplanation.abortController.abort();
+    }
+    // Close the panel for the previous active explanation
+    store.set(textExplanationPanelOpenAtom, false);
   }
 
   // Calculate textStartIndex and textLength
@@ -592,7 +601,7 @@ async function handleExplainClick(
   const explanationId = `explanation-${Date.now()}`;
   const iconRef: React.MutableRefObject<HTMLElement | null> = { current: null };
   
-  textExplanationState = {
+  const newExplanation: TextExplanationState = {
     id: explanationId,
     selectedText,
     range: range.cloneRange(), // Clone to avoid issues
@@ -612,6 +621,14 @@ async function handleExplainClick(
     isSimplifyRequest: true, // Initial explanation is a simplify request
     translations: [], // Array of translations for this selected text
   };
+
+  // Add to map
+  const newMap = new Map(explanations);
+  newMap.set(explanationId, newExplanation);
+  store.set(textExplanationsAtom, newMap);
+  
+  // Set as active
+  store.set(activeTextExplanationIdAtom, explanationId);
 
   // Reset view mode to contextual
   textExplanationViewMode = 'contextual';
@@ -636,117 +653,146 @@ async function handleExplainClick(
       ],
       {
         onChunk: (_chunk, accumulated) => {
-          if (!textExplanationState) return;
-          
-          textExplanationState.streamingText = accumulated;
-          
-          // On first chunk: switch to green icon, add underline, open panel
-          if (!textExplanationState.firstChunkReceived) {
-            textExplanationState.firstChunkReceived = true;
-            textExplanationState.isSpinning = false;
+          updateExplanationInMap(explanationId, (state) => {
+            const updatedState = { ...state, streamingText: accumulated };
             
-            // Add underline to selected text
-            if (textExplanationState.range) {
-              const underlineState = addTextUnderline(textExplanationState.range);
-              textExplanationState.underlineState = underlineState;
+            // On first chunk: switch to green icon, add underline, open panel
+            if (!updatedState.firstChunkReceived) {
+              updatedState.firstChunkReceived = true;
+              updatedState.isSpinning = false;
+              
+              // Add underline to selected text
+              if (updatedState.range) {
+                const underlineState = addTextUnderline(updatedState.range);
+                updatedState.underlineState = underlineState;
+              }
+              
+              // Open panel
+              store.set(textExplanationPanelOpenAtom, true);
+              updateTextExplanationPanel();
+              
+              // Update icon container
+              updateTextExplanationIconContainer();
+            } else {
+              // Update panel with new content
+              updateTextExplanationPanel();
             }
             
-            // Open panel
-            textExplanationPanelOpen = true;
-            updateTextExplanationPanel();
-            
-            // Update icon container
-            updateTextExplanationIconContainer();
-          } else {
-            // Update panel with new content
-            updateTextExplanationPanel();
-          }
+            return updatedState;
+          });
         },
         onComplete: (simplifiedText, shouldAllowSimplifyMore, possibleQuestions) => {
           console.log('[Content Script] Text explanation complete');
-          if (!textExplanationState) return;
           
           // Add initial explanation to chat history if not already there
-          const explanationId = textExplanationState.id;
           if (!textExplanationChatHistory.has(explanationId)) {
             textExplanationChatHistory.set(explanationId, []);
           }
           const chatHistory = textExplanationChatHistory.get(explanationId)!;
           
-          // Only add if this is the first explanation (no messages yet)
-          if (chatHistory.length === 0) {
-            // Set count to 1 for the first explanation
-            textExplanationState.simplifiedExplanationCount = 1;
-            const explanationNumber = textExplanationState.simplifiedExplanationCount;
-            
-            // Create message with heading "Simplified explanation 1"
-            const messageWithHeading = `## Simplified explanation ${explanationNumber}\n\n${simplifiedText}`;
-            chatHistory.push({ role: 'assistant', content: messageWithHeading });
-            
-            // Only add questions if they don't already exist for this message
-            if (possibleQuestions && possibleQuestions.length > 0) {
-              if (!textExplanationMessageQuestions.has(explanationId)) {
-                textExplanationMessageQuestions.set(explanationId, {});
-              }
-              const messageQuestions = textExplanationMessageQuestions.get(explanationId)!;
-              // Only set if not already set to prevent duplicates
-              if (!messageQuestions[0]) {
-                messageQuestions[0] = possibleQuestions; // First message (index 0)
-                textExplanationMessageQuestions.set(explanationId, messageQuestions);
+          updateExplanationInMap(explanationId, (state) => {
+            // Only add if this is the first explanation (no messages yet)
+            if (chatHistory.length === 0) {
+              // Set count to 1 for the first explanation
+              state.simplifiedExplanationCount = 1;
+              const explanationNumber = state.simplifiedExplanationCount;
+              
+              // Create message with heading "Simplified explanation 1"
+              const messageWithHeading = `## Simplified explanation ${explanationNumber}\n\n${simplifiedText}`;
+              chatHistory.push({ role: 'assistant', content: messageWithHeading });
+              
+              // Only add questions if they don't already exist for this message
+              if (possibleQuestions && possibleQuestions.length > 0) {
+                if (!textExplanationMessageQuestions.has(explanationId)) {
+                  textExplanationMessageQuestions.set(explanationId, {});
+                }
+                const messageQuestions = textExplanationMessageQuestions.get(explanationId)!;
+                // Only set if not already set to prevent duplicates
+                if (!messageQuestions[0]) {
+                  messageQuestions[0] = possibleQuestions; // First message (index 0)
+                  textExplanationMessageQuestions.set(explanationId, messageQuestions);
+                }
               }
             }
-          }
-          
-          // Update state with simplify button visibility and previous simplified texts
-          textExplanationState.shouldAllowSimplifyMore = shouldAllowSimplifyMore;
-          // Add current simplified text to previousSimplifiedTexts array
-          textExplanationState.previousSimplifiedTexts = [...textExplanationState.previousSimplifiedTexts, simplifiedText];
-          
-          // Clear streamingText after adding to chat history to prevent duplicate display
-          textExplanationState.streamingText = '';
-          textExplanationState.possibleQuestions = possibleQuestions || [];
-          
-          // Clear abort controller to indicate request is complete
-          textExplanationState.abortController = null;
-          textExplanationState.firstChunkReceived = false;
-          textExplanationState.isSimplifyRequest = undefined; // Clear simplify request flag
+            
+            // Update state with simplify button visibility and previous simplified texts
+            state.shouldAllowSimplifyMore = shouldAllowSimplifyMore;
+            // Add current simplified text to previousSimplifiedTexts array
+            state.previousSimplifiedTexts = [...state.previousSimplifiedTexts, simplifiedText];
+            
+            // Clear streamingText after adding to chat history to prevent duplicate display
+            state.streamingText = '';
+            state.possibleQuestions = possibleQuestions || [];
+            
+            // Clear abort controller to indicate request is complete
+            state.abortController = null;
+            state.firstChunkReceived = false;
+            state.isSimplifyRequest = undefined; // Clear simplify request flag
+            
+            return state;
+          });
           
           updateTextExplanationPanel();
         },
         onError: (errorCode, errorMsg) => {
           console.error('[Content Script] Text explanation error:', errorCode, errorMsg);
           // Reset state on error
-          if (textExplanationState) {
-            textExplanationState.isSpinning = false;
-            updateTextExplanationIconContainer();
-          }
+          updateExplanationInMap(explanationId, (state) => ({
+            ...state,
+            isSpinning: false,
+          }));
+          updateTextExplanationIconContainer();
         },
         onLoginRequired: () => {
           console.log('[Content Script] Login required for text explanation');
           store.set(showLoginModalAtom, true);
-          if (textExplanationState) {
-            textExplanationState.isSpinning = false;
-            updateTextExplanationIconContainer();
-          }
+          updateExplanationInMap(explanationId, (state) => ({
+            ...state,
+            isSpinning: false,
+          }));
+          updateTextExplanationIconContainer();
         },
       },
-      textExplanationState.abortController || undefined
+      newExplanation.abortController || undefined
     );
   } catch (error) {
     console.error('[Content Script] Text explanation exception:', error);
-    if (textExplanationState) {
-      textExplanationState.isSpinning = false;
-      updateTextExplanationIconContainer();
-    }
+    updateExplanationInMap(explanationId, (state) => ({
+      ...state,
+      isSpinning: false,
+    }));
+    updateTextExplanationIconContainer();
   }
 }
 
 /**
- * Toggle text explanation panel open/closed
+ * Toggle text explanation panel open/closed for a specific explanation
+ * If clicking same explanation ID: toggle panel (close if open, open if closed)
+ * If clicking different ID: close current panel, set new active ID, open new panel
  */
-function toggleTextExplanationPanel(): void {
-  textExplanationPanelOpen = !textExplanationPanelOpen;
+function toggleTextExplanationPanel(explanationId: string): void {
+  const activeId = store.get(activeTextExplanationIdAtom);
+  const panelOpen = store.get(textExplanationPanelOpenAtom);
+  
+  if (explanationId === activeId) {
+    // Same explanation: toggle panel
+    store.set(textExplanationPanelOpenAtom, !panelOpen);
+  } else {
+    // Different explanation: close current, switch to new, open panel
+    if (activeId) {
+      // Abort any in-progress request for previous active explanation
+      const explanations = store.get(textExplanationsAtom);
+      const previousExplanation = explanations.get(activeId);
+      if (previousExplanation?.abortController) {
+        previousExplanation.abortController.abort();
+      }
+    }
+    store.set(activeTextExplanationIdAtom, explanationId);
+    store.set(textExplanationPanelOpenAtom, true);
+  }
+  
   updateTextExplanationPanel();
+  updateTextExplanationIconContainer();
 }
 
 // Stable callback functions to prevent infinite re-renders
@@ -776,21 +822,31 @@ function updateTextExplanationPanel(): void {
   isUpdatingPanel = true;
   pendingUpdate = false;
   
-  const streamingText = textExplanationState?.streamingText || '';
-  const possibleQuestions = textExplanationState?.possibleQuestions || [];
-  const shouldAllowSimplifyMore = textExplanationState?.shouldAllowSimplifyMore || false;
-  const pendingQuestion = textExplanationState?.pendingQuestion;
-  const firstChunkReceived = textExplanationState?.firstChunkReceived || false;
-  const translations = textExplanationState?.translations || [];
+  // Get active explanation from atom
+  const activeExplanation = store.get(activeTextExplanationAtom);
+  const panelOpen = store.get(textExplanationPanelOpenAtom);
+  
+  // If no active explanation or panel is closed, hide the panel
+  if (!activeExplanation || !panelOpen) {
+    textExplanationPanelRoot.render(React.createElement(React.Fragment));
+    isUpdatingPanel = false;
+    return;
+  }
+  
+  const streamingText = activeExplanation.streamingText || '';
+  const possibleQuestions = activeExplanation.possibleQuestions || [];
+  const shouldAllowSimplifyMore = activeExplanation.shouldAllowSimplifyMore || false;
+  const pendingQuestion = activeExplanation.pendingQuestion;
+  const firstChunkReceived = activeExplanation.firstChunkReceived || false;
+  const translations = activeExplanation.translations || [];
   
   // Get chat history for current explanation
-  const explanationId = textExplanationState?.id || '';
+  const explanationId = activeExplanation.id;
   const chatMessages = textExplanationChatHistory.get(explanationId) || [];
   const messageQuestions = textExplanationMessageQuestions.get(explanationId) || {};
   
   // Check if simplify is in progress (has abortController, no first chunk yet, and it's actually a Simplify request)
-  const isSimplifying = textExplanationState ? 
-    (!!textExplanationState.abortController && !textExplanationState.firstChunkReceived && shouldAllowSimplifyMore && textExplanationState.isSimplifyRequest === true) : false;
+  const isSimplifying = !!activeExplanation.abortController && !activeExplanation.firstChunkReceived && shouldAllowSimplifyMore && activeExplanation.isSimplifyRequest === true;
   
   // isTranslating is tracked globally for translation API calls
   
@@ -803,84 +859,85 @@ function updateTextExplanationPanel(): void {
     if (explanationId) {
       textExplanationChatHistory.delete(explanationId);
       textExplanationMessageQuestions.delete(explanationId);
-      if (textExplanationState) {
-        textExplanationState.streamingText = '';
-        textExplanationState.possibleQuestions = [];
+      updateExplanationInMap(explanationId, (state) => {
+        state.streamingText = '';
+        state.possibleQuestions = [];
         // Clear abortController and pendingQuestion to prevent loading dots from showing
-        if (textExplanationState.abortController) {
-          textExplanationState.abortController.abort();
-          textExplanationState.abortController = null;
+        if (state.abortController) {
+          state.abortController.abort();
+          state.abortController = null;
         }
-        textExplanationState.pendingQuestion = undefined;
-        textExplanationState.firstChunkReceived = false;
+        state.pendingQuestion = undefined;
+        state.firstChunkReceived = false;
         // Clear simplified explanation state so Simplify button starts fresh
-        textExplanationState.previousSimplifiedTexts = [];
-        textExplanationState.simplifiedExplanationCount = 0;
-        // Reset shouldAllowSimplifyMore based on whether there's an initial explanation
-        // If there's no initial explanation, we might want to keep it false
-        // But if there is, we should allow simplifying again
-        // For now, we'll keep the current value or set it based on whether there's content
-        // Actually, if we cleared chat, we should allow simplifying the original text again
-        textExplanationState.shouldAllowSimplifyMore = true;
-      }
+        state.previousSimplifiedTexts = [];
+        state.simplifiedExplanationCount = 0;
+        // Reset shouldAllowSimplifyMore - if we cleared chat, we should allow simplifying the original text again
+        state.shouldAllowSimplifyMore = true;
+        return state;
+      });
       updateTextExplanationPanel();
     }
   };
 
   // Create stop request handler
   const handleStopRequestCallback = () => {
-    if (!textExplanationState) return;
+    const currentActiveExplanation = store.get(activeTextExplanationAtom);
+    if (!currentActiveExplanation) return;
     
-    const explanationId = textExplanationState.id;
-    const currentStreamingText = textExplanationState.streamingText;
-    const pendingQuestion = textExplanationState.pendingQuestion;
+    const currentExplanationId = currentActiveExplanation.id;
+    const currentStreamingText = currentActiveExplanation.streamingText;
+    const pendingQuestion = currentActiveExplanation.pendingQuestion;
     
     // Abort the current request
-    if (textExplanationState.abortController) {
-      textExplanationState.abortController.abort();
-      textExplanationState.abortController = null;
-    }
-    
-    // If we have received some streaming text, save it to chat history
-    if (currentStreamingText && currentStreamingText.trim().length > 0 && textExplanationState.firstChunkReceived && pendingQuestion) {
-      // Get current chat history
-      if (!textExplanationChatHistory.has(explanationId)) {
-        textExplanationChatHistory.set(explanationId, []);
-      }
-      const currentChatHistory = textExplanationChatHistory.get(explanationId)!;
-      const updatedChatHistory = [...currentChatHistory];
-      
-      // Add the user message if not already present
-      const lastMessage = updatedChatHistory[updatedChatHistory.length - 1];
-      if (!lastMessage || lastMessage.role !== 'user' || lastMessage.content !== pendingQuestion) {
-        updatedChatHistory.push({ role: 'user', content: pendingQuestion });
+    updateExplanationInMap(currentExplanationId, (state) => {
+      if (state.abortController) {
+        state.abortController.abort();
+        state.abortController = null;
       }
       
-      // Add the partial assistant response
-      updatedChatHistory.push({ role: 'assistant', content: currentStreamingText });
+      // If we have received some streaming text, save it to chat history
+      if (currentStreamingText && currentStreamingText.trim().length > 0 && state.firstChunkReceived && pendingQuestion) {
+        // Get current chat history
+        if (!textExplanationChatHistory.has(currentExplanationId)) {
+          textExplanationChatHistory.set(currentExplanationId, []);
+        }
+        const currentChatHistory = textExplanationChatHistory.get(currentExplanationId)!;
+        const updatedChatHistory = [...currentChatHistory];
+        
+        // Add the user message if not already present
+        const lastMessage = updatedChatHistory[updatedChatHistory.length - 1];
+        if (!lastMessage || lastMessage.role !== 'user' || lastMessage.content !== pendingQuestion) {
+          updatedChatHistory.push({ role: 'user', content: pendingQuestion });
+        }
+        
+        // Add the partial assistant response
+        updatedChatHistory.push({ role: 'assistant', content: currentStreamingText });
+        
+        textExplanationChatHistory.set(currentExplanationId, updatedChatHistory);
+      }
       
-      textExplanationChatHistory.set(explanationId, updatedChatHistory);
-    }
-    
-    // Clear streaming state
-    textExplanationState.streamingText = '';
-    textExplanationState.firstChunkReceived = false;
-    textExplanationState.possibleQuestions = [];
-    textExplanationState.pendingQuestion = undefined;
-    textExplanationState.isSimplifyRequest = undefined; // Clear simplify request flag
+      // Clear streaming state
+      state.streamingText = '';
+      state.firstChunkReceived = false;
+      state.possibleQuestions = [];
+      state.pendingQuestion = undefined;
+      state.isSimplifyRequest = undefined; // Clear simplify request flag
+      
+      return state;
+    });
     
     updateTextExplanationPanel();
   };
 
   // Check if a request is in progress
   // Request is in progress if there's an abortController (regardless of firstChunkReceived)
-  const isRequesting = textExplanationState ? 
-    !!textExplanationState.abortController : false;
+  const isRequesting = !!activeExplanation.abortController;
   
   // Create stable callbacks if they don't exist
   if (!handleCloseCallback) {
     handleCloseCallback = () => {
-      textExplanationPanelOpen = false;
+      store.set(textExplanationPanelOpenAtom, false);
       updateTextExplanationPanel();
     };
   }
@@ -894,10 +951,11 @@ function updateTextExplanationPanel(): void {
   
   if (!handleQuestionClickCallback) {
     handleQuestionClickCallback = async (question: string) => {
-      if (!textExplanationState) return;
+      const currentActiveExplanation = store.get(activeTextExplanationAtom);
+      if (!currentActiveExplanation) return;
       
-      const explanationId = textExplanationState.id;
-      const selectedText = textExplanationState.selectedText;
+      const explanationId = currentActiveExplanation.id;
+      const selectedText = currentActiveExplanation.selectedText;
       
       // Get current chat history
       if (!textExplanationChatHistory.has(explanationId)) {
@@ -913,18 +971,19 @@ function updateTextExplanationPanel(): void {
       textExplanationChatHistory.set(explanationId, chatHistoryForAPI);
       
       // Abort current request if any
-      if (textExplanationState.abortController) {
-        textExplanationState.abortController.abort();
-      }
-      
-      // Create new state for the question
       const newAbortController = new AbortController();
-      textExplanationState.abortController = newAbortController;
-      textExplanationState.streamingText = '';
-      textExplanationState.firstChunkReceived = false;
-      textExplanationState.possibleQuestions = []; // Clear previous questions to prevent duplicates
-      textExplanationState.pendingQuestion = question; // Store the question for stop handler
-      textExplanationState.isSimplifyRequest = false; // This is an Ask request, not Simplify
+      updateExplanationInMap(explanationId, (state) => {
+        if (state.abortController) {
+          state.abortController.abort();
+        }
+        state.abortController = newAbortController;
+        state.streamingText = '';
+        state.firstChunkReceived = false;
+        state.possibleQuestions = []; // Clear previous questions to prevent duplicates
+        state.pendingQuestion = question; // Store the question for stop handler
+        state.isSimplifyRequest = false; // This is an Ask request, not Simplify
+        return state;
+      });
       
       // Update panel immediately to show user message and loading state
       updateTextExplanationPanel();
@@ -939,17 +998,17 @@ function updateTextExplanationPanel(): void {
           },
           {
             onChunk: (_chunk, accumulated) => {
-              if (!textExplanationState) return;
-              textExplanationState.streamingText = accumulated;
-              if (!textExplanationState.firstChunkReceived) {
-                textExplanationState.firstChunkReceived = true;
-              }
+              updateExplanationInMap(explanationId, (state) => {
+                state.streamingText = accumulated;
+                if (!state.firstChunkReceived) {
+                  state.firstChunkReceived = true;
+                }
+                return state;
+              });
               updateTextExplanationPanel();
             },
             onComplete: (updatedChatHistory, questions) => {
-              if (!textExplanationState) return;
-              
-              // Get current chat history (already has user message from line 878)
+              // Get current chat history (already has user message)
               const currentChatHistory = textExplanationChatHistory.get(explanationId) || [];
               
               // Extract only the assistant message from updatedChatHistory
@@ -978,7 +1037,8 @@ function updateTextExplanationPanel(): void {
               } else {
                 // Fallback: if structure is unexpected, use updatedChatHistory but deduplicate
                 // Remove duplicate user messages matching pendingQuestion
-                const pendingQuestion = textExplanationState.pendingQuestion;
+                const currentState = store.get(textExplanationsAtom).get(explanationId);
+                const pendingQuestion = currentState?.pendingQuestion;
                 const deduplicated = updatedChatHistory.filter((msg, idx) => {
                   if (msg.role === 'user' && pendingQuestion && msg.content === pendingQuestion) {
                     // Keep only the first occurrence
@@ -1005,25 +1065,27 @@ function updateTextExplanationPanel(): void {
               }
               
               // Clear streamingText since response is complete and in chat history
-              textExplanationState.streamingText = '';
-              textExplanationState.possibleQuestions = questions || [];
-              textExplanationState.pendingQuestion = undefined; // Clear pending question
-              
-              // Clear abort controller to indicate request is complete
-              textExplanationState.abortController = null;
-              textExplanationState.firstChunkReceived = false;
-              textExplanationState.isSimplifyRequest = undefined; // Clear simplify request flag
+              updateExplanationInMap(explanationId, (state) => {
+                state.streamingText = '';
+                state.possibleQuestions = questions || [];
+                state.pendingQuestion = undefined; // Clear pending question
+                state.abortController = null;
+                state.firstChunkReceived = false;
+                state.isSimplifyRequest = undefined; // Clear simplify request flag
+                return state;
+              });
               
               updateTextExplanationPanel();
             },
             onError: (errorCode, errorMsg) => {
               console.error('[Content Script] Question error:', errorCode, errorMsg);
               // Clear abort controller on error as well
-              if (textExplanationState) {
-                textExplanationState.abortController = null;
-                textExplanationState.firstChunkReceived = false;
-                textExplanationState.isSimplifyRequest = undefined; // Clear simplify request flag
-              }
+              updateExplanationInMap(explanationId, (state) => {
+                state.abortController = null;
+                state.firstChunkReceived = false;
+                state.isSimplifyRequest = undefined; // Clear simplify request flag
+                return state;
+              });
             },
             onLoginRequired: () => {
               store.set(showLoginModalAtom, true);
@@ -1039,24 +1101,28 @@ function updateTextExplanationPanel(): void {
   
   if (!handleSimplifyCallback) {
     handleSimplifyCallback = async () => {
-      if (!textExplanationState) return;
+      const currentActiveExplanation = store.get(activeTextExplanationAtom);
+      if (!currentActiveExplanation) return;
       
-      const explanationId = textExplanationState.id;
-      const selectedText = textExplanationState.selectedText;
-      const previousSimplifiedTexts = textExplanationState.previousSimplifiedTexts || [];
+      const explanationId = currentActiveExplanation.id;
+      const selectedText = currentActiveExplanation.selectedText;
+      const previousSimplifiedTexts = currentActiveExplanation.previousSimplifiedTexts || [];
+      const textStartIndex = currentActiveExplanation.textStartIndex;
+      const textLength = currentActiveExplanation.textLength;
       
       // Abort current request if any
-      if (textExplanationState.abortController) {
-        textExplanationState.abortController.abort();
-      }
-      
-      // Create new state for the simplify request
       const newAbortController = new AbortController();
-      textExplanationState.abortController = newAbortController;
-      textExplanationState.streamingText = '';
-      textExplanationState.firstChunkReceived = false;
-      textExplanationState.possibleQuestions = [];
-      textExplanationState.isSimplifyRequest = true; // This is a Simplify request
+      updateExplanationInMap(explanationId, (state) => {
+        if (state.abortController) {
+          state.abortController.abort();
+        }
+        state.abortController = newAbortController;
+        state.streamingText = '';
+        state.firstChunkReceived = false;
+        state.possibleQuestions = [];
+        state.isSimplifyRequest = true; // This is a Simplify request
+        return state;
+      });
       
       // Update panel to show loading state
       updateTextExplanationPanel();
@@ -1065,60 +1131,64 @@ function updateTextExplanationPanel(): void {
         await SimplifyService.simplify(
           [
             {
-              textStartIndex: textExplanationState.textStartIndex,
-              textLength: textExplanationState.textLength,
+              textStartIndex,
+              textLength,
               text: selectedText,
               previousSimplifiedTexts: previousSimplifiedTexts,
             },
           ],
           {
             onChunk: (_chunk, accumulated) => {
-              if (!textExplanationState) return;
-              textExplanationState.streamingText = accumulated;
-              if (!textExplanationState.firstChunkReceived) {
-                textExplanationState.firstChunkReceived = true;
-              }
+              updateExplanationInMap(explanationId, (state) => {
+                state.streamingText = accumulated;
+                if (!state.firstChunkReceived) {
+                  state.firstChunkReceived = true;
+                }
+                return state;
+              });
               updateTextExplanationPanel();
             },
             onComplete: (simplifiedText, shouldAllowSimplifyMore, possibleQuestions) => {
-              if (!textExplanationState) return;
-              
               // Get current chat history
               if (!textExplanationChatHistory.has(explanationId)) {
                 textExplanationChatHistory.set(explanationId, []);
               }
               const chatHistory = textExplanationChatHistory.get(explanationId)!;
               
-              // Increment simplified explanation count
-              textExplanationState.simplifiedExplanationCount += 1;
-              const explanationNumber = textExplanationState.simplifiedExplanationCount;
-              
-              // Create message with heading "Simplified explanation N"
-              const messageWithHeading = `## Simplified explanation ${explanationNumber}\n\n${simplifiedText}`;
-              
-              // Add new simplified explanation as a new message (don't replace previous ones)
-              chatHistory.push({ role: 'assistant', content: messageWithHeading });
-              
-              // Update state
-              textExplanationState.shouldAllowSimplifyMore = shouldAllowSimplifyMore;
-              textExplanationState.previousSimplifiedTexts = [...previousSimplifiedTexts, simplifiedText];
-              textExplanationState.streamingText = '';
-              textExplanationState.possibleQuestions = possibleQuestions || [];
-              textExplanationState.abortController = null;
-              textExplanationState.firstChunkReceived = false;
-              textExplanationState.isSimplifyRequest = undefined; // Clear simplify request flag
-              
-              // Update questions for this new message if provided
-              if (possibleQuestions && possibleQuestions.length > 0) {
-                if (!textExplanationMessageQuestions.has(explanationId)) {
-                  textExplanationMessageQuestions.set(explanationId, {});
+              updateExplanationInMap(explanationId, (state) => {
+                // Increment simplified explanation count
+                state.simplifiedExplanationCount += 1;
+                const explanationNumber = state.simplifiedExplanationCount;
+                
+                // Create message with heading "Simplified explanation N"
+                const messageWithHeading = `## Simplified explanation ${explanationNumber}\n\n${simplifiedText}`;
+                
+                // Add new simplified explanation as a new message (don't replace previous ones)
+                chatHistory.push({ role: 'assistant', content: messageWithHeading });
+                
+                // Update state
+                state.shouldAllowSimplifyMore = shouldAllowSimplifyMore;
+                state.previousSimplifiedTexts = [...previousSimplifiedTexts, simplifiedText];
+                state.streamingText = '';
+                state.possibleQuestions = possibleQuestions || [];
+                state.abortController = null;
+                state.firstChunkReceived = false;
+                state.isSimplifyRequest = undefined; // Clear simplify request flag
+                
+                // Update questions for this new message if provided
+                if (possibleQuestions && possibleQuestions.length > 0) {
+                  if (!textExplanationMessageQuestions.has(explanationId)) {
+                    textExplanationMessageQuestions.set(explanationId, {});
+                  }
+                  const messageQuestions = textExplanationMessageQuestions.get(explanationId)!;
+                  // Use the index of the new message (last message in array)
+                  const messageIndex = chatHistory.length - 1;
+                  messageQuestions[messageIndex] = possibleQuestions;
+                  textExplanationMessageQuestions.set(explanationId, messageQuestions);
                 }
-                const messageQuestions = textExplanationMessageQuestions.get(explanationId)!;
-                // Use the index of the new message (last message in array)
-                const messageIndex = chatHistory.length - 1;
-                messageQuestions[messageIndex] = possibleQuestions;
-                textExplanationMessageQuestions.set(explanationId, messageQuestions);
-              }
+                
+                return state;
+              });
               
               updateTextExplanationPanel();
             },
@@ -1139,10 +1209,11 @@ function updateTextExplanationPanel(): void {
   
   if (!handleInputSubmitCallback) {
     handleInputSubmitCallback = async (inputText: string) => {
-      if (!textExplanationState || !inputText.trim()) return;
+      const currentActiveExplanation = store.get(activeTextExplanationAtom);
+      if (!currentActiveExplanation || !inputText.trim()) return;
       
-      const explanationId = textExplanationState.id;
-      const selectedText = textExplanationState.selectedText;
+      const explanationId = currentActiveExplanation.id;
+      const selectedText = currentActiveExplanation.selectedText;
       
       // Get current chat history
       if (!textExplanationChatHistory.has(explanationId)) {
@@ -1158,17 +1229,18 @@ function updateTextExplanationPanel(): void {
       textExplanationChatHistory.set(explanationId, chatHistoryForAPI);
       
       // Abort current request if any
-      if (textExplanationState.abortController) {
-        textExplanationState.abortController.abort();
-      }
-      
-      // Create new state for the input
       const newAbortController = new AbortController();
-      textExplanationState.abortController = newAbortController;
-      textExplanationState.streamingText = '';
-      textExplanationState.firstChunkReceived = false;
-      textExplanationState.possibleQuestions = [];
-      textExplanationState.isSimplifyRequest = false; // This is an Ask request, not Simplify
+      updateExplanationInMap(explanationId, (state) => {
+        if (state.abortController) {
+          state.abortController.abort();
+        }
+        state.abortController = newAbortController;
+        state.streamingText = '';
+        state.firstChunkReceived = false;
+        state.possibleQuestions = [];
+        state.isSimplifyRequest = false; // This is an Ask request, not Simplify
+        return state;
+      });
       
       // Update panel immediately to show user message
       updateTextExplanationPanel();
@@ -1183,17 +1255,17 @@ function updateTextExplanationPanel(): void {
           },
           {
             onChunk: (_chunk, accumulated) => {
-              if (!textExplanationState) return;
-              textExplanationState.streamingText = accumulated;
-              if (!textExplanationState.firstChunkReceived) {
-                textExplanationState.firstChunkReceived = true;
-              }
+              updateExplanationInMap(explanationId, (state) => {
+                state.streamingText = accumulated;
+                if (!state.firstChunkReceived) {
+                  state.firstChunkReceived = true;
+                }
+                return state;
+              });
               updateTextExplanationPanel();
             },
             onComplete: (updatedChatHistory, questions) => {
-              if (!textExplanationState) return;
-              
-              // Get current chat history (already has user message from line 1073)
+              // Get current chat history (already has user message)
               const currentChatHistory = textExplanationChatHistory.get(explanationId) || [];
               
               // Extract only the assistant message from updatedChatHistory
@@ -1253,14 +1325,15 @@ function updateTextExplanationPanel(): void {
               }
               
               // Clear streamingText since response is complete and in chat history
-              textExplanationState.streamingText = '';
-              textExplanationState.possibleQuestions = questions || [];
-              textExplanationState.pendingQuestion = undefined; // Clear pending question
-              
-              // Clear abort controller to indicate request is complete
-              textExplanationState.abortController = null;
-              textExplanationState.firstChunkReceived = false;
-              textExplanationState.isSimplifyRequest = undefined; // Clear simplify request flag
+              updateExplanationInMap(explanationId, (state) => {
+                state.streamingText = '';
+                state.possibleQuestions = questions || [];
+                state.pendingQuestion = undefined; // Clear pending question
+                state.abortController = null;
+                state.firstChunkReceived = false;
+                state.isSimplifyRequest = undefined; // Clear simplify request flag
+                return state;
+              });
               
               updateTextExplanationPanel();
             },
@@ -1281,9 +1354,11 @@ function updateTextExplanationPanel(): void {
   
   if (!handleTranslateCallback) {
     handleTranslateCallback = async (language: string) => {
-      if (!textExplanationState) return;
+      const currentActiveExplanation = store.get(activeTextExplanationAtom);
+      if (!currentActiveExplanation) return;
       
-      const selectedText = textExplanationState.selectedText;
+      const explanationId = currentActiveExplanation.id;
+      const selectedText = currentActiveExplanation.selectedText;
       
       // Convert language name to ISO code
       const languageCode = getLanguageCode(language);
@@ -1293,12 +1368,15 @@ function updateTextExplanationPanel(): void {
       }
       
       // Check if translation already exists for this language
-      const existingTranslation = textExplanationState.translations.find(
-        t => t.language === language
-      );
-      if (existingTranslation) {
-        console.log('[Content Script] Translation already exists for language:', language);
-        return;
+      const currentState = store.get(textExplanationsAtom).get(explanationId);
+      if (currentState) {
+        const existingTranslation = currentState.translations.find(
+          t => t.language === language
+        );
+        if (existingTranslation) {
+          console.log('[Content Script] Translation already exists for language:', language);
+          return;
+        }
       }
       
       // Create abort controller for the translation request
@@ -1318,13 +1396,14 @@ function updateTextExplanationPanel(): void {
           },
           {
             onSuccess: (translatedTexts) => {
-              if (!textExplanationState) return;
-              
               // Add translation to state
               const translatedText = translatedTexts[0] || '';
-              textExplanationState.translations.push({
-                language: language,
-                translated_content: translatedText,
+              updateExplanationInMap(explanationId, (state) => {
+                state.translations.push({
+                  language: language,
+                  translated_content: translatedText,
+                });
+                return state;
               });
               
               // Set translating state to false
@@ -1358,18 +1437,18 @@ function updateTextExplanationPanel(): void {
   
   // Create handlers for header actions
   const handleRemoveCallback = () => {
-    removeTextExplanation();
+    removeTextExplanation(explanationId);
   };
 
   const handleViewOriginalCallback = () => {
-    if (!textExplanationState) {
+    if (!activeExplanation) {
       console.log('[Content Script] No text explanation state available for view original');
       return;
     }
-    scrollToAndHighlightText(textExplanationState.range, textExplanationState.underlineState);
+    scrollToAndHighlightText(activeExplanation.range, activeExplanation.underlineState);
     // Pulse the background color three times with green
-    if (textExplanationState.underlineState) {
-      pulseTextBackground(textExplanationState.underlineState);
+    if (activeExplanation.underlineState) {
+      pulseTextBackground(activeExplanation.underlineState);
     }
   };
 
@@ -1382,7 +1461,7 @@ function updateTextExplanationPanel(): void {
     textExplanationPanelRoot.render(
       React.createElement(Provider, { store },
       React.createElement(TextExplanationSidePanel, {
-        isOpen: textExplanationPanelOpen,
+        isOpen: panelOpen,
         useShadowDom: true,
         onClose: handleCloseCallback,
         streamingText,
@@ -1463,21 +1542,33 @@ function removeTextExplanationPanel(): void {
  * Update text explanation icon container
  */
 function updateTextExplanationIconContainer(): void {
-  if (!textExplanationIconRoot || !textExplanationState) return;
+  if (!textExplanationIconRoot) return;
   
-  const icons = [{
-    id: textExplanationState.id,
-    position: textExplanationState.iconPosition,
-    selectionRange: textExplanationState.range,
-    isSpinning: textExplanationState.isSpinning,
-    onTogglePanel: toggleTextExplanationPanel,
-    isPanelOpen: textExplanationPanelOpen,
+  const explanations = store.get(textExplanationsAtom);
+  const activeId = store.get(activeTextExplanationIdAtom);
+  const panelOpen = store.get(textExplanationPanelOpenAtom);
+  
+  // If no explanations, don't render anything (but keep root for future use)
+  if (explanations.size === 0) {
+    textExplanationIconRoot.render(React.createElement(React.Fragment));
+    return;
+  }
+  
+  // Create icons for all explanations
+  const icons = Array.from(explanations.entries()).map(([id, state]) => ({
+    id: state.id,
+    position: state.iconPosition,
+    selectionRange: state.range,
+    isSpinning: state.isSpinning,
+    onTogglePanel: () => toggleTextExplanationPanel(id),
+    // Green border logic: only show border if this is the active explanation AND panel is open
+    isPanelOpen: id === activeId && panelOpen,
     iconRef: (element: HTMLElement | null) => {
-      if (textExplanationState && textExplanationState.iconRef) {
-        textExplanationState.iconRef.current = element;
+      if (state.iconRef) {
+        state.iconRef.current = element;
       }
     },
-  }];
+  }));
   
   textExplanationIconRoot.render(
     React.createElement(TextExplanationIconContainer, {
@@ -1524,27 +1615,40 @@ function removeTextExplanationIconContainer(): void {
 /**
  * Remove text explanation completely (icon, underline, and close panel)
  */
-function removeTextExplanation(): void {
-  if (!textExplanationState) {
+function removeTextExplanation(explanationId: string): void {
+  const explanations = store.get(textExplanationsAtom);
+  const explanation = explanations.get(explanationId);
+  
+  if (!explanation) {
     console.log('[Content Script] No text explanation state to remove');
     return;
   }
 
   // Remove underline from text
-  if (textExplanationState.underlineState) {
-    removeTextUnderline(textExplanationState.underlineState);
-    textExplanationState.underlineState = null;
+  if (explanation.underlineState) {
+    removeTextUnderline(explanation.underlineState);
   }
 
-  // Remove icon container
-  removeTextExplanationIconContainer();
+  // Remove from map
+  const newMap = new Map(explanations);
+  newMap.delete(explanationId);
+  store.set(textExplanationsAtom, newMap);
 
-  // Close panel
-  textExplanationPanelOpen = false;
-  removeTextExplanationPanel();
+  // If this was the active explanation, clear active ID and close panel
+  const activeId = store.get(activeTextExplanationIdAtom);
+  if (explanationId === activeId) {
+    store.set(activeTextExplanationIdAtom, null);
+    store.set(textExplanationPanelOpenAtom, false);
+    removeTextExplanationPanel();
+  }
 
-  // Clear state
-  textExplanationState = null;
+  // Update icon container (will hide if no explanations left)
+  updateTextExplanationIconContainer();
+
+  // If no explanations left, remove icon container
+  if (newMap.size === 0) {
+    removeTextExplanationIconContainer();
+  }
 
   console.log('[Content Script] Text explanation removed completely');
 }
