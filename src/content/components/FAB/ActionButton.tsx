@@ -18,6 +18,8 @@ export interface ActionButtonProps {
   children?: React.ReactNode;
   /** Whether to hide the tooltip (e.g., when popover is open) */
   hideTooltip?: boolean;
+  /** Optional custom text to show instead of icon */
+  customText?: string;
 }
 
 const iconMap = {
@@ -35,6 +37,7 @@ export const ActionButton: React.FC<ActionButtonProps> = ({
   isLoading = false,
   children,
   hideTooltip = false,
+  customText,
 }) => {
   const IconComponent = iconMap[icon];
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -43,7 +46,7 @@ export const ActionButton: React.FC<ActionButtonProps> = ({
     <div className="actionButtonWrapper">
       <button
         ref={buttonRef}
-        className={`${className} ${isLoading ? 'isLoading' : ''}`}
+        className={`${className} ${isLoading ? 'isLoading' : ''} ${customText ? 'hasCustomText' : ''}`}
         onClick={onClick}
         aria-label={tooltip}
         disabled={isLoading}
@@ -66,6 +69,17 @@ export const ActionButton: React.FC<ActionButtonProps> = ({
             role="status"
             aria-label="Loading"
           />
+        ) : customText ? (
+          <span
+            style={{
+              fontSize: '12px',
+              fontWeight: 600,
+              whiteSpace: 'nowrap',
+              padding: '0 4px',
+            }}
+          >
+            {customText}
+          </span>
         ) : (
           <IconComponent
             size={18}

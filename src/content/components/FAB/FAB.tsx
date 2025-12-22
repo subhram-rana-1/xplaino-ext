@@ -23,6 +23,10 @@ export interface FABProps {
   onShowModal?: () => void;
   /** Whether any panel (side panel or text explanation panel) is open */
   isPanelOpen?: boolean;
+  /** Whether translate button is loading */
+  isTranslating?: boolean;
+  /** Translation state: 'none' (not translated) or 'translated' (showing translations) */
+  translationState?: 'none' | 'translated';
 }
 
 /**
@@ -47,6 +51,8 @@ export const FAB: React.FC<FABProps> = ({
   canHideActions = true,
   onShowModal,
   isPanelOpen = false,
+  isTranslating = false,
+  translationState = 'none',
 }) => {
   const [actionsVisible, setActionsVisible] = useState(false);
   const [showPulse, setShowPulse] = useState(true);
@@ -95,8 +101,8 @@ export const FAB: React.FC<FABProps> = ({
   // Handle parent container mouse leave - hides actions after delay
   const handleParentMouseLeave = useCallback(() => {
     isHoveringRef.current = false;
-    // Don't hide if summarising or if actions shouldn't be hidden yet
-    if (isSummarising || !canHideActions) {
+    // Don't hide if summarising, translating, or if actions shouldn't be hidden yet
+    if (isSummarising || isTranslating || !canHideActions) {
       return;
     }
     clearHideTimeout();
@@ -105,7 +111,7 @@ export const FAB: React.FC<FABProps> = ({
         setActionsVisible(false);
       }
     }, 300); // Small delay before hiding
-  }, [clearHideTimeout, isSummarising, canHideActions]);
+  }, [clearHideTimeout, isSummarising, isTranslating, canHideActions]);
 
   // Hide actions immediately when any panel opens
   useEffect(() => {
@@ -191,9 +197,11 @@ export const FAB: React.FC<FABProps> = ({
         />
         <ActionButton
           icon="translate"
-          tooltip="Translate Page"
+          tooltip={translationState === 'translated' ? 'View original' : 'Translate Page'}
           onClick={handleTranslate}
           className={actionButtonClass}
+          isLoading={isTranslating}
+          customText={translationState === 'translated' ? 'View original' : undefined}
         />
         <ActionButton
           icon="options"

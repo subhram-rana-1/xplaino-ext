@@ -42,6 +42,7 @@ import { AskService } from '../api-services/AskService';
 import { ApiErrorHandler } from '../api-services/ApiErrorHandler';
 import { extractAndStorePageContent, getStoredPageContent } from './utils/pageContentExtractor';
 import { addTextUnderline, removeTextUnderline, pulseTextBackground, type UnderlineState } from './utils/textSelectionUnderline';
+import { PageTranslationManager } from './utils/pageTranslationManager';
 import {
   summariseStateAtom,
   streamingTextAtom,
@@ -115,6 +116,11 @@ let canHideFABActions = true;
 // Text explanation view mode (not stored in atoms as it's UI state)
 let textExplanationViewMode: 'contextual' | 'translation' = 'contextual';
 let isTranslating = false;
+
+// Page translation state
+let pageTranslationManager: import('./utils/pageTranslationManager').PageTranslationManager | null = null;
+let isTranslatingPage = false;
+let pageTranslationState: 'none' | 'translated' = 'none';
 
 // Chat history for text explanations (keyed by text explanation ID)
 interface TextExplanationChatMessage {
@@ -469,6 +475,101 @@ async function handleSummariseClick(): Promise<void> {
 }
 
 /**
+ * Handle translate page button click
+ */
+async function handleTranslateClick(): Promise<void> {
+  console.log('[Content Script] Translate page clicked from FAB');
+
+  // If already translating, ignore
+  if (isTranslatingPage) {
+    console.log('[Content Script] Translation already in progress');
+    return;
+  }
+
+  // Toggle view if already translated
+  if (pageTranslationState === 'translated' && pageTranslationManager) {
+    console.log('[Content Script] Toggling translation view');
+    await toggleTranslationView();
+    return;
+  }
+
+  // Start translation
+  isTranslatingPage = true;
+  updateFAB();
+
+  try {
+    // Get settings from Chrome storage
+    const translationView = await ChromeStorage.getUserSettingPageTranslationView() || 'append';
+    const nativeLanguage = await ChromeStorage.getUserSettingNativeLanguage();
+
+    console.log('[Content Script] Translation settings:', { translationView, nativeLanguage });
+
+    if (!nativeLanguage) {
+      console.error('[Content Script] No native language set');
+      // TODO: Show error toast or use browser language as fallback
+      alert('Please set your native language in the extension settings before translating.');
+      return;
+    }
+
+    const targetLanguageCode = getLanguageCode(nativeLanguage);
+
+    if (!targetLanguageCode) {
+      console.error('[Content Script] Could not get language code for:', nativeLanguage);
+      alert('Invalid language setting. Please check your extension settings.');
+      return;
+    }
+
+    console.log('[Content Script] Starting page translation to:', targetLanguageCode);
+
+    // Initialize translation manager
+    pageTranslationManager = new PageTranslationManager();
+    await pageTranslationManager.translatePage(targetLanguageCode, translationView);
+
+    // Update state
+    pageTranslationState = 'translated';
+    console.log('[Content Script] Page translation complete');
+  } catch (error) {
+    console.error('[Content Script] Translation error:', error);
+
+    // Handle login required
+    if (error instanceof Error && error.message === 'LOGIN_REQUIRED') {
+      console.log('[Content Script] Login required for translation');
+      store.set(showLoginModalAtom, true);
+    } else {
+      // Show error to user
+      alert('Translation failed. Please try again.');
+    }
+
+    // Clean up on error
+    if (pageTranslationManager) {
+      pageTranslationManager.restoreOriginal();
+      pageTranslationManager = null;
+    }
+    pageTranslationState = 'none';
+  } finally {
+    isTranslatingPage = false;
+    updateFAB();
+  }
+}
+
+/**
+ * Toggle between translated and original view
+ */
+async function toggleTranslationView(): Promise<void> {
+  if (!pageTranslationManager) {
+    console.warn('[Content Script] Cannot toggle - no translation manager');
+    return;
+  }
+
+  console.log('[Content Script] Toggling translation view');
+  await pageTranslationManager.toggleView();
+
+  // Toggle state
+  pageTranslationState = pageTranslationState === 'translated' ? 'none' : 'translated';
+  updateFAB();
+}
+
+/**
  * Update FAB state
  */
 function updateFAB(): void {
@@ -486,13 +587,15 @@ function updateFAB(): void {
         React.createElement(FAB, {
           useShadowDom: true,
           onSummarise: handleSummariseClick,
-          onTranslate: () => console.log('[FAB] Translate clicked'),
+          onTranslate: handleTranslateClick,
           onOptions: () => setSidePanelOpen(true),
           isSummarising: isSummarising,
           hasSummary: hasSummary,
           canHideActions: canHideFABActions,
           onShowModal: showDisableModal,
           isPanelOpen: isAnyPanelOpen,
+          isTranslating: isTranslatingPage,
+          translationState: pageTranslationState,
         })
       )
     );

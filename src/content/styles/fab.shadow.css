@@ -382,3 +382,28 @@
 .fabDisablePopoverOption span {
   flex: 1 !important;
 }
+
+/* =============================================================================
+ * TRANSLATION STYLES
+ * Styles for translated content appended/replaced on the page
+ * ============================================================================= */
+
+/* Appended translation styling (shown below original text) */
+.xplaino-translation-appended {
+  color: rgba(149, 39, 245, 0.8) !important;
+  font-style: italic !important;
+  margin-top: 4px !important;
+  padding-left: 8px !important;
+  border-left: 2px solid rgba(149, 39, 245, 0.3) !important;
+  font-size: inherit !important;
+  line-height: inherit !important;
+  display: block !important;
+}
+
+/* Action button with custom text (e.g., "View original") */
+.actionButton.hasCustomText {
+  min-width: 100px !important;
+  width: auto !important;
+  padding: 0 12px !important;
+  justify-content: center !important;
+}
