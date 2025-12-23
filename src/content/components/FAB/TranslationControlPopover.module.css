@@ -1,0 +1,102 @@
+/* src/content/components/FAB/TranslationControlPopover.module.css */
+/* Styles for translation control popover */
+
+.popover {
+  background: white;
+  border-radius: 15px;
+  padding: 12px;
+  box-shadow: 0 0 12px rgba(149, 39, 245, 0.35);
+  min-width: 220px;
+}
+
+/* Arrow pointing to the right (toward the button) */
+.popover::before {
+  content: '';
+  position: absolute;
+  left: 100%;
+  top: 50%;
+  transform: translateY(-50%);
+  border: 8px solid transparent;
+  border-left-color: white;
+  filter: drop-shadow(2px 0 2px rgba(149, 39, 245, 0.15));
+}
+
+.toggleContainer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+  padding: 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  user-select: none;
+}
+
+.toggleContainer:hover {
+  background-color: rgba(149, 39, 245, 0.05);
+}
+
+.toggleLabel {
+  font-size: 14px;
+  font-weight: 500;
+  color: #333;
+  flex: 1;
+}
+
+.toggleSwitch {
+  position: relative;
+  width: 44px;
+  height: 24px;
+  background: #ccc;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+  flex-shrink: 0;
+}
+
+.toggleSwitch.active {
+  background: #9527F5;
+}
+
+.toggleKnob {
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  background: white;
+  border-radius: 50%;
+  top: 2px;
+  left: 2px;
+  transition: transform 0.3s;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.toggleSwitch.active .toggleKnob {
+  transform: translateX(20px);
+}
+
+.clearButton {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  color: #ff4444;
+  font-size: 14px;
+  font-weight: 500;
+  user-select: none;
+}
+
+.clearButton:hover {
+  background-color: rgba(255, 68, 68, 0.1);
+}
+
+.clearIcon {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+

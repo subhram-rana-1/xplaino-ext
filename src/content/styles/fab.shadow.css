@@ -161,26 +161,13 @@
 
 /* Ensure spinner inside action button works correctly */
 .actionButton .loadingSpinner {
-  width: 18px !important;
-  height: 18px !important;
-  border: 2px solid rgba(149, 39, 245, 0.2) !important;
-  border-top-color: var(--color-primary, #9527F5) !important;
-  border-right-color: rgba(149, 39, 245, 0.2) !important;
-  border-bottom-color: rgba(149, 39, 245, 0.2) !important;
-  border-left-color: rgba(149, 39, 245, 0.2) !important;
-  border-radius: 50% !important;
   animation: spinSpinner 0.8s linear infinite !important;
-  display: inline-block !important;
-  flex-shrink: 0 !important;
-  box-sizing: border-box !important;
-  transform-origin: center center !important;
-  will-change: transform !important;
-  margin: 0 !important;
-  padding: 0 !important;
+  color: var(--color-primary, #9527F5) !important;
+  stroke: var(--color-primary, #9527F5) !important;
 }
 
 /* Icon color changes to darker purple on hover */
-.actionButton:hover svg {
+.actionButton:hover svg:not(.loadingSpinner) {
   color: var(--color-primary) !important;
   stroke: var(--color-primary) !important;
 }
@@ -210,30 +197,16 @@
 .actionButton.isLoading {
   transform: none !important;
   animation: none !important;
-}
-
-/* CRITICAL: Ensure spinner animation works - override ALL button transforms */
-.actionButton .loadingSpinner,
-.actionButton.isLoading .loadingSpinner {
-  animation: spinSpinner 0.8s linear infinite !important;
-  transform: rotate(0deg) !important;
   animation-fill-mode: none !important;
-  isolation: isolate !important;
-  position: relative !important;
-  z-index: 1 !important;
 }
 
-/* Force spinner animation in all states */
-.actionButton:not(:hover) .loadingSpinner,
-.actionButton:hover .loadingSpinner,
-.actionButton.isLoading:not(:hover) .loadingSpinner,
-.actionButton.isLoading:hover .loadingSpinner,
-.actionsContainer.visible .actionButton .loadingSpinner,
-.actionsContainer.visible .actionButton:hover .loadingSpinner,
-.actionsContainer.visible .actionButton.isLoading .loadingSpinner {
-  animation: spinSpinner 0.8s linear infinite !important;
-  transform: rotate(0deg) !important;
+/* Disable slideIn animation for loading buttons */
+.actionsContainer.visible .actionButton.isLoading {
+  animation: none !important;
+  transform: none !important;
+  opacity: 1 !important;
 }
+
 
 @keyframes slideIn {
   from {
@@ -249,14 +222,6 @@
 /* Reset button transform after slideIn animation completes so spinner can animate */
 .actionsContainer.visible .actionButton {
   animation-fill-mode: forwards !important;
-}
-
-/* Ensure spinner is isolated from button transforms */
-.actionsContainer.visible .actionButton .loadingSpinner {
-  animation: spinSpinner 0.8s linear infinite !important;
-  transform: rotate(0deg) !important;
-  animation-fill-mode: none !important;
-  isolation: isolate !important;
 }
 
 /* Pulse animation for FAB when first loaded - using CSS variable */
@@ -276,28 +241,13 @@
   animation: pulse 2s ease-in-out 3 !important;
 }
 
-/* Loading Spinner for ActionButton */
+/* Loading Spinner for ActionButton - Loader2 icon */
 .loadingSpinner {
-  width: 18px !important;
-  height: 18px !important;
-  min-width: 18px !important;
-  min-height: 18px !important;
-  border: 2px solid rgba(149, 39, 245, 0.2) !important;
-  border-top-color: var(--color-primary, #9527F5) !important;
-  border-right-color: rgba(149, 39, 245, 0.2) !important;
-  border-bottom-color: rgba(149, 39, 245, 0.2) !important;
-  border-left-color: rgba(149, 39, 245, 0.2) !important;
-  border-radius: 50% !important;
   animation: spinSpinner 0.8s linear infinite !important;
-  display: inline-block !important;
+  color: var(--color-primary, #9527F5) !important;
+  stroke: var(--color-primary, #9527F5) !important;
   flex-shrink: 0 !important;
-  box-sizing: border-box !important;
-  transform-origin: 50% 50% !important;
   will-change: transform !important;
-  margin: 0 !important;
-  padding: 0 !important;
-  vertical-align: middle !important;
-  position: relative !important;
 }
 
 @keyframes spinSpinner {
@@ -406,4 +356,108 @@
   width: auto !important;
   padding: 0 12px !important;
   justify-content: center !important;
+}
+
+/* =============================================================================
+ * TRANSLATION CONTROL POPOVER
+ * Popover for translation controls (toggle view and clear)
+ * ============================================================================= */
+
+.translationControlPopover {
+  background: var(--color-white) !important;
+  border-radius: 15px !important;
+  padding: 12px !important;
+  box-shadow: 0 0 12px rgba(149, 39, 245, 0.35) !important;
+  min-width: 220px !important;
+}
+
+/* Arrow pointing to the right (toward the button) */
+.translationControlPopover::before {
+  content: '' !important;
+  position: absolute !important;
+  left: 100% !important;
+  top: 50% !important;
+  transform: translateY(-50%) !important;
+  border: 8px solid transparent !important;
+  border-left-color: var(--color-white) !important;
+  filter: drop-shadow(2px 0 2px rgba(149, 39, 245, 0.15)) !important;
+}
+
+.translationControlPopoverToggleContainer {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 12px !important;
+  margin-bottom: 8px !important;
+  padding: 10px !important;
+  border-radius: 8px !important;
+  cursor: pointer !important;
+  transition: background-color 0.2s !important;
+  user-select: none !important;
+}
+
+.translationControlPopoverToggleContainer:hover {
+  background-color: rgba(149, 39, 245, 0.05) !important;
+}
+
+.translationControlPopoverToggleLabel {
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  color: #333 !important;
+  flex: 1 !important;
+}
+
+.translationControlPopoverToggleSwitch {
+  position: relative !important;
+  width: 44px !important;
+  height: 24px !important;
+  background: #ccc !important;
+  border-radius: 12px !important;
+  cursor: pointer !important;
+  transition: background-color 0.3s !important;
+  flex-shrink: 0 !important;
+}
+
+.translationControlPopoverToggleSwitch.active {
+  background: var(--color-primary) !important;
+}
+
+.translationControlPopoverToggleKnob {
+  position: absolute !important;
+  width: 20px !important;
+  height: 20px !important;
+  background: white !important;
+  border-radius: 50% !important;
+  top: 2px !important;
+  left: 2px !important;
+  transition: transform 0.3s !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2) !important;
+}
+
+.translationControlPopoverToggleSwitch.active .translationControlPopoverToggleKnob {
+  transform: translateX(20px) !important;
+}
+
+.translationControlPopoverClearButton {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  padding: 10px !important;
+  border-radius: 8px !important;
+  cursor: pointer !important;
+  transition: background-color 0.2s !important;
+  color: #ff4444 !important;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  user-select: none !important;
+}
+
+.translationControlPopoverClearButton:hover {
+  background-color: rgba(255, 68, 68, 0.1) !important;
+}
+
+.translationControlPopoverClearIcon {
+  width: 20px !important;
+  height: 20px !important;
+  flex-shrink: 0 !important;
 }

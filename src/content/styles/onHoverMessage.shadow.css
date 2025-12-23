@@ -4,11 +4,11 @@
 
 .onHoverMessage {
   position: fixed !important;
-  background: var(--color-primary-very-light) !important;
-  border: none !important;
-  border-radius: 10px !important;
-  color: var(--color-primary-light) !important;
-  font-family: var(--font-family-primary) !important;
+  background: var(--color-white, #FFFFFF) !important;
+  border: 2px solid var(--color-primary-light, #B66DFF) !important;
+  border-radius: 20px !important;
+  color: var(--color-primary-light, #B66DFF) !important;
+  font-family: var(--font-family-primary, 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif) !important;
   font-size: 14px !important;
   font-weight: 500 !important;
   padding: 8px 12px !important;
@@ -20,12 +20,13 @@
   transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important, 
               visibility 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important,
               transform 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1) !important;
+  box-shadow: 0 2px 8px rgba(149, 39, 245, 0.18) !important;
 }
 
 .onHoverMessage.visible {
   opacity: 1 !important;
   visibility: visible !important;
+  transform: scale(1) translateZ(0) !important;
 }
 
 /* Position variants - these classes are applied but positioning is handled via inline styles */

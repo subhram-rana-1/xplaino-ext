@@ -6,20 +6,21 @@ import { ChromeStorage } from '@/storage/chrome-local/ChromeStorage';
 import { TokenRefreshService } from './TokenRefreshService';
 
 // Types
-export interface TranslateRequest {
-  targetLangugeCode: string; // Note: API uses "Languge" (typo) not "Language"
-  texts: string[];
+export interface TranslateTextItem {
+  id: string;
+  text: string;
 }
 
-export interface TranslateResponse {
-  targetLangugeCode: string;
-  translatedTexts: string[];
+export interface TranslateRequest {
+  targetLangugeCode: string; // Note: API uses "Languge" (typo) not "Language"
+  texts: TranslateTextItem[];
 }
 
 export interface TranslateCallbacks {
   onSuccess: (translatedTexts: string[]) => void;
   onError: (errorCode: string, errorMessage: string) => void;
   onLoginRequired: () => void;
+  onProgress?: (index: number, translatedText: string) => void;
 }
 
 /**
@@ -131,7 +132,116 @@ export class TranslateService {
   }
 
   /**
-   * Translate texts to target language
+   * Parse SSE stream and process translation events
+   */
+  private static async processSSEStream(
+    response: Response,
+    request: TranslateRequest,
+    callbacks: TranslateCallbacks,
+    abortController?: AbortController
+  ): Promise<void> {
+    const reader = response.body?.getReader();
+    const decoder = new TextDecoder();
+    
+    if (!reader) {
+      callbacks.onError('STREAM_ERROR', 'Failed to get response reader');
+      return;
+    }
+
+    // Map to store translations by ID
+    const translationsMap = new Map<string, string>();
+    // Create ID to index mapping for onProgress callbacks
+    const idToIndexMap = new Map<string, number>();
+    request.texts.forEach((item, index) => {
+      idToIndexMap.set(item.id, index);
+    });
+    
+    let buffer = '';
+
+    try {
+      while (true) {
+        // Check if aborted
+        if (abortController?.signal.aborted) {
+          reader.cancel();
+          return;
+        }
+
+        const { done, value } = await reader.read();
+        
+        if (done) {
+          break;
+        }
+
+        // Decode the chunk and add to buffer
+        buffer += decoder.decode(value, { stream: true });
+
+        // Process complete lines
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || ''; // Keep incomplete line in buffer
+
+        for (const line of lines) {
+          // SSE format: "data: {json}\n"
+          if (line.startsWith('data: ')) {
+            const data = line.slice(6); // Remove "data: " prefix
+
+            // Check for completion event
+            if (data === '[DONE]') {
+              // All translations received, call success callback with ordered results
+              const orderedTranslations: string[] = request.texts.map(item => 
+                translationsMap.get(item.id) || ''
+              );
+              callbacks.onSuccess(orderedTranslations);
+              return;
+            }
+
+            try {
+              const event = JSON.parse(data);
+
+              // Handle error events
+              if (event.type === 'error') {
+                callbacks.onError(
+                  event.error_code || 'STREAM_ERROR',
+                  event.error_message || 'Unknown streaming error'
+                );
+                return;
+              }
+
+              // Handle translation result
+              if (event.id && event.translatedText !== undefined) {
+                translationsMap.set(event.id, event.translatedText);
+                
+                // Call onProgress callback if provided
+                if (callbacks.onProgress) {
+                  const index = idToIndexMap.get(event.id);
+                  if (index !== undefined) {
+                    callbacks.onProgress(index, event.translatedText);
+                  }
+                }
+              }
+            } catch (parseError) {
+              console.error('[TranslateService] Failed to parse SSE event:', parseError, data);
+              // Continue processing other events
+            }
+          }
+        }
+      }
+
+      // If we reach here without [DONE], return what we have
+      const orderedTranslations: string[] = request.texts.map(item => 
+        translationsMap.get(item.id) || ''
+      );
+      callbacks.onSuccess(orderedTranslations);
+    } catch (streamError) {
+      if (streamError instanceof Error && streamError.name === 'AbortError') {
+        // Request was aborted, don't call error callback
+        return;
+      }
+      callbacks.onError('STREAM_ERROR', `Stream processing error: ${streamError}`);
+    }
+  }
+
+  /**
+   * Translate texts to target language with SSE streaming
    */
   static async translate(
     request: TranslateRequest,
@@ -216,16 +326,15 @@ export class TranslateService {
               return;
             }
 
-            // If retry successful, parse response
+            // If retry successful, process SSE stream
             if (!retryResponse.ok) {
               const errorText = await retryResponse.text();
               callbacks.onError('HTTP_ERROR', `HTTP ${retryResponse.status}: ${errorText}`);
               return;
             }
 
-            // Parse successful response
-            const responseData = await retryResponse.json() as TranslateResponse;
-            callbacks.onSuccess(responseData.translatedTexts);
+            // Process SSE stream from retry response
+            await this.processSSEStream(retryResponse, request, callbacks, abortController);
             return;
           } catch (refreshError) {
             console.error('[TranslateService] Token refresh failed:', refreshError);
@@ -255,9 +364,8 @@ export class TranslateService {
         return;
       }
 
-      // Parse successful response
-      const responseData = await response.json() as TranslateResponse;
-      callbacks.onSuccess(responseData.translatedTexts);
+      // Process SSE stream from successful response
+      await this.processSSEStream(response, request, callbacks, abortController);
     } catch (error) {
       if (error instanceof Error) {
         if (error.name === 'AbortError') {

@@ -159,10 +159,45 @@
   transition: color var(--fab-transition), stroke var(--fab-transition) !important;
 }
 
-/* Icon color changes to darker purple on hover */
-.actionButton:hover svg {
+/* Icon color changes to darker purple on hover (but not spinner) */
+.actionButton:hover svg:not(:global(.loadingSpinner)) {
   color: var(--color-primary) !important;
   stroke: var(--color-primary) !important;
+}
+
+/* Disabled button state */
+.actionButton:global(.disabled) {
+  opacity: 0.7 !important;
+  cursor: default !important;
+  pointer-events: auto !important;
+}
+
+.actionButton:global(.disabled):hover {
+  transform: scale(1) !important;
+  border-color: var(--color-primary-light) !important;
+}
+
+.actionButton:global(.disabled) svg {
+  color: var(--color-primary-light) !important;
+  stroke: var(--color-primary-light) !important;
+}
+
+/* Stop icon - red color */
+.actionButton svg:global([data-lucide="stop-circle"]) {
+  color: #ff4444 !important;
+  stroke: #ff4444 !important;
+}
+
+.actionButton:hover svg:global([data-lucide="stop-circle"]) {
+  color: #cc0000 !important;
+  stroke: #cc0000 !important;
+}
+
+/* Spinner stays primary color */
+.actionButton :global(.loadingSpinner) {
+  animation: spinSpinner 0.8s linear infinite !important;
+  color: var(--color-primary, #9527F5) !important;
+  stroke: var(--color-primary, #9527F5) !important;
 }
 
 /* Staggered animation for action buttons */
@@ -179,6 +214,36 @@
 .actionsContainer.visible .actionButton:nth-child(3) {
   animation: slideIn 0.3s ease forwards !important;
   animation-delay: 0.1s !important;
+}
+
+/* Override button animations when loading */
+.actionButton:global(.isLoading) {
+  transform: none !important;
+  animation: none !important;
+  animation-fill-mode: none !important;
+}
+
+.actionsContainer.visible .actionButton:global(.isLoading) {
+  animation: none !important;
+  transform: none !important;
+  opacity: 1 !important;
+}
+
+:global(.loadingSpinner) {
+  animation: spinSpinner 0.8s linear infinite !important;
+  color: var(--color-primary, #9527F5) !important;
+  stroke: var(--color-primary, #9527F5) !important;
+  flex-shrink: 0 !important;
+  will-change: transform !important;
+}
+
+@keyframes spinSpinner {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 @keyframes slideIn {

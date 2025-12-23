@@ -37,7 +37,7 @@ import { FAB_COLOR_VARIABLES } from '../constants/colors.css.js';
 // Import services and utilities
 import { SummariseService } from '../api-services/SummariseService';
 import { SimplifyService } from '../api-services/SimplifyService';
-import { TranslateService, getLanguageCode } from '../api-services/TranslateService';
+import { TranslateService, getLanguageCode, TranslateTextItem } from '../api-services/TranslateService';
 import { AskService } from '../api-services/AskService';
 import { ApiErrorHandler } from '../api-services/ApiErrorHandler';
 import { extractAndStorePageContent, getStoredPageContent } from './utils/pageContentExtractor';
@@ -119,8 +119,9 @@ let isTranslating = false;
 
 // Page translation state
 let pageTranslationManager: import('./utils/pageTranslationManager').PageTranslationManager | null = null;
-let isTranslatingPage = false;
-let pageTranslationState: 'none' | 'translated' = 'none';
+let pageTranslationState: 'idle' | 'translating' | 'partially-translated' | 'fully-translated' = 'idle';
+let pageViewMode: 'original' | 'translated' = 'translated';
+let translationStatePollingInterval: number | null = null;
 
 // Chat history for text explanations (keyed by text explanation ID)
 interface TextExplanationChatMessage {
@@ -475,27 +476,51 @@ async function handleSummariseClick(): Promise<void> {
 }
 
 /**
+ * Start polling translation state from manager
+ */
+function startTranslationStatePolling(): void {
+  // Clear any existing polling
+  stopTranslationStatePolling();
+  
+  translationStatePollingInterval = window.setInterval(() => {
+    if (pageTranslationManager) {
+      const newState = pageTranslationManager.getTranslationState();
+      
+      if (newState !== pageTranslationState) {
+        console.log('[Content Script] Translation state changed:', pageTranslationState, '->', newState);
+        pageTranslationState = newState;
+        updateFAB();
+      }
+      
+      // Stop polling if no longer translating
+      if (newState !== 'translating') {
+        stopTranslationStatePolling();
+      }
+    }
+  }, 500); // Poll every 500ms
+}
+
+/**
+ * Stop polling translation state
+ */
+function stopTranslationStatePolling(): void {
+  if (translationStatePollingInterval !== null) {
+    clearInterval(translationStatePollingInterval);
+    translationStatePollingInterval = null;
+  }
+}
+
+/**
  * Handle translate page button click
  */
 async function handleTranslateClick(): Promise<void> {
   console.log('[Content Script] Translate page clicked from FAB');
 
-  // If already translating, ignore
-  if (isTranslatingPage) {
-    console.log('[Content Script] Translation already in progress');
+  // Only allow translation when idle or translating (to stop)
+  if (pageTranslationState !== 'idle') {
+    console.log('[Content Script] Cannot start translation - state is:', pageTranslationState);
     return;
   }
-
-  // Toggle view if already translated
-  if (pageTranslationState === 'translated' && pageTranslationManager) {
-    console.log('[Content Script] Toggling translation view');
-    await toggleTranslationView();
-    return;
-  }
-
-  // Start translation
-  isTranslatingPage = true;
-  updateFAB();
 
   try {
     // Get settings from Chrome storage
@@ -506,7 +531,6 @@ async function handleTranslateClick(): Promise<void> {
 
     if (!nativeLanguage) {
       console.error('[Content Script] No native language set');
-      // TODO: Show error toast or use browser language as fallback
       alert('Please set your native language in the extension settings before translating.');
       return;
     }
@@ -523,11 +547,19 @@ async function handleTranslateClick(): Promise<void> {
 
     // Initialize translation manager
     pageTranslationManager = new PageTranslationManager();
+    pageTranslationState = 'translating';
+    updateFAB();
+    
+    // Start polling to sync state
+    startTranslationStatePolling();
+    
+    // Start translation (this will update internal state)
     await pageTranslationManager.translatePage(targetLanguageCode, translationView);
 
-    // Update state
-    pageTranslationState = 'translated';
-    console.log('[Content Script] Page translation complete');
+    // Final state update
+    pageTranslationState = pageTranslationManager.getTranslationState();
+    console.log('[Content Script] Page translation complete, state:', pageTranslationState);
+    updateFAB();
   } catch (error) {
     console.error('[Content Script] Translation error:', error);
 
@@ -542,32 +574,59 @@ async function handleTranslateClick(): Promise<void> {
 
     // Clean up on error
     if (pageTranslationManager) {
-      pageTranslationManager.restoreOriginal();
+      pageTranslationManager.clearTranslations();
       pageTranslationManager = null;
     }
-    pageTranslationState = 'none';
-  } finally {
-    isTranslatingPage = false;
+    pageTranslationState = 'idle';
+    stopTranslationStatePolling();
     updateFAB();
   }
 }
 
 /**
- * Toggle between translated and original view
+ * Handle stop translation button click
  */
-async function toggleTranslationView(): Promise<void> {
-  if (!pageTranslationManager) {
-    console.warn('[Content Script] Cannot toggle - no translation manager');
-    return;
+function handleStopTranslation(): void {
+  console.log('[Content Script] Stop translation clicked');
+  
+  if (pageTranslationManager) {
+    pageTranslationManager.stopTranslation();
+    pageTranslationState = pageTranslationManager.getTranslationState();
+    stopTranslationStatePolling();
+    updateFAB();
   }
+}
 
-  console.log('[Content Script] Toggling translation view');
-  await pageTranslationManager.toggleView();
+/**
+ * Handle toggle view button click
+ */
+function handleToggleView(mode: 'original' | 'translated'): void {
+  console.log('[Content Script] Toggle view clicked:', mode);
+  
+  if (pageTranslationManager) {
+    pageTranslationManager.toggleView(mode);
+    pageViewMode = mode;
+    updateFAB();
+  }
+}
 
-  // Toggle state
-  pageTranslationState = pageTranslationState === 'translated' ? 'none' : 'translated';
+/**
+ * Handle clear translations button click
+ */
+function handleClearTranslations(): void {
+  console.log('[Content Script] Clear translations clicked');
+  
+  if (pageTranslationManager) {
+    pageTranslationManager.clearTranslations();
+    pageTranslationManager = null;
+  }
+  
+  pageTranslationState = 'idle';
+  pageViewMode = 'translated';
+  stopTranslationStatePolling();
   updateFAB();
 }
+
 
 /**
  * Update FAB state
@@ -588,14 +647,17 @@ function updateFAB(): void {
           useShadowDom: true,
           onSummarise: handleSummariseClick,
           onTranslate: handleTranslateClick,
+          onStopTranslation: handleStopTranslation,
+          onToggleView: handleToggleView,
+          onClearTranslations: handleClearTranslations,
           onOptions: () => setSidePanelOpen(true),
           isSummarising: isSummarising,
           hasSummary: hasSummary,
           canHideActions: canHideFABActions,
           onShowModal: showDisableModal,
           isPanelOpen: isAnyPanelOpen,
-          isTranslating: isTranslatingPage,
           translationState: pageTranslationState,
+          viewMode: pageViewMode,
         })
       )
     );
@@ -1623,15 +1685,22 @@ function updateTextExplanationPanel(): void {
       updateTextExplanationPanel();
       
       try {
+        // Generate unique ID for the translation request
+        const textItem: TranslateTextItem = {
+          id: `translate_${Date.now()}`,
+          text: selectedText
+        };
+
         await TranslateService.translate(
           {
             targetLangugeCode: languageCode,
-            texts: [selectedText],
+            texts: [textItem],
           },
           {
-            onSuccess: (translatedTexts) => {
-              // Add translation to state
-              const translatedText = translatedTexts[0] || '';
+            onProgress: (_index, translatedText) => {
+              // For single text translation, update immediately as soon as translation arrives
+              console.log('[Content Script] Translation received, updating UI immediately');
+              
               updateExplanationInMap(explanationId, (state) => {
                 state.translations.push({
                   language: language,
@@ -1643,6 +1712,12 @@ function updateTextExplanationPanel(): void {
               // Set translating state to false
               isTranslating = false;
               
+              updateTextExplanationPanel();
+            },
+            onSuccess: (_translatedTexts) => {
+              // This is called after onProgress, so we may have already updated
+              // Just ensure translating state is false
+              isTranslating = false;
               updateTextExplanationPanel();
             },
             onError: (errorCode, errorMsg) => {

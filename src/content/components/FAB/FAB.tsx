@@ -2,13 +2,20 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { ActionButton } from './ActionButton';
 import { FABDisablePopover } from './FABDisablePopover';
+import { TranslationControlPopover } from './TranslationControlPopover';
 import styles from './FAB.module.css';
 
 export interface FABProps {
   /** Callback when Summarise is clicked */
   onSummarise?: () => void;
-  /** Callback when Translate is clicked */
+  /** Callback when Translate is clicked (start translation) */
   onTranslate?: () => void;
+  /** Callback when translation is stopped */
+  onStopTranslation?: () => void;
+  /** Callback when toggle view is clicked */
+  onToggleView?: (mode: 'original' | 'translated') => void;
+  /** Callback when clear translations is clicked */
+  onClearTranslations?: () => void;
   /** Callback when Options is clicked */
   onOptions?: () => void;
   /** Whether component is rendered in Shadow DOM (uses plain class names) */
@@ -23,10 +30,10 @@ export interface FABProps {
   onShowModal?: () => void;
   /** Whether any panel (side panel or text explanation panel) is open */
   isPanelOpen?: boolean;
-  /** Whether translate button is loading */
-  isTranslating?: boolean;
-  /** Translation state: 'none' (not translated) or 'translated' (showing translations) */
-  translationState?: 'none' | 'translated';
+  /** Translation state */
+  translationState?: 'idle' | 'translating' | 'partially-translated' | 'fully-translated';
+  /** View mode for translations */
+  viewMode?: 'original' | 'translated';
 }
 
 /**
@@ -44,6 +51,9 @@ function getIconUrl(useShadowDom: boolean): string {
 export const FAB: React.FC<FABProps> = ({
   onSummarise,
   onTranslate,
+  onStopTranslation,
+  onToggleView,
+  onClearTranslations,
   onOptions,
   useShadowDom = false,
   isSummarising = false,
@@ -51,12 +61,13 @@ export const FAB: React.FC<FABProps> = ({
   canHideActions = true,
   onShowModal,
   isPanelOpen = false,
-  isTranslating = false,
-  translationState = 'none',
+  translationState = 'idle',
+  viewMode = 'translated',
 }) => {
   const [actionsVisible, setActionsVisible] = useState(false);
   const [showPulse, setShowPulse] = useState(true);
   const [showDisablePopover, setShowDisablePopover] = useState(false);
+  const [showTranslationPopover, setShowTranslationPopover] = useState(false);
   const parentRef = useRef<HTMLDivElement>(null);
   const hideTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isHoveringRef = useRef(false);
@@ -102,6 +113,7 @@ export const FAB: React.FC<FABProps> = ({
   const handleParentMouseLeave = useCallback(() => {
     isHoveringRef.current = false;
     // Don't hide if summarising, translating, or if actions shouldn't be hidden yet
+    const isTranslating = translationState === 'translating';
     if (isSummarising || isTranslating || !canHideActions) {
       return;
     }
@@ -111,7 +123,7 @@ export const FAB: React.FC<FABProps> = ({
         setActionsVisible(false);
       }
     }, 300); // Small delay before hiding
-  }, [clearHideTimeout, isSummarising, isTranslating, canHideActions]);
+  }, [clearHideTimeout, isSummarising, translationState, canHideActions]);
 
   // Hide actions immediately when any panel opens
   useEffect(() => {
@@ -119,6 +131,14 @@ export const FAB: React.FC<FABProps> = ({
       setActionsVisible(false);
     }
   }, [isPanelOpen]);
+
+  // Hide popovers when actions are hidden
+  useEffect(() => {
+    if (!actionsVisible) {
+      setShowTranslationPopover(false);
+      setShowDisablePopover(false);
+    }
+  }, [actionsVisible]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -136,9 +156,36 @@ export const FAB: React.FC<FABProps> = ({
   }, [onSummarise]);
 
   const handleTranslate = useCallback(() => {
-    console.log('[FAB] Translate clicked');
-    onTranslate?.();
-  }, [onTranslate]);
+    if (translationState === 'translating') {
+      // Stop translation
+      console.log('[FAB] Stop translation clicked');
+      onStopTranslation?.();
+    } else if (translationState === 'idle') {
+      // Start translation (only allowed when idle)
+      console.log('[FAB] Start translation clicked');
+      onTranslate?.();
+    } else if (translationState === 'partially-translated' || translationState === 'fully-translated') {
+      // Toggle popover when button is disabled (has translations)
+      console.log('[FAB] Toggling translation popover');
+      setShowTranslationPopover(prev => !prev);
+    }
+  }, [translationState, onTranslate, onStopTranslation]);
+
+  const handleToggleView = useCallback((mode: 'original' | 'translated') => {
+    console.log('[FAB] Toggle view clicked:', mode);
+    onToggleView?.(mode);
+  }, [onToggleView]);
+
+  const handleClearTranslations = useCallback(() => {
+    console.log('[FAB] Clear translations clicked');
+    setShowTranslationPopover(false);
+    onClearTranslations?.();
+  }, [onClearTranslations]);
+
+  const handleTranslatePopoverMouseLeave = useCallback(() => {
+    // Hide popover when mouse leaves (if it was shown)
+    setShowTranslationPopover(false);
+  }, []);
 
   const handleOptions = useCallback(() => {
     console.log('[FAB] Options clicked');
@@ -195,14 +242,28 @@ export const FAB: React.FC<FABProps> = ({
           className={actionButtonClass}
           isLoading={isSummarising}
         />
-        <ActionButton
-          icon="translate"
-          tooltip={translationState === 'translated' ? 'View original' : 'Translate Page'}
-          onClick={handleTranslate}
-          className={actionButtonClass}
-          isLoading={isTranslating}
-          customText={translationState === 'translated' ? 'View original' : undefined}
-        />
+        <div style={{ position: 'relative' }}>
+          <ActionButton
+            icon={translationState === 'translating' ? 'stop' : 'translate'}
+            tooltip={
+              translationState === 'idle' ? 'Translate Page' :
+              translationState === 'translating' ? 'Stop Translation' :
+              'Translation Controls'
+            }
+            onClick={handleTranslate}
+            className={actionButtonClass}
+            disabled={false}
+            hideTooltip={showTranslationPopover}
+          />
+          <TranslationControlPopover
+            viewMode={viewMode}
+            onToggleView={handleToggleView}
+            onClear={handleClearTranslations}
+            visible={showTranslationPopover}
+            useShadowDom={useShadowDom}
+            onMouseLeave={handleTranslatePopoverMouseLeave}
+          />
+        </div>
         <ActionButton
           icon="options"
           tooltip="Options"
