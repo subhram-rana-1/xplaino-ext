@@ -74,6 +74,7 @@ const DISABLE_MODAL_HOST_ID = 'xplaino-disable-modal-host';
 const LOGIN_MODAL_HOST_ID = 'xplaino-login-modal-host';
 const TEXT_EXPLANATION_PANEL_HOST_ID = 'xplaino-text-explanation-panel-host';
 const TEXT_EXPLANATION_ICON_HOST_ID = 'xplaino-text-explanation-icon-host';
+const TOAST_HOST_ID = 'xplaino-toast-host';
 
 /**
  * Domain status enum (must match src/types/domain.ts)
@@ -97,12 +98,19 @@ let disableModalRoot: ReactDOM.Root | null = null;
 let loginModalRoot: ReactDOM.Root | null = null;
 let textExplanationPanelRoot: ReactDOM.Root | null = null;
 let textExplanationIconRoot: ReactDOM.Root | null = null;
+let toastRoot: ReactDOM.Root | null = null;
 
 // Modal state
 let modalVisible = false;
 
 // Shared state for side panel
 let sidePanelOpen = false;
+
+// Toast state
+let toastMessage: string | null = null;
+let toastType: 'success' | 'error' = 'success';
+let toastClosing: boolean = false;
+let toastTimeoutId: ReturnType<typeof setTimeout> | null = null;
 
 // Jotai store for managing atoms outside React
 const store = createStore();
@@ -894,6 +902,57 @@ async function handleExplainClick(
   // Update icon container to show spinner
   updateTextExplanationIconContainer();
 
+  // Clear text selection immediately to hide purple action button
+  window.getSelection()?.removeAllRanges();
+
+  // Set up 30-second timeout - if no first chunk received, revert everything
+  const timeoutId = setTimeout(() => {
+    const currentState = store.get(textExplanationsAtom).get(explanationId);
+    
+    // Check if first chunk was received
+    if (currentState && !currentState.firstChunkReceived) {
+      console.log('[Content Script] No response after 30 seconds, canceling request and reverting...');
+      
+      // Abort the API request
+      if (currentState.abortController) {
+        currentState.abortController.abort();
+      }
+      
+      // Show timeout error toast
+      showToast('Request timed out after 30 seconds. Please try again.', 'error');
+      
+      // Remove the spinning icon
+      const newMap = new Map(store.get(textExplanationsAtom));
+      newMap.delete(explanationId);
+      store.set(textExplanationsAtom, newMap);
+      
+      // Clear active explanation
+      if (store.get(activeTextExplanationIdAtom) === explanationId) {
+        store.set(activeTextExplanationIdAtom, null);
+        store.set(textExplanationPanelOpenAtom, false);
+      }
+      
+      // Update icon container (will hide if no explanations left)
+      updateTextExplanationIconContainer();
+      
+      // Remove icon container if no explanations left
+      if (newMap.size === 0) {
+        removeTextExplanationIconContainer();
+      }
+      
+      // Restore text selection so purple button shows again
+      if (range) {
+        try {
+          const selection = window.getSelection();
+          selection?.removeAllRanges();
+          selection?.addRange(range);
+        } catch (error) {
+          console.error('[Content Script] Error restoring selection:', error);
+        }
+      }
+    }
+  }, 30000); // 30 seconds
+
   try {
     // Call v2/simplify API
     await SimplifyService.simplify(
@@ -918,8 +977,8 @@ async function handleExplainClick(
               updatedState.firstChunkReceived = true;
               updatedState.isSpinning = false;
               
-              // Clear text selection to hide purple action button
-              window.getSelection()?.removeAllRanges();
+              // Clear the timeout since we received the first chunk
+              clearTimeout(timeoutId);
               
               // Add underline to selected text
               if (updatedState.range) {
@@ -946,6 +1005,9 @@ async function handleExplainClick(
         },
         onComplete: (simplifiedText, shouldAllowSimplifyMore, possibleQuestions) => {
           console.log('[Content Script] Text explanation complete');
+          
+          // Clear the timeout since request completed
+          clearTimeout(timeoutId);
           
           // Add initial explanation to chat history if not already there
           if (!textExplanationChatHistory.has(explanationId)) {
@@ -999,15 +1061,49 @@ async function handleExplainClick(
         },
         onError: (errorCode, errorMsg) => {
           console.error('[Content Script] Text explanation error:', errorCode, errorMsg);
-          // Reset state on error
-          updateExplanationInMap(explanationId, (state) => ({
-            ...state,
-            isSpinning: false,
-          }));
+          
+          // Clear the timeout on error
+          clearTimeout(timeoutId);
+          
+          // Show error toast
+          showToast(errorMsg || 'Failed to explain text. Please try again.', 'error');
+          
+          // Remove the explanation completely (don't show green icon)
+          const newMap = new Map(store.get(textExplanationsAtom));
+          newMap.delete(explanationId);
+          store.set(textExplanationsAtom, newMap);
+          
+          // Clear active explanation
+          if (store.get(activeTextExplanationIdAtom) === explanationId) {
+            store.set(activeTextExplanationIdAtom, null);
+            store.set(textExplanationPanelOpenAtom, false);
+          }
+          
+          // Update icon container (will hide if no explanations left)
           updateTextExplanationIconContainer();
+          
+          // Remove icon container if no explanations left
+          if (newMap.size === 0) {
+            removeTextExplanationIconContainer();
+          }
+          
+          // Restore text selection so purple button shows again
+          if (range) {
+            try {
+              const selection = window.getSelection();
+              selection?.removeAllRanges();
+              selection?.addRange(range);
+            } catch (error) {
+              console.error('[Content Script] Error restoring selection:', error);
+            }
+          }
         },
         onLoginRequired: () => {
           console.log('[Content Script] Login required for text explanation');
+          
+          // Clear the timeout
+          clearTimeout(timeoutId);
+          
           // Remove the text explanation completely (icon, underline, panel)
           removeTextExplanation(explanationId);
           // Show login modal
@@ -1018,11 +1114,43 @@ async function handleExplainClick(
     );
   } catch (error) {
     console.error('[Content Script] Text explanation exception:', error);
-    updateExplanationInMap(explanationId, (state) => ({
-      ...state,
-      isSpinning: false,
-    }));
+    
+    // Clear the timeout on exception
+    clearTimeout(timeoutId);
+    
+    // Show error toast
+    const errorMessage = error instanceof Error ? error.message : 'Failed to explain text. Please try again.';
+    showToast(errorMessage, 'error');
+    
+    // Remove the explanation completely (don't show green icon)
+    const newMap = new Map(store.get(textExplanationsAtom));
+    newMap.delete(explanationId);
+    store.set(textExplanationsAtom, newMap);
+    
+    // Clear active explanation
+    if (store.get(activeTextExplanationIdAtom) === explanationId) {
+      store.set(activeTextExplanationIdAtom, null);
+      store.set(textExplanationPanelOpenAtom, false);
+    }
+    
+    // Update icon container (will hide if no explanations left)
     updateTextExplanationIconContainer();
+    
+    // Remove icon container if no explanations left
+    if (newMap.size === 0) {
+      removeTextExplanationIconContainer();
+    }
+    
+    // Restore text selection so purple button shows again
+    if (range) {
+      try {
+        const selection = window.getSelection();
+        selection?.removeAllRanges();
+        selection?.addRange(range);
+      } catch (error) {
+        console.error('[Content Script] Error restoring selection:', error);
+      }
+    }
   }
 }
 
@@ -2162,6 +2290,173 @@ async function handleModalDontShowAgain(): Promise<void> {
 }
 
 // =============================================================================
+// TOAST INJECTION
+// =============================================================================
+
+/**
+ * Show a toast message
+ */
+function showToast(message: string, type: 'success' | 'error' = 'success'): void {
+  console.log('[Content Script] Showing toast:', message, type);
+  
+  // Clear any existing timeout
+  if (toastTimeoutId) {
+    clearTimeout(toastTimeoutId);
+    toastTimeoutId = null;
+  }
+  
+  toastMessage = message;
+  toastType = type;
+  toastClosing = false;
+  injectToast();
+  updateToast();
+  
+  // Auto-hide after 3 seconds with slide-out animation
+  toastTimeoutId = setTimeout(() => {
+    // Trigger slide-out animation
+    toastClosing = true;
+    updateToast();
+    
+    // Wait for animation to complete (300ms) before clearing
+    setTimeout(() => {
+      toastMessage = null;
+      toastClosing = false;
+      updateToast();
+      toastTimeoutId = null;
+    }, 300);
+  }, 3000);
+}
+
+/**
+ * Inject Toast into the page with Shadow DOM
+ */
+function injectToast(): void {
+  // Check if already injected
+  if (shadowHostExists(TOAST_HOST_ID)) {
+    return;
+  }
+
+  // Create Shadow DOM host
+  const { host, shadow, mountPoint } = createShadowHost({
+    id: TOAST_HOST_ID,
+    zIndex: 2147483648, // Highest z-index for toast
+  });
+
+  // Inject color CSS variables first
+  injectStyles(shadow, FAB_COLOR_VARIABLES);
+  
+  // Inject inline toast styles (since we don't have a separate toast shadow CSS)
+  const toastStyles = `
+    @keyframes slideIn {
+      from {
+        transform: translateX(calc(100% + 20px));
+        opacity: 0;
+      }
+      to {
+        transform: translateX(0);
+        opacity: 1;
+      }
+    }
+    
+    @keyframes slideOut {
+      from {
+        transform: translateX(0);
+        opacity: 1;
+      }
+      to {
+        transform: translateX(calc(100% + 20px));
+        opacity: 0;
+      }
+    }
+    
+    .toast-container {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      z-index: 2147483647;
+      pointer-events: auto;
+    }
+    
+    .toast-closing {
+      animation: slideOut 0.3s ease-in forwards;
+    }
+  `;
+  injectStyles(shadow, toastStyles);
+
+  // Append to document
+  document.body.appendChild(host);
+
+  // Render React component
+  toastRoot = ReactDOM.createRoot(mountPoint);
+  updateToast();
+
+  console.log('[Content Script] Toast injected successfully');
+}
+
+/**
+ * Update toast visibility based on state
+ */
+function updateToast(): void {
+  if (!toastRoot) {
+    console.warn('[Content Script] toastRoot is null, cannot update toast');
+    return;
+  }
+
+  if (toastMessage) {
+    console.log('[Content Script] Rendering toast with message:', toastMessage, 'closing:', toastClosing);
+    
+    // Create a simple div-based toast instead of using the Toast component
+    // because CSS modules don't work well in Shadow DOM
+    const toastElement = React.createElement(
+      'div',
+      {
+        className: 'toast-container',
+        style: {
+          position: 'fixed',
+          top: '20px',
+          right: '20px',
+          zIndex: 2147483647,
+        }
+      },
+      React.createElement(
+        'div',
+        {
+          className: toastClosing ? 'toast-closing' : '',
+          style: {
+            background: 'white',
+            border: toastType === 'error' ? '2px solid #ef4444' : '2px solid #10b981',
+            color: toastType === 'error' ? '#ef4444' : '#10b981',
+            padding: '0.75rem 1.5rem',
+            borderRadius: '13px',
+            fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+            fontSize: '0.9375rem',
+            fontWeight: '500',
+            boxShadow: '0 4px 12px rgba(149, 39, 245, 0.15)',
+            animation: toastClosing ? 'slideOut 0.3s ease-in forwards' : 'slideIn 0.3s ease-out',
+            whiteSpace: 'nowrap',
+          }
+        },
+        toastMessage
+      )
+    );
+    
+    toastRoot.render(toastElement);
+  } else {
+    console.log('[Content Script] Clearing toast');
+    toastRoot.render(React.createElement(React.Fragment));
+  }
+}
+
+/**
+ * Remove Toast from the page
+ */
+function removeToast(): void {
+  removeShadowHost(TOAST_HOST_ID, toastRoot);
+  toastRoot = null;
+  console.log('[Content Script] Toast removed');
+}
+
+// =============================================================================
 // LOGIN MODAL INJECTION
 // =============================================================================
 
@@ -2231,6 +2526,7 @@ async function initContentScript(): Promise<void> {
     injectSidePanel();
     injectContentActions();
     injectLoginModal();
+    injectToast();
   } else {
     console.log('[Content Script] Not running - extension not allowed on this page');
     removeFAB();
@@ -2239,6 +2535,7 @@ async function initContentScript(): Promise<void> {
     removeLoginModal();
     removeTextExplanationPanel();
     removeTextExplanationIconContainer();
+    removeToast();
   }
 }
 

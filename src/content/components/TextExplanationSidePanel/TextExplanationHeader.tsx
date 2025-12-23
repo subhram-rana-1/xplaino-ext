@@ -1,6 +1,6 @@
 // src/content/components/TextExplanationSidePanel/TextExplanationHeader.tsx
 import React from 'react';
-import { Minus, Bookmark, X, Eye } from 'lucide-react';
+import { Minus, Bookmark, Trash2, Eye } from 'lucide-react';
 import styles from './TextExplanationHeader.module.css';
 
 // Custom expand icon - arrows pointing away from center (up and down)
@@ -139,11 +139,11 @@ export const TextExplanationHeader: React.FC<TextExplanationHeaderProps> = ({
           <button
             className={getClassName('headerIconButton')}
             onClick={onRemove}
-            aria-label="Unselect text"
-            title="Unselect text"
+            aria-label="Remove explanation"
+            title="Remove explanation"
             type="button"
           >
-            <X size={18} />
+            <Trash2 size={18} />
           </button>
         </div>
       )}
