@@ -1,0 +1,304 @@
+/* src/content/components/WordExplanationPopover/WordExplanationPopover.module.css */
+
+/* CSS Variables */
+:root {
+  --color-primary: #9527F5;
+  --color-white: #FFFFFF;
+  --color-text: #2D3748;
+  --color-text-secondary: #718096;
+}
+
+.popoverContainer {
+  position: fixed;
+  min-width: 300px;
+  max-width: 450px;
+  background: var(--color-white, #FFFFFF);
+  border-radius: 30px;
+  box-shadow: 0 4px 20px rgba(149, 39, 245, 0.3);
+  border: none;
+  padding: 15px;
+  z-index: 2147483646; /* One less than spinners/icons */
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-sizing: border-box;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(149, 39, 245, 0.1);
+}
+
+.headerWord {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--color-primary, #9527F5);
+}
+
+.headerBookmark {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  transition: background 0.2s ease;
+  color: var(--color-text-secondary, #718096);
+}
+
+.headerBookmark:hover {
+  background: rgba(149, 39, 245, 0.1);
+  color: var(--color-primary, #9527F5);
+}
+
+.headerBookmark svg {
+  display: block;
+}
+
+.mainContent {
+  flex: 1;
+  overflow-y: auto;
+  max-height: 400px;
+  color: var(--color-text, #2D3748);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.mainContent p {
+  margin: 0 0 8px 0;
+}
+
+.mainContent p:last-child {
+  margin-bottom: 0;
+}
+
+.mainContent strong {
+  font-weight: 600;
+  color: var(--color-primary, #9527F5);
+}
+
+.mainContent ul,
+.mainContent ol {
+  margin: 8px 0;
+  padding-left: 20px;
+}
+
+.mainContent li {
+  margin: 4px 0;
+}
+
+.mainContent code {
+  background: rgba(149, 39, 245, 0.1);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: 'Monaco', 'Courier New', monospace;
+  font-size: 13px;
+}
+
+.utilityActions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 6px;
+  padding-top: 8px;
+  min-width: 124px;
+}
+
+.utilityButtonWrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.utilityButton {
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  padding: 0;
+  outline: none;
+}
+
+.utilityButton:hover:not(:disabled) {
+  background: #eaddf8;
+}
+
+.utilityButton:active:not(:disabled) {
+  transform: scale(0.92);
+}
+
+.utilityButton:disabled,
+.utilityButtonDisabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.utilityButton svg {
+  width: 20px;
+  height: 20px;
+  color: #BF7EFA;
+  stroke: #BF7EFA;
+  stroke-width: 2.5;
+  fill: none;
+  pointer-events: none;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.utilityButton:hover svg {
+  color: var(--color-primary, #9527F5);
+  stroke: var(--color-primary, #9527F5);
+}
+
+.utilityTooltip {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: #eaddf8;
+  color: #BF7EFA;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(149, 39, 245, 0.15);
+  pointer-events: none;
+  z-index: 10;
+  animation: tooltipFadeIn 0.15s ease forwards;
+}
+
+.utilityTooltip::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 5px solid transparent;
+  border-top-color: #eaddf8;
+}
+
+@keyframes tooltipFadeIn {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+.footer {
+  border-top: 1px solid rgba(149, 39, 245, 0.1);
+  padding-top: 12px;
+  display: flex;
+  justify-content: center;
+}
+
+.loadingState {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 20px;
+  color: var(--color-text-secondary, #718096);
+  font-size: 14px;
+}
+
+.spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(149, 39, 245, 0.2);
+  border-top-color: var(--color-primary, #9527F5);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.errorState {
+  padding: 20px;
+  color: #EF4444;
+  text-align: center;
+  font-size: 14px;
+}
+
+.placeholderState {
+  padding: 20px;
+  color: var(--color-text-secondary, #718096);
+  text-align: center;
+  font-size: 14px;
+  font-style: italic;
+}
+
+/* Button spinner */
+.buttonSpinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid rgba(149, 39, 245, 0.2);
+  border-top-color: #9527f5;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+/* Grammar tab content */
+.grammarContent {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 4px 0;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sectionTitle {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin: 0;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+.list {
+  margin: 0;
+  padding-left: 20px;
+  list-style-type: disc;
+}
+
+.listItem {
+  font-size: 13px;
+  line-height: 1.6;
+  color: #333;
+  margin-bottom: 4px;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+.listItem:last-child {
+  margin-bottom: 0;
+}
+
+

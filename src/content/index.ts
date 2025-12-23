@@ -13,6 +13,7 @@ import { DisableNotificationModal } from './components/DisableNotificationModal'
 import { LoginModal } from './components/LoginModal';
 import { TextExplanationSidePanel } from './components/TextExplanationSidePanel';
 import { TextExplanationIconContainer } from './components/TextExplanationIcon';
+import { WordExplanationPopover, type TabType } from './components/WordExplanationPopover';
 
 // Import Shadow DOM utilities
 import {
@@ -30,6 +31,7 @@ import disableNotificationModalStyles from './styles/disableNotificationModal.sh
 import loginModalStyles from './styles/loginModal.shadow.css?inline';
 import textExplanationSidePanelStyles from './styles/textExplanationSidePanel.shadow.css?inline';
 import textExplanationIconStyles from './styles/textExplanationIcon.shadow.css?inline';
+import wordExplanationPopoverStyles from './styles/wordExplanationPopover.shadow.css?inline';
 
 // Import color CSS variables
 import { FAB_COLOR_VARIABLES } from '../constants/colors.css.js';
@@ -40,6 +42,11 @@ import { SimplifyService } from '../api-services/SimplifyService';
 import { TranslateService, getLanguageCode, TranslateTextItem } from '../api-services/TranslateService';
 import { AskService } from '../api-services/AskService';
 import { ApiErrorHandler } from '../api-services/ApiErrorHandler';
+import { WordsExplanationV2Service, type WordInfo } from '../api-services/WordsExplanationV2Service';
+import { MoreExamplesService } from '../api-services/MoreExamplesService';
+import { WordSynonymsService } from '../api-services/WordSynonymsService';
+import { WordAntonymsService } from '../api-services/WordAntonymsService';
+// import { WordAskService } from '../api-services/WordAskService'; // TODO: Phase 4
 import { extractAndStorePageContent, getStoredPageContent } from './utils/pageContentExtractor';
 import { addTextUnderline, removeTextUnderline, pulseTextBackground, type UnderlineState } from './utils/textSelectionUnderline';
 import { PageTranslationManager } from './utils/pageTranslationManager';
@@ -59,6 +66,11 @@ import {
   activeTextExplanationAtom,
   type TextExplanationState,
 } from '../store/textExplanationAtoms';
+import {
+  wordExplanationsAtom,
+  activeWordIdAtom,
+  type WordExplanationState as WordExplanationAtomState,
+} from '../store/wordExplanationAtoms';
 import { ChromeStorage } from '../storage/chrome-local/ChromeStorage';
 
 console.log('[Content Script] Initialized');
@@ -74,6 +86,7 @@ const DISABLE_MODAL_HOST_ID = 'xplaino-disable-modal-host';
 const LOGIN_MODAL_HOST_ID = 'xplaino-login-modal-host';
 const TEXT_EXPLANATION_PANEL_HOST_ID = 'xplaino-text-explanation-panel-host';
 const TEXT_EXPLANATION_ICON_HOST_ID = 'xplaino-text-explanation-icon-host';
+const WORD_EXPLANATION_POPOVER_HOST_ID = 'xplaino-word-explanation-popover-host';
 const TOAST_HOST_ID = 'xplaino-toast-host';
 
 /**
@@ -98,6 +111,7 @@ let disableModalRoot: ReactDOM.Root | null = null;
 let loginModalRoot: ReactDOM.Root | null = null;
 let textExplanationPanelRoot: ReactDOM.Root | null = null;
 let textExplanationIconRoot: ReactDOM.Root | null = null;
+let wordExplanationPopoverRoot: ReactDOM.Root | null = null;
 let toastRoot: ReactDOM.Root | null = null;
 
 // Modal state
@@ -139,6 +153,24 @@ interface TextExplanationChatMessage {
 
 const textExplanationChatHistory: Map<string, TextExplanationChatMessage[]> = new Map();
 const textExplanationMessageQuestions: Map<string, Record<number, string[]>> = new Map();
+
+// Word explanation state management
+interface WordExplanationLocalState {
+  word: string;
+  wordSpanElement: HTMLElement | null;
+  spinnerElement: HTMLElement | null;
+  popoverVisible: boolean;
+  streamedContent: string;
+  activeTab: TabType;
+  abortController: AbortController | null;
+  firstEventReceived: boolean;
+  isLoading: boolean;
+  errorMessage: string | null;
+  range: Range | null;
+  sourceRef: React.MutableRefObject<HTMLElement | null>;
+}
+
+const wordExplanationsMap = new Map<string, WordExplanationLocalState>();
 
 /**
  * Initialize authentication state from Chrome storage
@@ -827,6 +859,14 @@ function updateExplanationInMap(
 }
 
 /**
+ * Check if a selection is a single word (no spaces, reasonable length)
+ */
+function isWordSelection(text: string): boolean {
+  const trimmed = text.trim();
+  return trimmed.length > 0 && !trimmed.includes(' ') && trimmed.length <= 50;
+}
+
+/**
  * Handle Explain button click from ContentActionsTrigger
  */
 async function handleExplainClick(
@@ -840,6 +880,17 @@ async function handleExplainClick(
     console.warn('[Content Script] Missing range or iconPosition for Explain');
     return;
   }
+
+  // Check if this is a word selection
+  const isWord = isWordSelection(selectedText);
+  
+  if (isWord) {
+    // Handle word explanation with popover
+    await handleWordExplain(selectedText, range, iconPosition);
+    return;
+  }
+
+  // Otherwise, handle text explanation with side panel (existing behavior)
 
   // Get current explanations and active ID
   const explanations = store.get(textExplanationsAtom);
@@ -1152,6 +1203,753 @@ async function handleExplainClick(
       }
     }
   }
+}
+
+/**
+ * Handle word explanation with popover
+ */
+async function handleWordExplain(
+  word: string,
+  range: Range,
+  _iconPosition: { x: number; y: number }
+): Promise<void> {
+  console.log('[Content Script] Word explain triggered:', word);
+
+  // Create unique ID for this word explanation
+  const wordId = `word-${Date.now()}`;
+
+  // Clear text selection immediately
+  window.getSelection()?.removeAllRanges();
+
+  try {
+    // Inject word span styles into main DOM (one-time operation)
+    injectWordSpanStyles();
+    
+    // Create word span wrapper with loading state
+    const wordSpan = createWordSpan(word, range);
+    if (!wordSpan) {
+      console.error('[Content Script] Failed to create word span');
+      return;
+    }
+
+    // Create purple spinner near the word
+    const spinner = createPurpleSpinner(wordSpan);
+
+    // Create source ref for animation
+    const sourceRef: React.MutableRefObject<HTMLElement | null> = { current: wordSpan };
+
+    // Initialize word explanation state
+    const abortController = new AbortController();
+    const wordState: WordExplanationLocalState = {
+      word,
+      wordSpanElement: wordSpan,
+      spinnerElement: spinner,
+      popoverVisible: false,
+      streamedContent: '',
+      activeTab: 'contextual',
+      abortController,
+      firstEventReceived: false,
+      isLoading: true,
+      errorMessage: null,
+      range: range.cloneRange(),
+      sourceRef,
+    };
+
+    wordExplanationsMap.set(wordId, wordState);
+    
+    // Initialize atom state for this word
+    const atomState: WordExplanationAtomState = {
+      id: wordId,
+      word,
+      meaning: '',
+      examples: [],
+      synonyms: [],
+      antonyms: [],
+      translations: [],
+      shouldAllowFetchMoreExamples: true,
+      askAI: {
+        chatHistory: [],
+        streamingText: '',
+        possibleQuestions: [],
+        isRequesting: false,
+        abortController: null,
+        firstChunkReceived: false,
+      },
+      popoverVisible: false,
+      askAIPopoverVisible: false,
+      activeTab: 'contextual',
+      wordSpanElement: wordSpan,
+      sourceRef,
+      askAIButtonRef: null,
+      isLoadingExamples: false,
+      isLoadingSynonyms: false,
+      isLoadingAntonyms: false,
+      isLoadingTranslation: false,
+      examplesError: null,
+      synonymsError: null,
+      antonymsError: null,
+      translationError: null,
+      range: range.cloneRange(),
+      spinnerElement: spinner,
+      isLoading: true,
+      errorMessage: null,
+      streamedContent: '',
+      firstEventReceived: false,
+      abortController,
+    };
+    
+    const atomsMap = new Map(store.get(wordExplanationsAtom));
+    atomsMap.set(wordId, atomState);
+    store.set(wordExplanationsAtom, atomsMap);
+    store.set(activeWordIdAtom, wordId);
+
+    // Set 30-second timeout
+    const timeoutId = setTimeout(() => {
+      const currentState = wordExplanationsMap.get(wordId);
+      if (currentState && !currentState.firstEventReceived) {
+        console.log('[Content Script] Word explanation timeout - no response after 30 seconds');
+        
+        // Abort request
+        currentState.abortController?.abort();
+        
+        // Remove span and spinner
+        removeWordExplanation(wordId);
+        
+        showToast('Request timed out after 30 seconds. Please try again.', 'error');
+      }
+    }, 30000);
+
+    // Call words_explanation_v2 API
+    await WordsExplanationV2Service.explainWord(
+      word,
+      '', // No context for now (using -1 as textStartIndex)
+      {
+        onEvent: (wordInfo: WordInfo) => {
+          const state = wordExplanationsMap.get(wordId);
+          if (!state) return;
+
+          console.log('[Content Script] Word explanation event:', wordInfo);
+
+          // Parse raw_response to get meaning and examples
+          const { meaning, examples } = WordsExplanationV2Service.parseRawResponse(
+            wordInfo.raw_response
+          );
+
+          // Format content as markdown (without word, as it's now in the header)
+          let formattedContent = meaning;
+          if (examples.length > 0) {
+            formattedContent += '\n\n**Examples:**\n';
+            examples.forEach((example, idx) => {
+              formattedContent += `${idx + 1}. ${example}\n`;
+            });
+          }
+
+          // On first event
+          if (!state.firstEventReceived) {
+            clearTimeout(timeoutId);
+            state.firstEventReceived = true;
+            state.isLoading = false;
+            state.streamedContent = formattedContent;
+            
+            // Update atom state with meaning and examples
+            const atomState = store.get(wordExplanationsAtom).get(wordId);
+            if (atomState) {
+              const updatedAtomState: WordExplanationAtomState = {
+                ...atomState,
+                meaning,
+                examples,
+                shouldAllowFetchMoreExamples: true, // Default to true (wordInfo doesn't have this field)
+              };
+              const atomsMap = new Map(store.get(wordExplanationsAtom));
+              atomsMap.set(wordId, updatedAtomState);
+              store.set(wordExplanationsAtom, atomsMap);
+            }
+
+            // Remove spinner
+            if (state.spinnerElement) {
+              state.spinnerElement.remove();
+              state.spinnerElement = null;
+            }
+
+            // Convert span to green with scale animation
+            if (state.wordSpanElement) {
+              state.wordSpanElement.classList.remove('word-explanation-loading');
+              state.wordSpanElement.classList.add('word-explanation-active');
+              
+              // Update inline styles to show green background (CSS classes don't work in main DOM)
+              state.wordSpanElement.style.background = 'rgba(0, 200, 0, 0.15)';
+              state.wordSpanElement.style.cursor = 'pointer';
+              state.wordSpanElement.style.transition = 'background 0.2s ease';
+              
+              // Add scale bounce animation with inline styles
+              state.wordSpanElement.style.animation = 'none';
+              // Force reflow to restart animation
+              void state.wordSpanElement.offsetHeight;
+              state.wordSpanElement.style.animation = 'word-explanation-scale-bounce 0.8s ease';
+              setTimeout(() => {
+                if (state.wordSpanElement) {
+                  state.wordSpanElement.style.animation = '';
+                }
+              }, 800);
+
+              // Add hover event listeners for green highlight effect
+              state.wordSpanElement.addEventListener('mouseenter', () => {
+                if (state.wordSpanElement) {
+                  state.wordSpanElement.style.background = 'rgba(0, 200, 0, 0.25)';
+                }
+              });
+              state.wordSpanElement.addEventListener('mouseleave', () => {
+                if (state.wordSpanElement) {
+                  state.wordSpanElement.style.background = 'rgba(0, 200, 0, 0.15)';
+                }
+              });
+
+              // Add click handler to toggle popover
+              state.wordSpanElement.addEventListener('click', () => {
+                toggleWordPopover(wordId);
+              });
+            }
+
+            // Open popover
+            state.popoverVisible = true;
+            console.log('[Content Script] Opening word explanation popover for wordId:', wordId);
+            console.log('[Content Script] Word span element:', state.wordSpanElement);
+            console.log('[Content Script] Source ref current:', state.sourceRef.current);
+            injectWordExplanationPopover();
+            updateWordExplanationPopover();
+            console.log('[Content Script] Popover injection and update completed');
+          } else {
+            // Append to existing content (for multi-word responses)
+            state.streamedContent = formattedContent;
+            
+            // Update atom state
+            const atomState = store.get(wordExplanationsAtom).get(wordId);
+            if (atomState) {
+              const updatedAtomState: WordExplanationAtomState = {
+                ...atomState,
+                meaning,
+                examples,
+                shouldAllowFetchMoreExamples: true, // Default to true (wordInfo doesn't have this field)
+              };
+              const atomsMap = new Map(store.get(wordExplanationsAtom));
+              atomsMap.set(wordId, updatedAtomState);
+              store.set(wordExplanationsAtom, atomsMap);
+            }
+            
+            updateWordExplanationPopover();
+          }
+        },
+        onComplete: () => {
+          clearTimeout(timeoutId);
+          console.log('[Content Script] Word explanation complete');
+          
+          const state = wordExplanationsMap.get(wordId);
+          if (state) {
+            state.abortController = null;
+            state.isLoading = false;
+          }
+        },
+        onError: (errorCode: string, errorMessage: string) => {
+          clearTimeout(timeoutId);
+          console.error('[Content Script] Word explanation error:', errorCode, errorMessage);
+          
+          const state = wordExplanationsMap.get(wordId);
+          if (state) {
+            state.isLoading = false;
+            state.errorMessage = errorMessage;
+            
+            if (!state.firstEventReceived) {
+              // No first event received - remove everything
+              removeWordExplanation(wordId);
+              showToast(errorMessage || 'Failed to explain word. Please try again.', 'error');
+            } else {
+              // First event received - show error in popover
+              updateWordExplanationPopover();
+            }
+          }
+        },
+      },
+      abortController.signal
+    );
+  } catch (error) {
+    console.error('[Content Script] Word explanation exception:', error);
+    removeWordExplanation(wordId);
+  }
+}
+
+/**
+ * Create word span wrapper with loading state
+ */
+function createWordSpan(word: string, range: Range): HTMLElement | null {
+  try {
+    // Create span element
+    const span = document.createElement('span');
+    span.className = 'word-explanation-loading';
+    span.textContent = word;
+    span.style.cssText = `
+      background: rgba(149, 39, 245, 0.1);
+      border-radius: 4px;
+      padding: 2px 4px;
+      cursor: default;
+      position: relative;
+    `;
+
+    // Wrap the range with the span
+    try {
+      range.surroundContents(span);
+    } catch (error) {
+      // If surroundContents fails, use alternative approach
+      const contents = range.extractContents();
+      span.appendChild(contents);
+      range.insertNode(span);
+    }
+
+    return span;
+  } catch (error) {
+    console.error('[Content Script] Error creating word span:', error);
+    return null;
+  }
+}
+
+/**
+ * Create purple spinner near the word span
+ */
+function createPurpleSpinner(wordSpan: HTMLElement): HTMLElement {
+  const spinnerContainer = document.createElement('div');
+  spinnerContainer.className = 'purple-spinner-container';
+  
+  const rect = wordSpan.getBoundingClientRect();
+  spinnerContainer.style.cssText = `
+    position: fixed;
+    left: ${rect.right + 8}px;
+    top: ${rect.top + (rect.height / 2) - 9}px;
+    z-index: 2147483647;
+    pointer-events: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  `;
+
+  const spinner = document.createElement('div');
+  spinner.className = 'purple-spinner';
+  spinner.style.cssText = `
+    width: 18px;
+    height: 18px;
+    border: 2px solid rgba(149, 39, 245, 0.2);
+    border-top-color: #9527F5;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  `;
+
+  spinnerContainer.appendChild(spinner);
+  document.body.appendChild(spinnerContainer);
+
+  return spinnerContainer;
+}
+
+/**
+ * Inject word span animation styles into main page DOM
+ * (only needs to be done once)
+ */
+let wordSpanStylesInjected = false;
+
+function injectWordSpanStyles(): void {
+  if (wordSpanStylesInjected) return;
+  
+  const styleId = 'xplaino-word-span-styles';
+  if (document.getElementById(styleId)) {
+    wordSpanStylesInjected = true;
+    return;
+  }
+  
+  const styleElement = document.createElement('style');
+  styleElement.id = styleId;
+  styleElement.textContent = `
+    @keyframes word-explanation-scale-bounce {
+      0%, 40%, 80%, 100% {
+        transform: scale(1);
+      }
+      20%, 60% {
+        transform: scale(1.05);
+      }
+    }
+  `;
+  document.head.appendChild(styleElement);
+  wordSpanStylesInjected = true;
+  console.log('[Content Script] Word span styles injected into main DOM');
+}
+
+/**
+ * Toggle word popover visibility
+ */
+function toggleWordPopover(wordId: string): void {
+  const state = wordExplanationsMap.get(wordId);
+  if (!state) return;
+
+  state.popoverVisible = !state.popoverVisible;
+  
+  if (state.popoverVisible) {
+    injectWordExplanationPopover();
+  }
+  
+  updateWordExplanationPopover();
+}
+
+/**
+ * Remove word explanation (span, spinner, popover)
+ */
+function removeWordExplanation(wordId: string): void {
+  const state = wordExplanationsMap.get(wordId);
+  if (!state) return;
+
+  // Remove spinner
+  if (state.spinnerElement) {
+    state.spinnerElement.remove();
+  }
+
+  // Unwrap word span (restore original text)
+  if (state.wordSpanElement) {
+    const parent = state.wordSpanElement.parentNode;
+    if (parent) {
+      // Move all child nodes out of the span
+      while (state.wordSpanElement.firstChild) {
+        parent.insertBefore(state.wordSpanElement.firstChild, state.wordSpanElement);
+      }
+      // Remove the span
+      parent.removeChild(state.wordSpanElement);
+    }
+  }
+
+  // Remove from map
+  wordExplanationsMap.delete(wordId);
+
+  // Update or remove popover
+  if (wordExplanationsMap.size === 0) {
+    removeWordExplanationPopover();
+  } else {
+    updateWordExplanationPopover();
+  }
+}
+
+/**
+ * Handler for "Get more examples" utility button
+ */
+async function handleGetMoreExamples(wordId: string): Promise<void> {
+  console.log('[Content Script] handleGetMoreExamples called for wordId:', wordId);
+  
+  const wordAtomState = store.get(wordExplanationsAtom).get(wordId);
+  if (!wordAtomState) {
+    console.error('[Content Script] No atom state found for wordId:', wordId);
+    return;
+  }
+
+  // Set loading state
+  const updatedState: WordExplanationAtomState = {
+    ...wordAtomState,
+    isLoadingExamples: true,
+  };
+  const newMap = new Map(store.get(wordExplanationsAtom));
+  newMap.set(wordId, updatedState);
+  store.set(wordExplanationsAtom, newMap);
+  updateWordExplanationPopover();
+
+  // Call API
+  await MoreExamplesService.getMoreExamples(
+    {
+      word: wordAtomState.word,
+      meaning: wordAtomState.meaning,
+      examples: wordAtomState.examples,
+    },
+    {
+      onSuccess: (response) => {
+        console.log('[Content Script] More examples received:', response);
+        const currentState = store.get(wordExplanationsAtom).get(wordId);
+        if (!currentState) return;
+
+        const updated: WordExplanationAtomState = {
+          ...currentState,
+          examples: response.examples,
+          shouldAllowFetchMoreExamples: response.shouldAllowFetchMoreExamples,
+          isLoadingExamples: false,
+        };
+        const map = new Map(store.get(wordExplanationsAtom));
+        map.set(wordId, updated);
+        store.set(wordExplanationsAtom, map);
+        
+        // Update local state streamedContent with new examples
+        const localState = wordExplanationsMap.get(wordId);
+        if (localState) {
+          const examplesText = response.examples.map((ex, i) => `${i + 1}. ${ex}`).join('\n');
+          localState.streamedContent = `**${wordAtomState.meaning}**\n\n**Examples:**\n${examplesText}`;
+        }
+        
+        updateWordExplanationPopover();
+      },
+      onError: (code: string, message: string) => {
+        console.error('[Content Script] More examples error:', code, message);
+        const currentState = store.get(wordExplanationsAtom).get(wordId);
+        if (!currentState) return;
+
+        const updated: WordExplanationAtomState = {
+          ...currentState,
+          isLoadingExamples: false,
+        };
+        const map = new Map(store.get(wordExplanationsAtom));
+        map.set(wordId, updated);
+        store.set(wordExplanationsAtom, map);
+        updateWordExplanationPopover();
+        
+        showToast(message || 'Failed to fetch more examples', 'error');
+      },
+    }
+  );
+}
+
+/**
+ * Handler for "Get synonyms" utility button
+ */
+async function handleGetSynonyms(wordId: string): Promise<void> {
+  console.log('[Content Script] handleGetSynonyms called for wordId:', wordId);
+  
+  const wordAtomState = store.get(wordExplanationsAtom).get(wordId);
+  if (!wordAtomState) {
+    console.error('[Content Script] No atom state found for wordId:', wordId);
+    return;
+  }
+
+  // Set loading state
+  const updatedState: WordExplanationAtomState = {
+    ...wordAtomState,
+    isLoadingSynonyms: true,
+  };
+  const newMap = new Map(store.get(wordExplanationsAtom));
+  newMap.set(wordId, updatedState);
+  store.set(wordExplanationsAtom, newMap);
+  updateWordExplanationPopover();
+
+  // Call API
+  await WordSynonymsService.getSynonyms(
+    { words: [wordAtomState.word] },
+    {
+      onSuccess: (response) => {
+        console.log('[Content Script] Synonyms received:', response);
+        const currentState = store.get(wordExplanationsAtom).get(wordId);
+        if (!currentState) return;
+
+        // Extract synonyms array from first word result
+        const synonymsList = response.synonyms.length > 0 ? response.synonyms[0].synonyms : [];
+
+        const updated: WordExplanationAtomState = {
+          ...currentState,
+          synonyms: synonymsList,
+          isLoadingSynonyms: false,
+        };
+        const map = new Map(store.get(wordExplanationsAtom));
+        map.set(wordId, updated);
+        store.set(wordExplanationsAtom, map);
+        updateWordExplanationPopover();
+      },
+      onError: (code: string, message: string) => {
+        console.error('[Content Script] Synonyms error:', code, message);
+        const currentState = store.get(wordExplanationsAtom).get(wordId);
+        if (!currentState) return;
+
+        const updated: WordExplanationAtomState = {
+          ...currentState,
+          isLoadingSynonyms: false,
+        };
+        const map = new Map(store.get(wordExplanationsAtom));
+        map.set(wordId, updated);
+        store.set(wordExplanationsAtom, map);
+        updateWordExplanationPopover();
+        
+        // Show user-friendly message for "Not found" errors
+        const displayMessage = code === 'NOT_FOUND' || message.toLowerCase().includes('not found') 
+          ? 'Synonyms do not exist for this word'
+          : (message || 'Failed to fetch synonyms');
+        showToast(displayMessage, 'error');
+      },
+    }
+  );
+}
+
+/**
+ * Handler for "Get antonyms" utility button
+ */
+async function handleGetAntonyms(wordId: string): Promise<void> {
+  console.log('[Content Script] handleGetAntonyms called for wordId:', wordId);
+  
+  const wordAtomState = store.get(wordExplanationsAtom).get(wordId);
+  if (!wordAtomState) {
+    console.error('[Content Script] No atom state found for wordId:', wordId);
+    return;
+  }
+
+  // Set loading state
+  const updatedState: WordExplanationAtomState = {
+    ...wordAtomState,
+    isLoadingAntonyms: true,
+  };
+  const newMap = new Map(store.get(wordExplanationsAtom));
+  newMap.set(wordId, updatedState);
+  store.set(wordExplanationsAtom, newMap);
+  updateWordExplanationPopover();
+
+  // Call API
+  await WordAntonymsService.getAntonyms(
+    { words: [wordAtomState.word] },
+    {
+      onSuccess: (response) => {
+        console.log('[Content Script] Antonyms received:', response);
+        const currentState = store.get(wordExplanationsAtom).get(wordId);
+        if (!currentState) return;
+
+        // Extract antonyms array from first word result
+        const antonymsList = response.antonyms.length > 0 ? response.antonyms[0].antonyms : [];
+
+        const updated: WordExplanationAtomState = {
+          ...currentState,
+          antonyms: antonymsList,
+          isLoadingAntonyms: false,
+        };
+        const map = new Map(store.get(wordExplanationsAtom));
+        map.set(wordId, updated);
+        store.set(wordExplanationsAtom, map);
+        updateWordExplanationPopover();
+      },
+      onError: (code: string, message: string) => {
+        console.error('[Content Script] Antonyms error:', code, message);
+        const currentState = store.get(wordExplanationsAtom).get(wordId);
+        if (!currentState) return;
+
+        const updated: WordExplanationAtomState = {
+          ...currentState,
+          isLoadingAntonyms: false,
+        };
+        const map = new Map(store.get(wordExplanationsAtom));
+        map.set(wordId, updated);
+        store.set(wordExplanationsAtom, map);
+        updateWordExplanationPopover();
+        
+        // Show user-friendly message for "Not found" errors
+        const displayMessage = code === 'NOT_FOUND' || message.toLowerCase().includes('not found') 
+          ? 'Opposite does not exist for this word'
+          : (message || 'Failed to fetch antonyms');
+        showToast(displayMessage, 'error');
+      },
+    }
+  );
+}
+
+/**
+ * Handler for "Translate" utility button
+ */
+async function handleTranslateWord(wordId: string, languageCode: string): Promise<void> {
+  console.log('[Content Script] handleTranslateWord called for wordId:', wordId, 'language:', languageCode);
+  
+  const wordAtomState = store.get(wordExplanationsAtom).get(wordId);
+  if (!wordAtomState) {
+    console.error('[Content Script] No atom state found for wordId:', wordId);
+    return;
+  }
+
+  // Set loading state
+  const updatedState: WordExplanationAtomState = {
+    ...wordAtomState,
+    isLoadingTranslation: true,
+  };
+  const newMap = new Map(store.get(wordExplanationsAtom));
+  newMap.set(wordId, updatedState);
+  store.set(wordExplanationsAtom, newMap);
+  updateWordExplanationPopover();
+
+  // Call API with streaming
+  const abortController = new AbortController();
+  let streamedTranslation = '';
+
+  await TranslateService.translate(
+    {
+      targetLangugeCode: languageCode, // Note: API uses "Languge" (typo)
+      texts: [{ id: '1', text: wordAtomState.word }],
+    },
+    {
+      onProgress: (index: number, translatedText: string) => {
+        console.log('[Content Script] Translation progress:', { index, translatedText });
+        streamedTranslation = translatedText;
+        
+        const currentState = store.get(wordExplanationsAtom).get(wordId);
+        if (!currentState) return;
+
+        const updated: WordExplanationAtomState = {
+          ...currentState,
+          translations: [{ language: languageCode, translated_content: streamedTranslation }],
+        };
+        const map = new Map(store.get(wordExplanationsAtom));
+        map.set(wordId, updated);
+        store.set(wordExplanationsAtom, map);
+        updateWordExplanationPopover();
+      },
+      onSuccess: (translatedTexts: string[]) => {
+        console.log('[Content Script] Translation complete:', translatedTexts);
+        const currentState = store.get(wordExplanationsAtom).get(wordId);
+        if (!currentState) return;
+
+        const finalTranslation = translatedTexts.length > 0 ? translatedTexts[0] : streamedTranslation;
+
+        const updated: WordExplanationAtomState = {
+          ...currentState,
+          translations: [{ language: languageCode, translated_content: finalTranslation }],
+          isLoadingTranslation: false,
+        };
+        const map = new Map(store.get(wordExplanationsAtom));
+        map.set(wordId, updated);
+        store.set(wordExplanationsAtom, map);
+        updateWordExplanationPopover();
+      },
+      onLoginRequired: () => {
+        console.log('[Content Script] Translation requires login');
+        store.set(showLoginModalAtom, true);
+        
+        const currentState = store.get(wordExplanationsAtom).get(wordId);
+        if (!currentState) return;
+
+        const updated: WordExplanationAtomState = {
+          ...currentState,
+          isLoadingTranslation: false,
+        };
+        const map = new Map(store.get(wordExplanationsAtom));
+        map.set(wordId, updated);
+        store.set(wordExplanationsAtom, map);
+        updateWordExplanationPopover();
+      },
+      onError: (code: string, message: string) => {
+        console.error('[Content Script] Translation error:', code, message);
+        const currentState = store.get(wordExplanationsAtom).get(wordId);
+        if (!currentState) return;
+
+        const updated: WordExplanationAtomState = {
+          ...currentState,
+          isLoadingTranslation: false,
+        };
+        const map = new Map(store.get(wordExplanationsAtom));
+        map.set(wordId, updated);
+        store.set(wordExplanationsAtom, map);
+        updateWordExplanationPopover();
+        
+        showToast(message || 'Failed to translate', 'error');
+      },
+    },
+    abortController
+  );
+}
+
+/**
+ * Handler for "Ask AI" utility button (placeholder)
+ */
+function handleAskAI(wordId: string): void {
+  console.log('[Content Script] handleAskAI called for wordId:', wordId);
+  // TODO: Implement Ask AI popover in Phase 4
+  showToast('Ask AI feature coming soon!', 'success');
 }
 
 /**
@@ -1978,6 +2776,184 @@ function removeTextExplanationPanel(): void {
   removeShadowHost(TEXT_EXPLANATION_PANEL_HOST_ID, textExplanationPanelRoot);
   textExplanationPanelRoot = null;
   console.log('[Content Script] Text Explanation Panel removed');
+}
+
+// =============================================================================
+// WORD EXPLANATION POPOVER
+// =============================================================================
+
+/**
+ * Inject Word Explanation Popover into the page with Shadow DOM
+ */
+function injectWordExplanationPopover(): void {
+  console.log('[Content Script] injectWordExplanationPopover called');
+  
+  if (shadowHostExists(WORD_EXPLANATION_POPOVER_HOST_ID)) {
+    console.log('[Content Script] Word explanation popover host already exists, updating');
+    updateWordExplanationPopover();
+    return;
+  }
+
+  console.log('[Content Script] Creating new word explanation popover shadow host');
+  const hostResult = createShadowHost({ id: WORD_EXPLANATION_POPOVER_HOST_ID });
+
+  // Inject styles
+  injectStyles(hostResult.shadow, wordExplanationPopoverStyles);
+
+  // Add spin keyframe animation (needed for spinner)
+  const styleSheet = document.createElement('style');
+  styleSheet.textContent = `
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    @keyframes pulsate-purple {
+      0%, 100% { background-color: rgba(149, 39, 245, 0.1); }
+      50% { background-color: rgba(149, 39, 245, 0.25); }
+    }
+    @keyframes scale-bounce {
+      0%, 40%, 80%, 100% { transform: scale(1); }
+      20%, 60% { transform: scale(1.05); }
+    }
+  `;
+  hostResult.shadow.appendChild(styleSheet);
+
+  // Append host to document body (THIS WAS MISSING!)
+  document.body.appendChild(hostResult.host);
+  console.log('[Content Script] Word explanation popover host appended to body');
+
+  // Render React component
+  wordExplanationPopoverRoot = ReactDOM.createRoot(hostResult.mountPoint);
+  console.log('[Content Script] Word explanation popover root created');
+  updateWordExplanationPopover();
+}
+
+/**
+ * Update Word Explanation Popover state
+ */
+function updateWordExplanationPopover(): void {
+  console.log('[Content Script] updateWordExplanationPopover called');
+  
+  if (!wordExplanationPopoverRoot) {
+    console.warn('[Content Script] wordExplanationPopoverRoot is null, cannot update');
+    return;
+  }
+
+  // Find the first visible word explanation (we only show one popover at a time)
+  let visibleWordState: WordExplanationLocalState | null = null;
+  let visibleWordId: string | null = null;
+
+  console.log('[Content Script] Searching for visible word explanation in map, size:', wordExplanationsMap.size);
+  for (const [wordId, state] of wordExplanationsMap.entries()) {
+    console.log('[Content Script] Checking wordId:', wordId, 'popoverVisible:', state.popoverVisible);
+    if (state.popoverVisible) {
+      visibleWordState = state;
+      visibleWordId = wordId;
+      break;
+    }
+  }
+
+  if (!visibleWordState || !visibleWordId) {
+    // No visible popover
+    console.log('[Content Script] No visible word explanation found, rendering empty fragment');
+    wordExplanationPopoverRoot.render(React.createElement(React.Fragment));
+    return;
+  }
+
+  console.log('[Content Script] Found visible word explanation:', {
+    wordId: visibleWordId,
+    word: visibleWordState.word,
+    content: visibleWordState.streamedContent.substring(0, 50) + '...',
+    isLoading: visibleWordState.isLoading,
+    sourceRef: visibleWordState.sourceRef.current,
+  });
+
+  // Handler for tab change
+  // Get atom state for this word
+  const atomState = store.get(wordExplanationsAtom).get(visibleWordId);
+
+  const handleTabChange = (tab: TabType) => {
+    const state = wordExplanationsMap.get(visibleWordId!);
+    if (state) {
+      state.activeTab = tab;
+      updateWordExplanationPopover();
+    }
+    // Also update atom state
+    if (atomState) {
+      const updated: WordExplanationAtomState = { ...atomState, activeTab: tab };
+      const map = new Map(store.get(wordExplanationsAtom));
+      map.set(visibleWordId!, updated);
+      store.set(wordExplanationsAtom, map);
+    }
+  };
+
+  // Handler for close
+  const handleClose = () => {
+    const state = wordExplanationsMap.get(visibleWordId!);
+    if (state) {
+      state.popoverVisible = false;
+      updateWordExplanationPopover();
+    }
+  };
+
+  // Render popover
+  console.log('[Content Script] Rendering WordExplanationPopover component with props:', {
+    word: visibleWordState.word,
+    visible: visibleWordState.popoverVisible,
+    contentLength: visibleWordState.streamedContent.length,
+    activeTab: visibleWordState.activeTab,
+    isLoading: visibleWordState.isLoading,
+    hasSourceRef: !!visibleWordState.sourceRef.current,
+    atomState: atomState ? {
+      synonymsCount: atomState.synonyms.length,
+      antonymsCount: atomState.antonyms.length,
+      translationsCount: atomState.translations.length,
+    } : null,
+  });
+  
+  wordExplanationPopoverRoot.render(
+    React.createElement(
+      Provider,
+      { store },
+      React.createElement(WordExplanationPopover, {
+        word: visibleWordState.word,
+        sourceRef: visibleWordState.sourceRef,
+        visible: visibleWordState.popoverVisible,
+        content: visibleWordState.streamedContent,
+        activeTab: visibleWordState.activeTab,
+        onTabChange: handleTabChange,
+        onClose: handleClose,
+        useShadowDom: true,
+        isLoading: visibleWordState.isLoading,
+        errorMessage: visibleWordState.errorMessage || undefined,
+        // Data from atoms
+        synonyms: atomState?.synonyms || [],
+        antonyms: atomState?.antonyms || [],
+        translations: atomState?.translations || [],
+        shouldAllowFetchMoreExamples: atomState?.shouldAllowFetchMoreExamples ?? true,
+        // Loading states from atoms
+        isLoadingExamples: atomState?.isLoadingExamples || false,
+        isLoadingSynonyms: atomState?.isLoadingSynonyms || false,
+        isLoadingAntonyms: atomState?.isLoadingAntonyms || false,
+        isLoadingTranslation: atomState?.isLoadingTranslation || false,
+        // Handlers
+        onGetMoreExamples: () => handleGetMoreExamples(visibleWordId!),
+        onGetSynonyms: () => handleGetSynonyms(visibleWordId!),
+        onGetAntonyms: () => handleGetAntonyms(visibleWordId!),
+        onTranslate: (languageCode) => handleTranslateWord(visibleWordId!, languageCode),
+        onAskAI: () => handleAskAI(visibleWordId!),
+      })
+    )
+  );
+  
+  console.log('[Content Script] WordExplanationPopover rendered');
+}
+
+/**
+ * Remove Word Explanation Popover from the page
+ */
+function removeWordExplanationPopover(): void {
+  removeShadowHost(WORD_EXPLANATION_POPOVER_HOST_ID, wordExplanationPopoverRoot);
+  wordExplanationPopoverRoot = null;
 }
 
 /**

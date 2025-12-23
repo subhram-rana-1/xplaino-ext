@@ -1,0 +1,466 @@
+/* src/content/styles/wordExplanationPopover.shadow.css */
+/* Shadow DOM styles for Word Explanation Popover */
+
+/* CSS Variables */
+:host {
+  --color-primary: #9527F5;
+  --color-primary-dark: #8607F5;
+  --color-primary-light: #B66DFF;
+  --color-primary-hover-bg: rgba(149, 39, 245, 0.1);
+  --color-white: #FFFFFF;
+  --color-text: #2D3748;
+  --color-text-secondary: #718096;
+  --color-disabled: #CBD5E0;
+}
+
+/* Popover Container */
+.popoverContainer {
+  position: fixed !important;
+  min-width: 300px !important;
+  max-width: 450px !important;
+  background: var(--color-white, #FFFFFF) !important;
+  border-radius: 30px !important;
+  box-shadow: 0 4px 20px rgba(149, 39, 245, 0.3) !important;
+  border: none !important;
+  padding: 15px !important;
+  z-index: 2147483647 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 12px !important;
+  box-sizing: border-box !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  pointer-events: auto !important;
+}
+
+/* Header */
+.header {
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+  padding-bottom: 12px !important;
+  border-bottom: 1px solid rgba(149, 39, 245, 0.1) !important;
+}
+
+.headerWord {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
+  font-size: 18px !important;
+  font-weight: 600 !important;
+  color: var(--color-primary, #9527F5) !important;
+}
+
+.headerBookmark {
+  background: transparent !important;
+  border: none !important;
+  cursor: pointer !important;
+  padding: 4px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border-radius: 8px !important;
+  transition: background 0.2s ease !important;
+  color: var(--color-text-secondary, #718096) !important;
+}
+
+.headerBookmark:hover {
+  background: rgba(149, 39, 245, 0.1) !important;
+  color: var(--color-primary, #9527F5) !important;
+}
+
+.headerBookmark svg {
+  display: block !important;
+}
+
+/* Main Content */
+.mainContent {
+  flex: 1 !important;
+  overflow-y: auto !important;
+  max-height: 400px !important;
+  color: var(--color-text, #2D3748) !important;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
+  font-size: 14px !important;
+  line-height: 1.6 !important;
+}
+
+.mainContent p {
+  margin: 0 0 8px 0 !important;
+}
+
+.mainContent p:last-child {
+  margin-bottom: 0 !important;
+}
+
+.mainContent strong {
+  font-weight: 600 !important;
+  color: var(--color-primary, #9527F5) !important;
+}
+
+.mainContent ul,
+.mainContent ol {
+  margin: 8px 0 !important;
+  padding-left: 20px !important;
+}
+
+.mainContent li {
+  margin: 4px 0 !important;
+}
+
+.mainContent code {
+  background: rgba(149, 39, 245, 0.1) !important;
+  padding: 2px 6px !important;
+  border-radius: 4px !important;
+  font-family: 'Monaco', 'Courier New', monospace !important;
+  font-size: 13px !important;
+}
+
+/* Utility Actions */
+.utilityActions {
+  display: flex !important;
+  justify-content: flex-end !important;
+  align-items: center !important;
+  gap: 6px !important;
+  padding-top: 8px !important;
+  min-width: 124px !important;
+}
+
+.utilityButtonWrapper {
+  position: relative !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.utilityButton {
+  width: 32px !important;
+  height: 32px !important;
+  border-radius: 10px !important;
+  background: transparent !important;
+  border: none !important;
+  cursor: pointer !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  padding: 0 !important;
+  outline: none !important;
+}
+
+.utilityButton:hover:not(:disabled) {
+  background: #eaddf8 !important;
+}
+
+.utilityButton:active:not(:disabled) {
+  transform: scale(0.92) !important;
+}
+
+.utilityButton:disabled,
+.utilityButtonDisabled {
+  opacity: 0.5 !important;
+  cursor: not-allowed !important;
+  pointer-events: none !important;
+}
+
+.utilityButton svg {
+  width: 20px !important;
+  height: 20px !important;
+  color: #BF7EFA !important;
+  stroke: #BF7EFA !important;
+  stroke-width: 2.5 !important;
+  fill: none !important;
+  pointer-events: none !important;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.utilityButton:hover svg {
+  color: var(--color-primary, #9527F5) !important;
+  stroke: var(--color-primary, #9527F5) !important;
+}
+
+.utilityTooltip {
+  position: absolute !important;
+  bottom: calc(100% + 8px) !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  background: #eaddf8 !important;
+  color: #BF7EFA !important;
+  padding: 4px 12px !important;
+  border-radius: 999px !important;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  white-space: nowrap !important;
+  box-shadow: 0 2px 8px rgba(149, 39, 245, 0.15) !important;
+  pointer-events: none !important;
+  z-index: 10 !important;
+  animation: tooltipFadeIn 0.15s ease forwards !important;
+}
+
+.utilityTooltip::after {
+  content: '' !important;
+  position: absolute !important;
+  top: 100% !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  border: 5px solid transparent !important;
+  border-top-color: #eaddf8 !important;
+}
+
+@keyframes tooltipFadeIn {
+  from {
+    opacity: 0 !important;
+    transform: translateX(-50%) translateY(4px) !important;
+  }
+  to {
+    opacity: 1 !important;
+    transform: translateX(-50%) translateY(0) !important;
+  }
+}
+
+/* Footer */
+.footer {
+  border-top: 1px solid rgba(149, 39, 245, 0.1) !important;
+  padding-top: 12px !important;
+  display: flex !important;
+  justify-content: center !important;
+}
+
+/* Loading State */
+.loadingState {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 8px !important;
+  padding: 20px !important;
+  color: var(--color-text-secondary, #718096) !important;
+  font-size: 14px !important;
+}
+
+.spinner {
+  width: 16px !important;
+  height: 16px !important;
+  border: 2px solid rgba(149, 39, 245, 0.2) !important;
+  border-top-color: var(--color-primary, #9527F5) !important;
+  border-radius: 50% !important;
+  animation: spin 0.8s linear infinite !important;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg) !important;
+  }
+}
+
+/* Error State */
+.errorState {
+  padding: 20px !important;
+  color: #EF4444 !important;
+  text-align: center !important;
+  font-size: 14px !important;
+}
+
+/* Placeholder State */
+.placeholderState {
+  padding: 20px !important;
+  color: var(--color-text-secondary, #718096) !important;
+  text-align: center !important;
+  font-size: 14px !important;
+  font-style: italic !important;
+}
+
+/* ButtonGroup Styles (for tabs) */
+.buttonGroup {
+  display: flex !important;
+  align-items: center !important;
+  gap: 0 !important;
+}
+
+.button {
+  position: relative !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  padding: 8px 16px !important;
+  border-radius: 9px !important;
+  background: transparent !important;
+  border: none !important;
+  cursor: pointer !important;
+  transition: background 0.2s ease !important;
+  box-sizing: border-box !important;
+  outline: none !important;
+}
+
+.button:hover {
+  background: var(--color-primary-hover-bg) !important;
+}
+
+.button.active {
+  background: transparent !important;
+}
+
+.button.active:hover {
+  background: var(--color-primary-hover-bg) !important;
+}
+
+.buttonIcon {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  flex-shrink: 0 !important;
+}
+
+.buttonIcon svg {
+  width: auto !important;
+  height: auto !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  display: block !important;
+  color: #718096 !important;
+  stroke: #718096 !important;
+  fill: none !important;
+  pointer-events: none !important;
+  transition: color 0.2s ease, stroke 0.2s ease !important;
+}
+
+.button:hover .buttonIcon svg {
+  color: var(--color-primary) !important;
+  stroke: var(--color-primary) !important;
+}
+
+.button.active .buttonIcon svg {
+  color: var(--color-primary) !important;
+  stroke: var(--color-primary) !important;
+}
+
+.buttonLabel {
+  color: #718096 !important;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  transition: color 0.2s ease !important;
+  white-space: nowrap !important;
+}
+
+.button:hover .buttonLabel {
+  color: var(--color-primary) !important;
+}
+
+.button.active .buttonLabel {
+  color: var(--color-primary) !important;
+}
+
+/* Word Span Styles */
+.word-explanation-loading {
+  background: rgba(149, 39, 245, 0.1) !important;
+  border-radius: 4px !important;
+  padding: 2px 4px !important;
+  animation: pulsate-purple 1.5s ease-in-out infinite !important;
+  cursor: default !important;
+  position: relative !important;
+}
+
+@keyframes pulsate-purple {
+  0%, 100% {
+    background-color: rgba(149, 39, 245, 0.1) !important;
+  }
+  50% {
+    background-color: rgba(149, 39, 245, 0.25) !important;
+  }
+}
+
+.word-explanation-active {
+  background: rgba(0, 200, 0, 0.15) !important;
+  border-radius: 4px !important;
+  padding: 2px 4px !important;
+  cursor: pointer !important;
+  transition: background 0.2s ease !important;
+  position: relative !important;
+}
+
+.word-explanation-active:hover {
+  background: rgba(0, 200, 0, 0.25) !important;
+}
+
+/* Scale bounce animation for word span */
+@keyframes scale-bounce {
+  0%, 40%, 80%, 100% {
+    transform: scale(1) !important;
+  }
+  20%, 60% {
+    transform: scale(1.05) !important;
+  }
+}
+
+.word-explanation-bounce {
+  animation: scale-bounce 0.8s ease-in-out !important;
+}
+
+/* Purple Spinner (positioned near word) */
+.purple-spinner-container {
+  position: fixed !important;
+  z-index: 2147483647 !important;
+  pointer-events: none !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.purple-spinner {
+  width: 18px !important;
+  height: 18px !important;
+  border: 2px solid rgba(149, 39, 245, 0.2) !important;
+  border-top-color: var(--color-primary, #9527F5) !important;
+  border-radius: 50% !important;
+  animation: spin 0.8s linear infinite !important;
+}
+
+/* Button spinner */
+.buttonSpinner {
+  width: 20px !important;
+  height: 20px !important;
+  border: 2px solid rgba(149, 39, 245, 0.2) !important;
+  border-top-color: #9527f5 !important;
+  border-radius: 50% !important;
+  animation: spin 0.6s linear infinite !important;
+}
+
+/* Grammar tab content */
+.grammarContent {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 16px !important;
+  padding: 4px 0 !important;
+}
+
+.section {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 8px !important;
+}
+
+.sectionTitle {
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  color: #1a1a1a !important;
+  margin: 0 !important;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
+}
+
+.list {
+  margin: 0 !important;
+  padding-left: 20px !important;
+  list-style-type: disc !important;
+}
+
+.listItem {
+  font-size: 13px !important;
+  line-height: 1.6 !important;
+  color: #333 !important;
+  margin-bottom: 4px !important;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
+}
+
+.listItem:last-child {
+  margin-bottom: 0 !important;
+}
+
+
