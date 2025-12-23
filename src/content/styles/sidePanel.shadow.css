@@ -976,7 +976,25 @@
   cursor: not-allowed !important;
 }
 
-/* Stop Button variant */
+/* Stop Button variant for summarise button row - Keep same shape, just change color */
+.summariseButton.stopVariant {
+  background: var(--color-error, #EF4444) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 6px !important;
+}
+
+.summariseButton.stopVariant:hover:not(:disabled) {
+  background: #DC2626 !important;
+}
+
+.summariseButton.stopVariant svg {
+  width: 14px !important;
+  height: 14px !important;
+}
+
+/* Stop Button for input bar - circular red button */
 .stopButton {
   width: 36px !important;
   height: 36px !important;
@@ -1000,6 +1018,12 @@
 
 .stopButton:active {
   transform: scale(0.95) !important;
+}
+
+.stopButton:disabled {
+  background: #CBD5E0 !important;
+  cursor: not-allowed !important;
+  transform: none !important;
 }
 
 .stopButton svg {

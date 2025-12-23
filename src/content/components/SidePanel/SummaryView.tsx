@@ -504,17 +504,26 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
   const handleSummarise = async () => {
     if (pageReadingState !== 'ready') return;
     
-    // If already summarising, stop the request
+    // If already summarising, stop the request (this is the "Stop" button)
     if (summariseState === 'summarising') {
-      abortControllerRef.current?.abort();
-      // Save accumulated text to summary before clearing
+      console.log('[SummaryView] Stop button clicked - aborting summarise request');
+      
+      // Abort the actual network request
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+        abortControllerRef.current = null;
+      }
+      
+      // Save accumulated text to summary
       if (streamingText) {
+        console.log(`[SummaryView] Saved ${streamingText.length} characters to summary`);
         setSummary(streamingText);
         setSummariseState('done');
+        setStreamingText('');
       } else {
+        console.log('[SummaryView] No content received yet, returning to idle');
         setSummariseState('idle');
       }
-      setStreamingText('');
       return;
     }
 
@@ -712,38 +721,49 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
   const handleStopRequest = () => {
     console.log('[SummaryView] Stop request clicked');
     
+    if (!abortControllerRef.current) {
+      console.warn('[SummaryView] No abort controller available');
+      return;
+    }
+    
+    // Abort the actual network request
+    console.log('[SummaryView] Aborting API request...');
+    abortControllerRef.current.abort();
+    abortControllerRef.current = null;
+    
     // Stop summarise if in progress
-    if (summariseState === 'summarising' && abortControllerRef.current) {
-      console.log('[SummaryView] Stopping summarise API');
-      abortControllerRef.current.abort();
+    if (summariseState === 'summarising') {
+      console.log('[SummaryView] Stopping summarise - saving accumulated content');
       
-      // Save streaming content to summary
+      // Save whatever content was streamed so far
       if (streamingText) {
+        console.log(`[SummaryView] Saved ${streamingText.length} characters to summary`);
         setSummary(streamingText);
+        setStreamingText('');
+        setSummariseState('done');
+      } else {
+        console.log('[SummaryView] No content received yet, returning to idle');
+        setSummariseState('idle');
       }
-      
-      setStreamingText('');
-      setSummariseState('done');
-      abortControllerRef.current = null;
     }
     
     // Stop ask if in progress
-    if (askingState === 'asking' && abortControllerRef.current) {
-      console.log('[SummaryView] Stopping ask API');
-      abortControllerRef.current.abort();
+    if (askingState === 'asking') {
+      console.log('[SummaryView] Stopping ask - saving accumulated content');
       
-      // Save streaming content to chat
+      // Save whatever content was streamed so far
       if (askStreamingText) {
+        console.log(`[SummaryView] Saved ${askStreamingText.length} characters to chat`);
         const assistantMessage: ChatMessage = {
           role: 'assistant',
           content: askStreamingText,
         };
         setChatMessages((prev) => [...prev, assistantMessage]);
+        setAskStreamingText('');
+      } else {
+        console.log('[SummaryView] No content received yet');
       }
-      
-      setAskStreamingText('');
       setAskingState('idle');
-      abortControllerRef.current = null;
     }
   };
 
@@ -896,7 +916,7 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
       {summariseState !== 'done' && (
         <div className={getClassName('summariseButtonRow')}>
           <button
-            className={`${getClassName('summariseButton')} ${summariseState === 'summarising' ? getClassName('stopButton') : ''}`}
+            className={`${getClassName('summariseButton')} ${summariseState === 'summarising' ? getClassName('stopVariant') : ''}`}
             onClick={handleSummarise}
             disabled={isButtonDisabled}
           >
@@ -919,8 +939,8 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
           />
         </div>
         
-        {/* Stop Button - Show when any API is in progress */}
-        {(summariseState === 'summarising' || askingState === 'asking') ? (
+        {/* Stop Button - Show when asking (not summarising) */}
+        {askingState === 'asking' ? (
           <button
             ref={sendButtonRef}
             className={getClassName('stopButton')}
@@ -931,6 +951,19 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
             type="button"
           >
             <Square size={18} />
+          </button>
+        ) : summariseState === 'summarising' ? (
+          /* During summarising, show disabled send button */
+          <button
+            ref={sendButtonRef}
+            className={getClassName('sendButton')}
+            disabled={true}
+            onMouseEnter={() => setHoveredIcon('send')}
+            onMouseLeave={() => setHoveredIcon(null)}
+            aria-label="Ask question"
+            type="button"
+          >
+            <ArrowUp size={18} />
           </button>
         ) : (
           /* Send Button - Show when not requesting */
