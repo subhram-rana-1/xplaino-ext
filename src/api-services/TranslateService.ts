@@ -2,8 +2,10 @@
 // Service for translation API
 
 import { ENV } from '@/config/env';
-import { ChromeStorage } from '@/storage/chrome-local/ChromeStorage';
 import { TokenRefreshService } from './TokenRefreshService';
+import { ApiHeaders } from './ApiHeaders';
+import { ApiResponseHandler } from './ApiResponseHandler';
+import { TokenRefreshRetry } from './TokenRefreshRetry';
 
 // Types
 export interface TranslateTextItem {
@@ -20,6 +22,7 @@ export interface TranslateCallbacks {
   onSuccess: (translatedTexts: string[]) => void;
   onError: (errorCode: string, errorMessage: string) => void;
   onLoginRequired: () => void;
+  onSubscriptionRequired?: () => void;
   onProgress?: (index: number, translatedText: string) => void;
 }
 
@@ -110,26 +113,6 @@ export function getLanguageCode(languageName: string): string | null {
 export class TranslateService {
   private static readonly ENDPOINT = '/api/v2/translate';
 
-  /**
-   * Get authorization headers if auth info exists
-   * Also includes X-Unauthenticated-User-Id if available
-   */
-  private static async getAuthHeaders(): Promise<Record<string, string>> {
-    const headers: Record<string, string> = {};
-    
-    const authInfo = await ChromeStorage.getAuthInfo();
-    if (authInfo?.accessToken) {
-      headers['Authorization'] = `Bearer ${authInfo.accessToken}`;
-    }
-
-    // Always include unauthenticated user ID if available
-    const unauthenticatedUserId = await ChromeStorage.getUnauthenticatedUserId();
-    if (unauthenticatedUserId) {
-      headers['X-Unauthenticated-User-Id'] = unauthenticatedUserId;
-    }
-    
-    return headers;
-  }
 
   /**
    * Parse SSE stream and process translation events
@@ -249,7 +232,7 @@ export class TranslateService {
     abortController?: AbortController
   ): Promise<void> {
     const url = `${ENV.API_BASE_URL}${this.ENDPOINT}`;
-    const authHeaders = await this.getAuthHeaders();
+    const authHeaders = await ApiHeaders.getAuthHeaders('TranslateService');
 
     try {
       const response = await fetch(url, {
@@ -263,63 +246,37 @@ export class TranslateService {
         credentials: 'include',
       });
 
-      // Check for and store X-Unauthenticated-User-Id from response headers
-      const responseUnauthenticatedUserId = response.headers.get('X-Unauthenticated-User-Id');
-      if (responseUnauthenticatedUserId) {
-        await ChromeStorage.setUnauthenticatedUserId(responseUnauthenticatedUserId);
-        console.log('[TranslateService] Stored unauthenticated user ID:', responseUnauthenticatedUserId);
-      }
+      // Sync unauthenticated user ID from response headers
+      await ApiResponseHandler.syncUnauthenticatedUserId(response, 'TranslateService');
 
       // Handle 401 errors
       if (response.status === 401) {
-        // Clone response to read body without consuming it
-        const responseClone = response.clone();
-        const errorData = await responseClone.json().catch(() => ({}));
+        const errorData = await ApiResponseHandler.parseErrorResponse(response);
         
         // Check for TOKEN_EXPIRED error code
-        if (TokenRefreshService.isTokenExpiredError(response.status, errorData)) {
-          console.log('[TranslateService] Token expired, attempting refresh');
-          
+        if (TokenRefreshRetry.shouldRetryWithTokenRefresh(response, errorData)) {
           try {
-            // Refresh the token and get the new access token directly
-            const refreshResponse = await TokenRefreshService.refreshAccessToken();
-            
-            // Retry the request with new token directly from refresh response
-            const retryHeaders: Record<string, string> = {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${refreshResponse.accessToken}`,
-            };
-
-            // Always include unauthenticated user ID if available
-            const unauthenticatedUserId = await ChromeStorage.getUnauthenticatedUserId();
-            if (unauthenticatedUserId) {
-              retryHeaders['X-Unauthenticated-User-Id'] = unauthenticatedUserId;
-            }
-
-            const retryResponse = await fetch(url, {
-              method: 'POST',
-              headers: retryHeaders,
-              body: JSON.stringify(request),
-              signal: abortController?.signal,
-              credentials: 'include',
-            });
-
-            // Check for and store X-Unauthenticated-User-Id from retry response headers
-            const retryResponseUnauthUserId = retryResponse.headers.get('X-Unauthenticated-User-Id');
-            if (retryResponseUnauthUserId) {
-              await ChromeStorage.setUnauthenticatedUserId(retryResponseUnauthUserId);
-              console.log('[TranslateService] Stored unauthenticated user ID from retry:', retryResponseUnauthUserId);
-            }
+            // Retry request with token refresh
+            const retryResponse = await TokenRefreshRetry.retrySSERequestWithTokenRefresh(
+              {
+                url,
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  ...authHeaders,
+                },
+                body: JSON.stringify(request),
+                signal: abortController?.signal,
+                credentials: 'include',
+              },
+              'TranslateService'
+            );
 
             // Handle 401 errors on retry
             if (retryResponse.status === 401) {
-              const retryErrorData = await retryResponse.json().catch(() => ({}));
-              if (
-                retryErrorData.error_code === 'LOGIN_REQUIRED' ||
-                (typeof retryErrorData.detail === 'string' && retryErrorData.detail.includes('LOGIN_REQUIRED')) ||
-                (typeof retryErrorData.detail === 'object' && retryErrorData.detail?.errorCode === 'LOGIN_REQUIRED')
-              ) {
-                callbacks.onLoginRequired();
+              const retryErrorData = await ApiResponseHandler.parseErrorResponse(retryResponse);
+              if (ApiResponseHandler.checkLoginRequired(retryErrorData, retryResponse.status)) {
+                ApiResponseHandler.handleLoginRequired(callbacks.onLoginRequired, 'TranslateService');
                 return;
               }
               callbacks.onError('AUTH_ERROR', 'Authentication failed');
@@ -346,12 +303,8 @@ export class TranslateService {
         }
         
         // Handle other 401 errors (LOGIN_REQUIRED, etc.)
-        if (
-          errorData.error_code === 'LOGIN_REQUIRED' ||
-          (typeof errorData.detail === 'string' && errorData.detail.includes('LOGIN_REQUIRED')) ||
-          (typeof errorData.detail === 'object' && errorData.detail?.errorCode === 'LOGIN_REQUIRED')
-        ) {
-          callbacks.onLoginRequired();
+        if (ApiResponseHandler.checkLoginRequired(errorData, response.status)) {
+          ApiResponseHandler.handleLoginRequired(callbacks.onLoginRequired, 'TranslateService');
           return;
         }
         callbacks.onError('AUTH_ERROR', 'Authentication failed');
@@ -359,6 +312,20 @@ export class TranslateService {
       }
 
       if (!response.ok) {
+        const errorData = await ApiResponseHandler.parseErrorResponse(response);
+        
+        // Check for LOGIN_REQUIRED in error response body (regardless of status code)
+        if (ApiResponseHandler.checkLoginRequired(errorData, response.status)) {
+          ApiResponseHandler.handleLoginRequired(callbacks.onLoginRequired, 'TranslateService');
+          return;
+        }
+        
+        // Check for SUBSCRIPTION_REQUIRED in error response body (regardless of status code)
+        if (ApiResponseHandler.checkSubscriptionRequired(errorData, response.status)) {
+          ApiResponseHandler.handleSubscriptionRequired(callbacks.onSubscriptionRequired, 'TranslateService');
+          return;
+        }
+        
         const errorText = await response.text();
         callbacks.onError('HTTP_ERROR', `HTTP ${response.status}: ${errorText}`);
         return;

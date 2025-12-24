@@ -6,6 +6,7 @@
  */
 export class ApiErrorHandler {
   private static loginRequiredHandler: (() => void) | null = null;
+  private static subscriptionRequiredHandler: (() => void) | null = null;
 
   /**
    * Register a handler to be called when LOGIN_REQUIRED error is detected
@@ -32,6 +33,33 @@ export class ApiErrorHandler {
    */
   static unregisterLoginRequiredHandler(): void {
     this.loginRequiredHandler = null;
+  }
+
+  /**
+   * Register a handler to be called when SUBSCRIPTION_REQUIRED error is detected
+   * @param handler - Function to call when subscription is required
+   */
+  static registerSubscriptionRequiredHandler(handler: () => void): void {
+    this.subscriptionRequiredHandler = handler;
+  }
+
+  /**
+   * Trigger the subscription required handler (if registered)
+   */
+  static triggerSubscriptionRequired(): void {
+    if (this.subscriptionRequiredHandler) {
+      console.log('[ApiErrorHandler] Triggering SUBSCRIPTION_REQUIRED handler');
+      this.subscriptionRequiredHandler();
+    } else {
+      console.warn('[ApiErrorHandler] No SUBSCRIPTION_REQUIRED handler registered');
+    }
+  }
+
+  /**
+   * Unregister the subscription required handler
+   */
+  static unregisterSubscriptionRequiredHandler(): void {
+    this.subscriptionRequiredHandler = null;
   }
 }
 

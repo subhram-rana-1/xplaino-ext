@@ -3,6 +3,8 @@
 
 import { ENV } from '@/config/env';
 import { ChromeStorage } from '@/storage/chrome-local/ChromeStorage';
+import { ApiHeaders } from './ApiHeaders';
+import { ApiResponseHandler } from './ApiResponseHandler';
 import type { LoginResponse } from './AuthService';
 
 /**
@@ -33,12 +35,14 @@ export class TokenRefreshService {
     const url = `${ENV.API_BASE_URL}${this.REFRESH_TOKEN_ENDPOINT}`;
 
     try {
+      // Build headers with auth token and unauthenticated user ID
+      const headers = await ApiHeaders.getAuthHeaders('TokenRefreshService');
+      headers['Content-Type'] = 'application/json';
+      headers['Authorization'] = `Bearer ${authInfo.accessToken}`;
+
       const response = await fetch(url, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${authInfo.accessToken}`,
-        },
+        headers: headers,
         body: JSON.stringify({
           refreshToken: authInfo.refreshToken,
         }),
@@ -63,17 +67,17 @@ export class TokenRefreshService {
         });
 
         // Check for LOGIN_REQUIRED error code
-        if (response.status === 401) {
-          const errorCode = errorBody?.detail?.errorCode || errorBody?.error_code;
-          if (errorCode === 'LOGIN_REQUIRED') {
-            console.log('[TokenRefreshService] LOGIN_REQUIRED error, showing login modal');
-            // Handle login required - remove auth info and show login modal
-            await this.handleTokenRefreshFailure();
-          }
+        if (response.status === 401 && ApiResponseHandler.checkLoginRequired(errorBody, response.status)) {
+          console.log('[TokenRefreshService] LOGIN_REQUIRED error, showing login modal');
+          // Handle login required - remove auth info and show login modal
+          await this.handleTokenRefreshFailure();
         }
 
         throw new Error(`Token refresh failed: ${response.status} - ${errorText}`);
       }
+
+      // Sync unauthenticated user ID from response headers
+      await ApiResponseHandler.syncUnauthenticatedUserId(response, 'TokenRefreshService');
 
       const data = await response.json() as LoginResponse;
       console.log('[TokenRefreshService] Token refresh successful');

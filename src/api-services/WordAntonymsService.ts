@@ -2,8 +2,10 @@
 // Service for getting antonyms for words
 
 import { ENV } from '@/config/env';
-import { ChromeStorage } from '@/storage/chrome-local/ChromeStorage';
 import { TokenRefreshService } from './TokenRefreshService';
+import { ApiHeaders } from './ApiHeaders';
+import { ApiResponseHandler } from './ApiResponseHandler';
+import { TokenRefreshRetry } from './TokenRefreshRetry';
 
 export interface WordAntonyms {
   word: string;
@@ -21,6 +23,7 @@ export interface AntonymsResponse {
 export interface AntonymsCallbacks {
   onSuccess: (response: AntonymsResponse) => void;
   onError: (errorCode: string, errorMessage: string) => void;
+  onSubscriptionRequired?: () => void;
 }
 
 /**
@@ -28,25 +31,6 @@ export interface AntonymsCallbacks {
  */
 export class WordAntonymsService {
   private static readonly ENDPOINT = '/api/v2/get-antonyms';
-
-  /**
-   * Get authorization headers if auth info exists
-   */
-  private static async getAuthHeaders(): Promise<Record<string, string>> {
-    const headers: Record<string, string> = {};
-    
-    const authInfo = await ChromeStorage.getAuthInfo();
-    if (authInfo?.accessToken) {
-      headers['Authorization'] = `Bearer ${authInfo.accessToken}`;
-    }
-
-    const unauthenticatedUserId = await ChromeStorage.getUnauthenticatedUserId();
-    if (unauthenticatedUserId) {
-      headers['X-Unauthenticated-User-Id'] = unauthenticatedUserId;
-    }
-    
-    return headers;
-  }
 
   /**
    * Get antonyms for words
@@ -57,7 +41,7 @@ export class WordAntonymsService {
     abortSignal?: AbortSignal
   ): Promise<void> {
     const url = `${ENV.API_BASE_URL}${this.ENDPOINT}`;
-    const authHeaders = await this.getAuthHeaders();
+    const authHeaders = await ApiHeaders.getAuthHeaders('WordAntonymsService');
 
     try {
       const response = await fetch(url, {
@@ -71,47 +55,30 @@ export class WordAntonymsService {
         credentials: 'include',
       });
 
-      // Store X-Unauthenticated-User-Id if present in response
-      const responseUnauthenticatedUserId = response.headers.get('X-Unauthenticated-User-Id');
-      if (responseUnauthenticatedUserId) {
-        await ChromeStorage.setUnauthenticatedUserId(responseUnauthenticatedUserId);
-      }
+      // Sync unauthenticated user ID from response headers
+      await ApiResponseHandler.syncUnauthenticatedUserId(response, 'WordAntonymsService');
 
       // Handle 401 errors with TOKEN_EXPIRED check
       if (response.status === 401) {
-        const responseClone = response.clone();
-        const errorData = await responseClone.json().catch(() => ({}));
+        const errorData = await ApiResponseHandler.parseErrorResponse(response);
         
-        if (TokenRefreshService.isTokenExpiredError(response.status, errorData)) {
-          console.log('[WordAntonymsService] Token expired, attempting refresh');
-          
+        if (TokenRefreshRetry.shouldRetryWithTokenRefresh(response, errorData)) {
           try {
-            const refreshResponse = await TokenRefreshService.refreshAccessToken();
-            
-            // Retry with new token
-            const retryHeaders: Record<string, string> = {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${refreshResponse.accessToken}`,
-            };
-            
-            const unauthenticatedUserId = await ChromeStorage.getUnauthenticatedUserId();
-            if (unauthenticatedUserId) {
-              retryHeaders['X-Unauthenticated-User-Id'] = unauthenticatedUserId;
-            }
-            
-            const retryResponse = await fetch(url, {
-              method: 'POST',
-              headers: retryHeaders,
-              body: JSON.stringify(request),
-              signal: abortSignal,
-              credentials: 'include',
-            });
-            
-            // Store X-Unauthenticated-User-Id from retry
-            const retryUnauthUserId = retryResponse.headers.get('X-Unauthenticated-User-Id');
-            if (retryUnauthUserId) {
-              await ChromeStorage.setUnauthenticatedUserId(retryUnauthUserId);
-            }
+            // Retry request with token refresh
+            const retryResponse = await TokenRefreshRetry.retryRequestWithTokenRefresh(
+              {
+                url,
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  ...authHeaders,
+                },
+                body: JSON.stringify(request),
+                signal: abortSignal,
+                credentials: 'include',
+              },
+              'WordAntonymsService'
+            );
             
             if (!retryResponse.ok) {
               const errorData = await retryResponse.json().catch(() => ({}));
@@ -140,7 +107,20 @@ export class WordAntonymsService {
       }
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
+        const errorData = await ApiResponseHandler.parseErrorResponse(response);
+        
+        // Check for LOGIN_REQUIRED in error response body (regardless of status code)
+        if (ApiResponseHandler.checkLoginRequired(errorData, response.status)) {
+          ApiResponseHandler.handleLoginRequired(undefined, 'WordAntonymsService');
+          return;
+        }
+        
+        // Check for SUBSCRIPTION_REQUIRED in error response body (regardless of status code)
+        if (ApiResponseHandler.checkSubscriptionRequired(errorData, response.status)) {
+          ApiResponseHandler.handleSubscriptionRequired(callbacks.onSubscriptionRequired, 'WordAntonymsService');
+          return;
+        }
+        
         const errorCode = errorData.error_code || `HTTP_${response.status}`;
         const errorMessage = errorData.error_message || errorData.detail || response.statusText;
         callbacks.onError(errorCode, errorMessage);

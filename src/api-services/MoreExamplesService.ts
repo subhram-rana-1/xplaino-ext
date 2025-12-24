@@ -2,8 +2,10 @@
 // Service for getting more examples for a word
 
 import { ENV } from '@/config/env';
-import { ChromeStorage } from '@/storage/chrome-local/ChromeStorage';
 import { TokenRefreshService } from './TokenRefreshService';
+import { ApiHeaders } from './ApiHeaders';
+import { ApiResponseHandler } from './ApiResponseHandler';
+import { TokenRefreshRetry } from './TokenRefreshRetry';
 
 export interface MoreExamplesRequest {
   word: string;
@@ -21,6 +23,8 @@ export interface MoreExamplesResponse {
 export interface MoreExamplesCallbacks {
   onSuccess: (response: MoreExamplesResponse) => void;
   onError: (errorCode: string, errorMessage: string) => void;
+  onLoginRequired: () => void;
+  onSubscriptionRequired?: () => void;
 }
 
 /**
@@ -28,25 +32,6 @@ export interface MoreExamplesCallbacks {
  */
 export class MoreExamplesService {
   private static readonly ENDPOINT = '/api/v1/get-more-explanations';
-
-  /**
-   * Get authorization headers if auth info exists
-   */
-  private static async getAuthHeaders(): Promise<Record<string, string>> {
-    const headers: Record<string, string> = {};
-    
-    const authInfo = await ChromeStorage.getAuthInfo();
-    if (authInfo?.accessToken) {
-      headers['Authorization'] = `Bearer ${authInfo.accessToken}`;
-    }
-
-    const unauthenticatedUserId = await ChromeStorage.getUnauthenticatedUserId();
-    if (unauthenticatedUserId) {
-      headers['X-Unauthenticated-User-Id'] = unauthenticatedUserId;
-    }
-    
-    return headers;
-  }
 
   /**
    * Get more examples for a word
@@ -57,7 +42,7 @@ export class MoreExamplesService {
     abortSignal?: AbortSignal
   ): Promise<void> {
     const url = `${ENV.API_BASE_URL}${this.ENDPOINT}`;
-    const authHeaders = await this.getAuthHeaders();
+    const authHeaders = await ApiHeaders.getAuthHeaders('MoreExamplesService');
 
     try {
       const response = await fetch(url, {
@@ -71,52 +56,42 @@ export class MoreExamplesService {
         credentials: 'include',
       });
 
-      // Store X-Unauthenticated-User-Id if present in response
-      const responseUnauthenticatedUserId = response.headers.get('X-Unauthenticated-User-Id');
-      if (responseUnauthenticatedUserId) {
-        await ChromeStorage.setUnauthenticatedUserId(responseUnauthenticatedUserId);
-      }
+      // Sync unauthenticated user ID from response headers (must be done before processing body)
+      await ApiResponseHandler.syncUnauthenticatedUserId(response, 'MoreExamplesService');
 
       // Handle 401 errors with TOKEN_EXPIRED check
       if (response.status === 401) {
-        const responseClone = response.clone();
-        const errorData = await responseClone.json().catch(() => ({}));
+        const errorData = await ApiResponseHandler.parseErrorResponse(response);
         
-        if (TokenRefreshService.isTokenExpiredError(response.status, errorData)) {
-          console.log('[MoreExamplesService] Token expired, attempting refresh');
-          
+        if (TokenRefreshRetry.shouldRetryWithTokenRefresh(response, errorData)) {
           try {
-            const refreshResponse = await TokenRefreshService.refreshAccessToken();
-            
-            // Retry with new token
-            const retryHeaders: Record<string, string> = {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${refreshResponse.accessToken}`,
-            };
-            
-            const unauthenticatedUserId = await ChromeStorage.getUnauthenticatedUserId();
-            if (unauthenticatedUserId) {
-              retryHeaders['X-Unauthenticated-User-Id'] = unauthenticatedUserId;
-            }
-            
-            const retryResponse = await fetch(url, {
-              method: 'POST',
-              headers: retryHeaders,
-              body: JSON.stringify(request),
-              signal: abortSignal,
-              credentials: 'include',
-            });
-            
-            // Store X-Unauthenticated-User-Id from retry
-            const retryUnauthUserId = retryResponse.headers.get('X-Unauthenticated-User-Id');
-            if (retryUnauthUserId) {
-              await ChromeStorage.setUnauthenticatedUserId(retryUnauthUserId);
-            }
+            // Retry request with token refresh
+            const retryResponse = await TokenRefreshRetry.retryRequestWithTokenRefresh(
+              {
+                url,
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  ...authHeaders,
+                },
+                body: JSON.stringify(request),
+                signal: abortSignal,
+                credentials: 'include',
+              },
+              'MoreExamplesService'
+            );
             
             if (!retryResponse.ok) {
-              const errorData = await retryResponse.json().catch(() => ({}));
-              const errorCode = errorData.error_code || `HTTP_${retryResponse.status}`;
-              const errorMessage = errorData.error_message || errorData.detail || retryResponse.statusText;
+              const errorData = await ApiResponseHandler.parseErrorResponse(retryResponse);
+              
+              // Check for LOGIN_REQUIRED in retry response
+              if (retryResponse.status === 401 && ApiResponseHandler.checkLoginRequired(errorData, retryResponse.status)) {
+                ApiResponseHandler.handleLoginRequired(callbacks.onLoginRequired, 'MoreExamplesService');
+                return;
+              }
+              
+              const errorCode = errorData?.error_code || `HTTP_${retryResponse.status}`;
+              const errorMessage = errorData?.error_message || errorData?.detail || retryResponse.statusText;
               callbacks.onError(errorCode, errorMessage);
               return;
             }
@@ -127,12 +102,17 @@ export class MoreExamplesService {
           } catch (refreshError) {
             console.error('[MoreExamplesService] Token refresh failed:', refreshError);
             await TokenRefreshService.handleTokenRefreshFailure();
-            callbacks.onError('AUTH_ERROR', 'Token refresh failed');
+            callbacks.onLoginRequired();
             return;
           }
         }
         
-        // Handle other 401 errors
+        // Handle other 401 errors (LOGIN_REQUIRED, etc.)
+        if (ApiResponseHandler.checkLoginRequired(errorData, response.status)) {
+          ApiResponseHandler.handleLoginRequired(callbacks.onLoginRequired, 'MoreExamplesService');
+          return;
+        }
+        
         const errorCode = errorData.error_code || 'UNAUTHORIZED';
         const errorMessage = errorData.error_message || errorData.detail || 'Unauthorized';
         callbacks.onError(errorCode, errorMessage);
@@ -140,7 +120,20 @@ export class MoreExamplesService {
       }
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
+        const errorData = await ApiResponseHandler.parseErrorResponse(response);
+        
+        // Check for LOGIN_REQUIRED in error response body (regardless of status code)
+        if (ApiResponseHandler.checkLoginRequired(errorData, response.status)) {
+          ApiResponseHandler.handleLoginRequired(callbacks.onLoginRequired, 'MoreExamplesService');
+          return;
+        }
+        
+        // Check for SUBSCRIPTION_REQUIRED in error response body (regardless of status code)
+        if (ApiResponseHandler.checkSubscriptionRequired(errorData, response.status)) {
+          ApiResponseHandler.handleSubscriptionRequired(callbacks.onSubscriptionRequired, 'MoreExamplesService');
+          return;
+        }
+        
         const errorCode = errorData.error_code || `HTTP_${response.status}`;
         const errorMessage = errorData.error_message || errorData.detail || response.statusText;
         callbacks.onError(errorCode, errorMessage);

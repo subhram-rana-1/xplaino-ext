@@ -62,8 +62,10 @@ export class PageTranslationManager {
           if (error instanceof Error && error.message === 'AbortError') {
             throw error; // Re-throw to be caught by outer try-catch
           }
+          // For non-abort errors, stop the entire translation process
+          // This ensures no state is stored when API fails
           console.error(`[PageTranslationManager] Error translating batch ${i + 1}:`, error);
-          // Continue with next batch even if this one fails
+          throw error; // Re-throw to stop translation and clean up state
         }
       }
 
@@ -77,7 +79,10 @@ export class PageTranslationManager {
         this.translationState = hasTranslations ? 'partially-translated' : 'idle';
         console.log('[PageTranslationManager] Translation stopped', { state: this.translationState });
       } else {
+        // For any other error, reset state to idle and clear translations
         this.translationState = 'idle';
+        // Clear any partial translations that might have been applied
+        this.clearTranslations();
         console.error('[PageTranslationManager] Translation failed:', error);
       }
     } finally {
@@ -296,8 +301,9 @@ export class PageTranslationManager {
             if (errorCode === 'AbortError' || errorMessage.includes('abort')) {
               reject(new Error('AbortError'));
             } else {
-              // Don't reject - just skip this batch and continue
-              resolve();
+              // Reject for non-abort errors to properly propagate the error
+              // This ensures handleTranslateClick() can catch and clean up state
+              reject(new Error(`Translation error: ${errorCode} - ${errorMessage}`));
             }
           },
           onLoginRequired: () => {

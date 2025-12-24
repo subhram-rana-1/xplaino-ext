@@ -50,6 +50,13 @@ export const isLoginLoadingAtom = atom<boolean>(false);
 export const loginErrorAtom = atom<string | null>(null);
 
 // ============================================
+// SUBSCRIPTION MODAL STATE
+// ============================================
+
+/** Subscription modal visibility */
+export const showSubscriptionModalAtom = atom<boolean>(false);
+
+// ============================================
 // USER AUTH STATE
 // ============================================
 

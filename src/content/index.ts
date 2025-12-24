@@ -11,6 +11,7 @@ import { SidePanel } from './components/SidePanel';
 import { ContentActionsTrigger } from './components/ContentActions';
 import { DisableNotificationModal } from './components/DisableNotificationModal';
 import { LoginModal } from './components/LoginModal';
+import { SubscriptionModal } from './components/SubscriptionModal/SubscriptionModal';
 import { TextExplanationSidePanel } from './components/TextExplanationSidePanel';
 import { TextExplanationIconContainer } from './components/TextExplanationIcon';
 import { WordExplanationPopover, type TabType } from './components/WordExplanationPopover';
@@ -29,6 +30,7 @@ import sidePanelStyles from './styles/sidePanel.shadow.css?inline';
 import contentActionsStyles from './styles/contentActions.shadow.css?inline';
 import disableNotificationModalStyles from './styles/disableNotificationModal.shadow.css?inline';
 import loginModalStyles from './styles/loginModal.shadow.css?inline';
+import subscriptionModalStyles from './styles/subscriptionModal.shadow.css?inline';
 import textExplanationSidePanelStyles from './styles/textExplanationSidePanel.shadow.css?inline';
 import textExplanationIconStyles from './styles/textExplanationIcon.shadow.css?inline';
 import wordExplanationPopoverStyles from './styles/wordExplanationPopover.shadow.css?inline';
@@ -58,7 +60,7 @@ import {
   messageQuestionsAtom,
   pageReadingStateAtom,
 } from '../store/summaryAtoms';
-import { showLoginModalAtom, userAuthInfoAtom } from '../store/uiAtoms';
+import { showLoginModalAtom, showSubscriptionModalAtom, userAuthInfoAtom } from '../store/uiAtoms';
 import {
   textExplanationsAtom,
   activeTextExplanationIdAtom,
@@ -84,6 +86,7 @@ const SIDE_PANEL_HOST_ID = 'xplaino-side-panel-host';
 const CONTENT_ACTIONS_HOST_ID = 'xplaino-content-actions-host';
 const DISABLE_MODAL_HOST_ID = 'xplaino-disable-modal-host';
 const LOGIN_MODAL_HOST_ID = 'xplaino-login-modal-host';
+const SUBSCRIPTION_MODAL_HOST_ID = 'xplaino-subscription-modal-host';
 const TEXT_EXPLANATION_PANEL_HOST_ID = 'xplaino-text-explanation-panel-host';
 const TEXT_EXPLANATION_ICON_HOST_ID = 'xplaino-text-explanation-icon-host';
 const WORD_EXPLANATION_POPOVER_HOST_ID = 'xplaino-word-explanation-popover-host';
@@ -109,6 +112,7 @@ let sidePanelRoot: ReactDOM.Root | null = null;
 let contentActionsRoot: ReactDOM.Root | null = null;
 let disableModalRoot: ReactDOM.Root | null = null;
 let loginModalRoot: ReactDOM.Root | null = null;
+let subscriptionModalRoot: ReactDOM.Root | null = null;
 let textExplanationPanelRoot: ReactDOM.Root | null = null;
 let textExplanationIconRoot: ReactDOM.Root | null = null;
 let wordExplanationPopoverRoot: ReactDOM.Root | null = null;
@@ -186,6 +190,11 @@ async function initializeAuthState(): Promise<void> {
       store.set(showLoginModalAtom, true);
     });
     console.log('[Content Script] Registered LOGIN_REQUIRED error handler');
+    ApiErrorHandler.registerSubscriptionRequiredHandler(() => {
+      console.log('[Content Script] SUBSCRIPTION_REQUIRED handler triggered, showing subscription modal');
+      store.set(showSubscriptionModalAtom, true);
+    });
+    console.log('[Content Script] Registered SUBSCRIPTION_REQUIRED error handler');
     
     const authInfo = await ChromeStorage.getAuthInfo();
     
@@ -498,6 +507,18 @@ async function handleSummariseClick(): Promise<void> {
           canHideFABActions = true;
           updateFAB();
         },
+        onSubscriptionRequired: () => {
+          console.log('[Content Script] Subscription required for summarise');
+          store.set(summariseStateAtom, 'idle');
+          store.set(showSubscriptionModalAtom, true);
+          
+          // Reset loading state
+          isSummarising = false;
+          summariseAbortController = null;
+          firstChunkReceived = false;
+          canHideFABActions = true;
+          updateFAB();
+        },
       },
       summariseAbortController
     );
@@ -607,6 +628,9 @@ async function handleTranslateClick(): Promise<void> {
     if (error instanceof Error && error.message === 'LOGIN_REQUIRED') {
       console.log('[Content Script] Login required for translation');
       store.set(showLoginModalAtom, true);
+    } else if (error instanceof Error && error.message === 'SUBSCRIPTION_REQUIRED') {
+      console.log('[Content Script] Subscription required for translation');
+      store.set(showSubscriptionModalAtom, true);
     } else {
       // Show error to user
       alert('Translation failed. Please try again.');
@@ -1160,6 +1184,18 @@ async function handleExplainClick(
           // Show login modal
           store.set(showLoginModalAtom, true);
         },
+        onSubscriptionRequired: () => {
+          console.log('[Content Script] Subscription required for text explanation');
+          
+          // Clear the timeout
+          clearTimeout(timeoutId);
+          
+          // Remove the text explanation completely (icon, underline, panel)
+          removeTextExplanation(explanationId);
+          
+          // Show subscription modal
+          store.set(showSubscriptionModalAtom, true);
+        },
       },
       newExplanation.abortController || undefined
     );
@@ -1468,6 +1504,46 @@ async function handleWordExplain(
             }
           }
         },
+        onLoginRequired: () => {
+          clearTimeout(timeoutId);
+          console.log('[Content Script] Login required for word explanation');
+          
+          const state = wordExplanationsMap.get(wordId);
+          if (state) {
+            state.isLoading = false;
+            
+            if (!state.firstEventReceived) {
+              // No first event received - remove everything
+              removeWordExplanation(wordId);
+            } else {
+              // First event received - just update popover
+              updateWordExplanationPopover();
+            }
+          }
+          
+          // Show login modal
+          store.set(showLoginModalAtom, true);
+        },
+        onSubscriptionRequired: () => {
+          clearTimeout(timeoutId);
+          console.log('[Content Script] Subscription required for word explanation');
+          
+          const state = wordExplanationsMap.get(wordId);
+          if (state) {
+            state.isLoading = false;
+            
+            if (!state.firstEventReceived) {
+              // No first event received - remove everything
+              removeWordExplanation(wordId);
+            } else {
+              // First event received - just update popover
+              updateWordExplanationPopover();
+            }
+          }
+          
+          // Show subscription modal
+          store.set(showSubscriptionModalAtom, true);
+        },
       },
       abortController.signal
     );
@@ -1701,6 +1777,38 @@ async function handleGetMoreExamples(wordId: string): Promise<void> {
         
         showToast(message || 'Failed to fetch more examples', 'error');
       },
+      onLoginRequired: () => {
+        console.log('[Content Script] Login required for more examples');
+        store.set(showLoginModalAtom, true);
+        
+        const currentState = store.get(wordExplanationsAtom).get(wordId);
+        if (!currentState) return;
+
+        const updated: WordExplanationAtomState = {
+          ...currentState,
+          isLoadingExamples: false,
+        };
+        const map = new Map(store.get(wordExplanationsAtom));
+        map.set(wordId, updated);
+        store.set(wordExplanationsAtom, map);
+        updateWordExplanationPopover();
+      },
+      onSubscriptionRequired: () => {
+        console.log('[Content Script] Subscription required for more examples');
+        store.set(showSubscriptionModalAtom, true);
+        
+        const currentState = store.get(wordExplanationsAtom).get(wordId);
+        if (!currentState) return;
+
+        const updated: WordExplanationAtomState = {
+          ...currentState,
+          isLoadingExamples: false,
+        };
+        const map = new Map(store.get(wordExplanationsAtom));
+        map.set(wordId, updated);
+        store.set(wordExplanationsAtom, map);
+        updateWordExplanationPopover();
+      },
     }
   );
 }
@@ -1769,6 +1877,21 @@ async function handleGetSynonyms(wordId: string): Promise<void> {
           : (message || 'Failed to fetch synonyms');
         showToast(displayMessage, 'error');
       },
+      onSubscriptionRequired: () => {
+        console.log('[Content Script] Subscription required for word synonyms');
+        const currentState = store.get(wordExplanationsAtom).get(wordId);
+        if (!currentState) return;
+
+        const updated: WordExplanationAtomState = {
+          ...currentState,
+          isLoadingSynonyms: false,
+        };
+        const map = new Map(store.get(wordExplanationsAtom));
+        map.set(wordId, updated);
+        store.set(wordExplanationsAtom, map);
+        updateWordExplanationPopover();
+        store.set(showSubscriptionModalAtom, true);
+      },
     }
   );
 }
@@ -1836,6 +1959,21 @@ async function handleGetAntonyms(wordId: string): Promise<void> {
           ? 'Opposite does not exist for this word'
           : (message || 'Failed to fetch antonyms');
         showToast(displayMessage, 'error');
+      },
+      onSubscriptionRequired: () => {
+        console.log('[Content Script] Subscription required for word antonyms');
+        const currentState = store.get(wordExplanationsAtom).get(wordId);
+        if (!currentState) return;
+
+        const updated: WordExplanationAtomState = {
+          ...currentState,
+          isLoadingAntonyms: false,
+        };
+        const map = new Map(store.get(wordExplanationsAtom));
+        map.set(wordId, updated);
+        store.set(wordExplanationsAtom, map);
+        updateWordExplanationPopover();
+        store.set(showSubscriptionModalAtom, true);
       },
     }
   );
@@ -2420,6 +2558,23 @@ function updateTextExplanationPanel(): void {
             onLoginRequired: () => {
               store.set(showLoginModalAtom, true);
             },
+            onSubscriptionRequired: () => {
+              console.log('[Content Script] Subscription required for text explanation (simplify)');
+              
+              // Clear loading state
+              updateExplanationInMap(explanationId, (state) => {
+                state.abortController = null;
+                state.firstChunkReceived = false;
+                state.isSimplifyRequest = undefined;
+                state.streamingText = '';
+                return state;
+              });
+              
+              updateTextExplanationPanel();
+              
+              // Show subscription modal
+              store.set(showSubscriptionModalAtom, true);
+            },
           },
           newAbortController
         );
@@ -2656,6 +2811,13 @@ function updateTextExplanationPanel(): void {
               // Set translating state to false
               isTranslating = false;
               store.set(showLoginModalAtom, true);
+              updateTextExplanationPanel();
+            },
+            onSubscriptionRequired: () => {
+              console.log('[Content Script] Translation requires subscription (text panel)');
+              // Set translating state to false
+              isTranslating = false;
+              store.set(showSubscriptionModalAtom, true);
               updateTextExplanationPanel();
             },
           },
@@ -3484,6 +3646,57 @@ function removeLoginModal(): void {
 }
 
 // =============================================================================
+// SUBSCRIPTION MODAL INJECTION
+// =============================================================================
+
+/**
+ * Inject Subscription Modal into the page with Shadow DOM
+ */
+function injectSubscriptionModal(): void {
+  // Check if already injected
+  if (shadowHostExists(SUBSCRIPTION_MODAL_HOST_ID)) {
+    console.log('[Content Script] Subscription Modal already injected');
+    return;
+  }
+
+  // Create Shadow DOM host
+  const { host, shadow, mountPoint } = createShadowHost({
+    id: SUBSCRIPTION_MODAL_HOST_ID,
+    zIndex: 2147483647, // Highest z-index for modal
+  });
+
+  // Inject color CSS variables first
+  injectStyles(shadow, FAB_COLOR_VARIABLES);
+  
+  // Inject component styles
+  injectStyles(shadow, subscriptionModalStyles);
+
+  // Append to document
+  document.body.appendChild(host);
+
+  // Render React component
+  subscriptionModalRoot = ReactDOM.createRoot(mountPoint);
+  subscriptionModalRoot.render(
+    React.createElement(Provider, { store },
+      React.createElement(SubscriptionModal, {
+        useShadowDom: true,
+      })
+    )
+  );
+
+  console.log('[Content Script] Subscription Modal injected successfully');
+}
+
+/**
+ * Remove Subscription Modal from the page
+ */
+function removeSubscriptionModal(): void {
+  removeShadowHost(SUBSCRIPTION_MODAL_HOST_ID, subscriptionModalRoot);
+  subscriptionModalRoot = null;
+  console.log('[Content Script] Subscription Modal removed');
+}
+
+// =============================================================================
 // INITIALIZATION
 // =============================================================================
 
@@ -3502,6 +3715,7 @@ async function initContentScript(): Promise<void> {
     injectSidePanel();
     injectContentActions();
     injectLoginModal();
+    injectSubscriptionModal();
     injectToast();
   } else {
     console.log('[Content Script] Not running - extension not allowed on this page');
@@ -3509,6 +3723,7 @@ async function initContentScript(): Promise<void> {
     removeSidePanel();
     removeContentActions();
     removeLoginModal();
+    removeSubscriptionModal();
     removeTextExplanationPanel();
     removeTextExplanationIconContainer();
     removeToast();

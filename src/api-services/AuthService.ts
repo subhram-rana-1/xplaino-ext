@@ -3,6 +3,7 @@
 
 import { ENV } from '@/config/env';
 import { ChromeStorage } from '@/storage/chrome-local/ChromeStorage';
+import { ApiResponseHandler } from './ApiResponseHandler';
 
 // Types
 export interface UserInfo {
@@ -152,12 +153,8 @@ export class AuthService {
       }),
     });
 
-    // Check for and store X-Unauthenticated-User-Id from response headers
-    const responseUnauthenticatedUserId = response.headers.get('X-Unauthenticated-User-Id');
-    if (responseUnauthenticatedUserId) {
-      await ChromeStorage.setUnauthenticatedUserId(responseUnauthenticatedUserId);
-      console.log('[AuthService] Stored unauthenticated user ID:', responseUnauthenticatedUserId);
-    }
+      // Sync unauthenticated user ID from response headers
+      await ApiResponseHandler.syncUnauthenticatedUserId(response, 'AuthService');
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -232,12 +229,8 @@ export class AuthService {
         }),
       });
 
-      // Check for and store X-Unauthenticated-User-Id from response headers
-      const responseUnauthenticatedUserId = response.headers.get('X-Unauthenticated-User-Id');
-      if (responseUnauthenticatedUserId) {
-        await ChromeStorage.setUnauthenticatedUserId(responseUnauthenticatedUserId);
-        console.log('[AuthService] Stored unauthenticated user ID:', responseUnauthenticatedUserId);
-      }
+      // Sync unauthenticated user ID from response headers
+      await ApiResponseHandler.syncUnauthenticatedUserId(response, 'AuthService');
 
       console.log('[AuthService] Logout API response:', {
         status: response.status,

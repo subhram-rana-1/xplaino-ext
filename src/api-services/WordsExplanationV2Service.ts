@@ -1,7 +1,9 @@
 // src/api-services/WordsExplanationV2Service.ts
 import { ENV } from '@/config/env';
-import { ChromeStorage } from '@/storage/chrome-local/ChromeStorage';
 import { TokenRefreshService } from './TokenRefreshService';
+import { ApiHeaders } from './ApiHeaders';
+import { ApiResponseHandler } from './ApiResponseHandler';
+import { TokenRefreshRetry } from './TokenRefreshRetry';
 
 export interface WordLocation {
   word: string;
@@ -28,6 +30,8 @@ export interface WordExplanationCallbacks {
   onEvent: (wordInfo: WordInfo) => void;
   onComplete: () => void;
   onError: (errorCode: string, errorMessage: string) => void;
+  onLoginRequired: () => void;
+  onSubscriptionRequired?: () => void;
 }
 
 export class WordsExplanationV2Service {
@@ -36,21 +40,6 @@ export class WordsExplanationV2Service {
   /**
    * Get authorization headers if auth info exists
    */
-  private static async getAuthHeaders(): Promise<Record<string, string>> {
-    const headers: Record<string, string> = {};
-    
-    const authInfo = await ChromeStorage.getAuthInfo();
-    if (authInfo?.accessToken) {
-      headers['Authorization'] = `Bearer ${authInfo.accessToken}`;
-    }
-
-    const unauthenticatedUserId = await ChromeStorage.getUnauthenticatedUserId();
-    if (unauthenticatedUserId) {
-      headers['X-Unauthenticated-User-Id'] = unauthenticatedUserId;
-    }
-    
-    return headers;
-  }
 
   /**
    * Get word explanation using Server-Sent Events (SSE) streaming
@@ -108,7 +97,7 @@ export class WordsExplanationV2Service {
       });
 
       // Make POST request with SSE
-      const authHeaders = await this.getAuthHeaders();
+      const authHeaders = await ApiHeaders.getAuthHeaders('WordsExplanationV2Service');
 
       const response = await fetch(url, {
         method: 'POST',
@@ -123,43 +112,42 @@ export class WordsExplanationV2Service {
 
       clearTimeout(timeoutId);
 
+      // Sync unauthenticated user ID from response headers (must be done before processing body)
+      await ApiResponseHandler.syncUnauthenticatedUserId(response, 'WordsExplanationV2Service');
+
       // Handle 401 errors with TOKEN_EXPIRED check
       if (response.status === 401) {
-        const responseClone = response.clone();
-        const errorData = await responseClone.json().catch(() => ({}));
+        const initialErrorData = await ApiResponseHandler.parseErrorResponse(response);
         
-        if (TokenRefreshService.isTokenExpiredError(response.status, errorData)) {
-          console.log('[WordsExplanationV2Service] Token expired, attempting refresh');
-          
+        if (TokenRefreshRetry.shouldRetryWithTokenRefresh(response, initialErrorData)) {
           try {
-            const refreshResponse = await TokenRefreshService.refreshAccessToken();
-            
-            // Retry with new token
-            const retryHeaders: Record<string, string> = {
-              'Content-Type': 'application/json',
-              'Accept': 'text/event-stream',
-              'Authorization': `Bearer ${refreshResponse.accessToken}`,
-            };
-            
-            const unauthenticatedUserId = await ChromeStorage.getUnauthenticatedUserId();
-            if (unauthenticatedUserId) {
-              retryHeaders['X-Unauthenticated-User-Id'] = unauthenticatedUserId;
-            }
-            
-            const retryResponse = await fetch(url, {
-              method: 'POST',
-              headers: retryHeaders,
-              body: JSON.stringify(requestBody),
-              signal: combinedSignal,
-            });
-            
+            // Retry request with token refresh
+            const retryResponse = await TokenRefreshRetry.retrySSERequestWithTokenRefresh(
+              {
+                url,
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Accept': 'text/event-stream',
+                  ...authHeaders,
+                },
+                body: JSON.stringify(requestBody),
+                signal: combinedSignal,
+              },
+              'WordsExplanationV2Service'
+            );
+
             if (!retryResponse.ok) {
-              const errorText = await retryResponse.text();
+              const errorData = await ApiResponseHandler.parseErrorResponse(retryResponse);
               let errorMessage = 'Failed to get word explanation';
-              try {
-                const errorData = JSON.parse(errorText);
-                errorMessage = errorData.error_message || errorData.message || errorMessage;
-              } catch {}
+              
+              // Check for LOGIN_REQUIRED in retry response
+              if (retryResponse.status === 401 && ApiResponseHandler.checkLoginRequired(errorData, retryResponse.status)) {
+                ApiResponseHandler.handleLoginRequired(callbacks.onLoginRequired, 'WordsExplanationV2Service');
+                return;
+              }
+              
+              errorMessage = errorData?.error_message || errorData?.message || errorMessage;
               callbacks.onError(retryResponse.status === 401 ? 'UNAUTHORIZED' : 'API_ERROR', errorMessage);
               return;
             }
@@ -198,6 +186,15 @@ export class WordsExplanationV2Service {
                     try {
                       const errorEvent = JSON.parse(data);
                       if (errorEvent.error_code && errorEvent.error_message) {
+                        // Check for LOGIN_REQUIRED in SSE error events
+                        const errorData = { error_code: errorEvent.error_code };
+                        if (ApiResponseHandler.checkLoginRequired(errorData, 0)) {
+                          ApiResponseHandler.handleLoginRequired(callbacks.onLoginRequired, 'WordsExplanationV2Service');
+                          return;
+                        } else if (ApiResponseHandler.checkSubscriptionRequired(errorData, 0)) {
+                          ApiResponseHandler.handleSubscriptionRequired(callbacks.onSubscriptionRequired, 'WordsExplanationV2Service');
+                          return;
+                        }
                         callbacks.onError(errorEvent.error_code, errorEvent.error_message);
                         return;
                       }
@@ -229,25 +226,42 @@ export class WordsExplanationV2Service {
           } catch (refreshError) {
             console.error('[WordsExplanationV2Service] Token refresh failed:', refreshError);
             await TokenRefreshService.handleTokenRefreshFailure();
-            callbacks.onError('AUTH_ERROR', 'Token refresh failed');
+            callbacks.onLoginRequired();
             return;
           }
         }
         
-        // Handle other 401 errors
+        // Handle other 401 errors (LOGIN_REQUIRED, etc.)
+        if (ApiResponseHandler.checkLoginRequired(initialErrorData, response.status)) {
+          ApiResponseHandler.handleLoginRequired(callbacks.onLoginRequired, 'WordsExplanationV2Service');
+          return;
+        }
+        
         const errorText = await response.text();
         callbacks.onError('UNAUTHORIZED', errorText);
         return;
       }
 
       if (!response.ok) {
-        const errorText = await response.text();
+        const errorData = await ApiResponseHandler.parseErrorResponse(response);
+        
+        // Check for LOGIN_REQUIRED in error response body (regardless of status code)
+        if (ApiResponseHandler.checkLoginRequired(errorData, response.status)) {
+          ApiResponseHandler.handleLoginRequired(callbacks.onLoginRequired, 'WordsExplanationV2Service');
+          return;
+        }
+        
+        // Check for SUBSCRIPTION_REQUIRED in error response body (regardless of status code)
+        if (ApiResponseHandler.checkSubscriptionRequired(errorData, response.status)) {
+          ApiResponseHandler.handleSubscriptionRequired(callbacks.onSubscriptionRequired, 'WordsExplanationV2Service');
+          return;
+        }
+        
         let errorMessage = 'Failed to get word explanation';
-        try {
-          const errorData = JSON.parse(errorText);
+        if (errorData && typeof errorData === 'object') {
           errorMessage = errorData.error_message || errorData.message || errorMessage;
-        } catch {
-          // Ignore parse error
+        } else if (typeof errorData === 'string') {
+          errorMessage = errorData;
         }
         callbacks.onError('API_ERROR', errorMessage);
         return;
@@ -292,6 +306,15 @@ export class WordsExplanationV2Service {
               try {
                 const errorEvent = JSON.parse(data);
                 if (errorEvent.error_code && errorEvent.error_message) {
+                  // Check for LOGIN_REQUIRED in SSE error events
+                  const errorData = { error_code: errorEvent.error_code };
+                  if (ApiResponseHandler.checkLoginRequired(errorData, 0)) {
+                    ApiResponseHandler.handleLoginRequired(callbacks.onLoginRequired, 'WordsExplanationV2Service');
+                    return;
+                  } else if (ApiResponseHandler.checkSubscriptionRequired(errorData, 0)) {
+                    ApiResponseHandler.handleSubscriptionRequired(callbacks.onSubscriptionRequired, 'WordsExplanationV2Service');
+                    return;
+                  }
                   callbacks.onError(errorEvent.error_code, errorEvent.error_message);
                   return;
                 }

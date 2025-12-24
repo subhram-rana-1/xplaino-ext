@@ -80,8 +80,8 @@
 }
 
 .mainContent strong {
-  font-weight: 600;
-  color: var(--color-primary, #9527F5);
+  font-weight: inherit;
+  color: inherit;
 }
 
 .mainContent ul,

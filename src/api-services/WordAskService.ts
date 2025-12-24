@@ -2,8 +2,10 @@
 // Service for Word-specific Ask API with SSE streaming
 
 import { ENV } from '@/config/env';
-import { ChromeStorage } from '@/storage/chrome-local/ChromeStorage';
 import { TokenRefreshService } from './TokenRefreshService';
+import { ApiHeaders } from './ApiHeaders';
+import { ApiResponseHandler } from './ApiResponseHandler';
+import { TokenRefreshRetry } from './TokenRefreshRetry';
 
 // Types
 export interface ChatMessage {
@@ -24,6 +26,7 @@ export interface WordAskCallbacks {
   onComplete: (chatHistory: ChatMessage[], possibleQuestions: string[]) => void;
   onError: (errorCode: string, errorMessage: string) => void;
   onLoginRequired: () => void;
+  onSubscriptionRequired?: () => void;
 }
 
 /**
@@ -31,25 +34,6 @@ export interface WordAskCallbacks {
  */
 export class WordAskService {
   private static readonly ENDPOINT = '/api/v2/ask';
-
-  /**
-   * Get authorization headers if auth info exists
-   */
-  private static async getAuthHeaders(): Promise<Record<string, string>> {
-    const headers: Record<string, string> = {};
-    
-    const authInfo = await ChromeStorage.getAuthInfo();
-    if (authInfo?.accessToken) {
-      headers['Authorization'] = `Bearer ${authInfo.accessToken}`;
-    }
-
-    const unauthenticatedUserId = await ChromeStorage.getUnauthenticatedUserId();
-    if (unauthenticatedUserId) {
-      headers['X-Unauthenticated-User-Id'] = unauthenticatedUserId;
-    }
-    
-    return headers;
-  }
 
   /**
    * Ask a question about a word with SSE streaming
@@ -60,7 +44,7 @@ export class WordAskService {
     abortController?: AbortController
   ): Promise<void> {
     const url = `${ENV.API_BASE_URL}${this.ENDPOINT}`;
-    const authHeaders = await this.getAuthHeaders();
+    const authHeaders = await ApiHeaders.getAuthHeaders('WordAskService');
 
     try {
       const response = await fetch(url, {
@@ -75,48 +59,31 @@ export class WordAskService {
         credentials: 'include',
       });
 
-      // Check for and store X-Unauthenticated-User-Id from response headers
-      const responseUnauthenticatedUserId = response.headers.get('X-Unauthenticated-User-Id');
-      if (responseUnauthenticatedUserId) {
-        await ChromeStorage.setUnauthenticatedUserId(responseUnauthenticatedUserId);
-      }
+      // Sync unauthenticated user ID from response headers
+      await ApiResponseHandler.syncUnauthenticatedUserId(response, 'WordAskService');
 
       // Handle 401 errors with TOKEN_EXPIRED check
       if (response.status === 401) {
-        const responseClone = response.clone();
-        const errorData = await responseClone.json().catch(() => ({}));
+        const errorData = await ApiResponseHandler.parseErrorResponse(response);
         
-        if (TokenRefreshService.isTokenExpiredError(response.status, errorData)) {
-          console.log('[WordAskService] Token expired, attempting refresh');
-          
+        if (TokenRefreshRetry.shouldRetryWithTokenRefresh(response, errorData)) {
           try {
-            const refreshResponse = await TokenRefreshService.refreshAccessToken();
-            
-            // Retry with new token
-            const retryHeaders: Record<string, string> = {
-              'Content-Type': 'application/json',
-              'Accept': 'text/event-stream',
-              'Authorization': `Bearer ${refreshResponse.accessToken}`,
-            };
-            
-            const unauthenticatedUserId = await ChromeStorage.getUnauthenticatedUserId();
-            if (unauthenticatedUserId) {
-              retryHeaders['X-Unauthenticated-User-Id'] = unauthenticatedUserId;
-            }
-            
-            const retryResponse = await fetch(url, {
-              method: 'POST',
-              headers: retryHeaders,
-              body: JSON.stringify(request),
-              signal: abortController?.signal,
-              credentials: 'include',
-            });
-            
-            // Store X-Unauthenticated-User-Id from retry
-            const retryUnauthUserId = retryResponse.headers.get('X-Unauthenticated-User-Id');
-            if (retryUnauthUserId) {
-              await ChromeStorage.setUnauthenticatedUserId(retryUnauthUserId);
-            }
+            // Retry request with token refresh
+            const retryResponse = await TokenRefreshRetry.retrySSERequestWithTokenRefresh(
+              {
+                url,
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Accept': 'text/event-stream',
+                  ...authHeaders,
+                },
+                body: JSON.stringify(request),
+                signal: abortController?.signal,
+                credentials: 'include',
+              },
+              'WordAskService'
+            );
             
             // Handle 401 on retry
             if (retryResponse.status === 401) {
@@ -170,10 +137,17 @@ export class WordAskService {
                         event.possibleQuestions || []
                       );
                     } else if (event.type === 'error') {
-                      callbacks.onError(
-                        event.error_code || 'UNKNOWN_ERROR',
-                        event.error_message || 'An error occurred'
-                      );
+                      const errorData = { error_code: event.error_code };
+                      if (ApiResponseHandler.checkLoginRequired(errorData, 0)) {
+                        ApiResponseHandler.handleLoginRequired(callbacks.onLoginRequired, 'WordAskService');
+                      } else if (ApiResponseHandler.checkSubscriptionRequired(errorData, 0)) {
+                        ApiResponseHandler.handleSubscriptionRequired(callbacks.onSubscriptionRequired, 'WordAskService');
+                      } else {
+                        callbacks.onError(
+                          event.error_code || 'UNKNOWN_ERROR',
+                          event.error_message || 'An error occurred'
+                        );
+                      }
                       return;
                     }
                   } catch (parseError) {
@@ -191,13 +165,30 @@ export class WordAskService {
           }
         }
         
-        // Handle other 401 errors
-        callbacks.onLoginRequired();
+        // Handle other 401 errors (LOGIN_REQUIRED, etc.)
+        if (ApiResponseHandler.checkLoginRequired(errorData, response.status)) {
+          ApiResponseHandler.handleLoginRequired(callbacks.onLoginRequired, 'WordAskService');
+        } else {
+          callbacks.onError('AUTH_ERROR', 'Authentication failed');
+        }
         return;
       }
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
+        const errorData = await ApiResponseHandler.parseErrorResponse(response);
+        
+        // Check for LOGIN_REQUIRED in error response body (regardless of status code)
+        if (ApiResponseHandler.checkLoginRequired(errorData, response.status)) {
+          ApiResponseHandler.handleLoginRequired(callbacks.onLoginRequired, 'WordAskService');
+          return;
+        }
+        
+        // Check for SUBSCRIPTION_REQUIRED in error response body (regardless of status code)
+        if (ApiResponseHandler.checkSubscriptionRequired(errorData, response.status)) {
+          ApiResponseHandler.handleSubscriptionRequired(callbacks.onSubscriptionRequired, 'WordAskService');
+          return;
+        }
+        
         const errorCode = errorData.error_code || `HTTP_${response.status}`;
         const errorMessage = errorData.error_message || errorData.detail || response.statusText;
         callbacks.onError(errorCode, errorMessage);
@@ -244,10 +235,17 @@ export class WordAskService {
               }
               // Handle error event
               else if (event.type === 'error') {
-                callbacks.onError(
-                  event.error_code || 'UNKNOWN_ERROR',
-                  event.error_message || 'An error occurred'
-                );
+                const errorData = { error_code: event.error_code };
+                if (ApiResponseHandler.checkLoginRequired(errorData, 0)) {
+                  ApiResponseHandler.handleLoginRequired(callbacks.onLoginRequired, 'WordAskService');
+                } else if (ApiResponseHandler.checkSubscriptionRequired(errorData, 0)) {
+                  ApiResponseHandler.handleSubscriptionRequired(callbacks.onSubscriptionRequired, 'WordAskService');
+                } else {
+                  callbacks.onError(
+                    event.error_code || 'UNKNOWN_ERROR',
+                    event.error_message || 'An error occurred'
+                  );
+                }
                 return;
               }
             } catch (parseError) {
