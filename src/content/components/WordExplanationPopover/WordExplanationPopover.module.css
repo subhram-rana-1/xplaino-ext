@@ -279,6 +279,58 @@
   font-style: italic;
 }
 
+/* No explanation container with centered button */
+.noExplanationContainer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px 20px;
+  min-height: 80px;
+}
+
+.getContextualMeaningButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 24px;
+  background: var(--color-primary, #9527F5);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 8px rgba(149, 39, 245, 0.25);
+}
+
+.getContextualMeaningButton:hover:not(:disabled) {
+  background: var(--color-primary-hover, #7d1fd4);
+  box-shadow: 0 4px 12px rgba(149, 39, 245, 0.35);
+  transform: translateY(-1px);
+}
+
+.getContextualMeaningButton:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: 0 2px 6px rgba(149, 39, 245, 0.3);
+}
+
+.getContextualMeaningButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.getContextualMeaningButton .buttonSpinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
 /* Button spinner */
 .buttonSpinner {
   width: 20px;

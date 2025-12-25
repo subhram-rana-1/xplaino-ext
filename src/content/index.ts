@@ -1095,6 +1095,10 @@ async function handleExplainClick(
     }
   }, 30000); // 30 seconds
 
+  // Extract surrounding context for the text (15 words before + text + 15 words after)
+  const contextText = extractSurroundingContextForText(selectedText, range);
+  console.log('[Content Script] Extracted context for Simplify API:', contextText);
+
   try {
     // Call v2/simplify API
     await SimplifyService.simplify(
@@ -1102,7 +1106,7 @@ async function handleExplainClick(
         {
           textStartIndex,
           textLength,
-          text: selectedText,
+          text: contextText, // Pass surrounding context instead of just selected text
           previousSimplifiedTexts: [],
         },
       ],
@@ -1425,10 +1429,14 @@ async function handleWordExplain(
       }
     }, 30000);
 
+    // Extract surrounding context for the word (7 words before + word + 7 words after)
+    const contextText = extractSurroundingContext(word, range);
+    console.log('[Content Script] Extracted context for API:', contextText);
+
     // Call words_explanation_v2 API
     await WordsExplanationV2Service.explainWord(
       word,
-      '', // No context for now (using -1 as textStartIndex)
+      contextText, // Pass surrounding context instead of empty string
       {
         onEvent: (wordInfo: WordInfo) => {
           const state = wordExplanationsMap.get(wordId);
@@ -2840,6 +2848,191 @@ async function handleGetMoreExamples(wordId: string): Promise<void> {
 }
 
 /**
+ * Handler for "Get contextual meaning" button when no explanation exists
+ * Re-triggers the initial word explanation API
+ */
+async function handleGetContextualMeaning(wordId: string): Promise<void> {
+  console.log('[Content Script] handleGetContextualMeaning called for wordId:', wordId);
+  
+  const wordAtomState = store.get(wordExplanationsAtom).get(wordId);
+  if (!wordAtomState) {
+    console.error('[Content Script] No atom state found for wordId:', wordId);
+    return;
+  }
+
+  // Set loading state
+  const updatedState: WordExplanationAtomState = {
+    ...wordAtomState,
+    isLoading: true,
+    errorMessage: null,
+    streamedContent: '',
+    firstEventReceived: false,
+  };
+  const newMap = new Map(store.get(wordExplanationsAtom));
+  newMap.set(wordId, updatedState);
+  store.set(wordExplanationsAtom, newMap);
+  updateWordExplanationPopover();
+
+  // Create abort controller
+  const abortController = new AbortController();
+  const updatedWithAbort: WordExplanationAtomState = {
+    ...updatedState,
+    abortController,
+  };
+  const mapWithAbort = new Map(store.get(wordExplanationsAtom));
+  mapWithAbort.set(wordId, updatedWithAbort);
+  store.set(wordExplanationsAtom, mapWithAbort);
+
+  // Set 30-second timeout
+  const timeoutId = setTimeout(() => {
+    const currentState = store.get(wordExplanationsAtom).get(wordId);
+    if (currentState && !currentState.firstEventReceived && currentState.isLoading) {
+      console.log('[Content Script] Word explanation timeout - no response after 30 seconds');
+      
+      // Abort request
+      abortController?.abort();
+      
+      // Update state with error
+      const errorState: WordExplanationAtomState = {
+        ...currentState,
+        isLoading: false,
+        errorMessage: 'Request timed out. Please try again.',
+      };
+      const errorMap = new Map(store.get(wordExplanationsAtom));
+      errorMap.set(wordId, errorState);
+      store.set(wordExplanationsAtom, errorMap);
+      updateWordExplanationPopover();
+      
+      showToast('Request timed out after 30 seconds. Please try again.', 'error');
+    }
+  }, 30000);
+
+  // Extract surrounding context for the word (7 words before + word + 7 words after)
+  const contextText = extractSurroundingContext(wordAtomState.word, wordAtomState.range);
+  console.log('[Content Script] Extracted context for API:', contextText);
+
+  // Call words_explanation_v2 API
+  await WordsExplanationV2Service.explainWord(
+    wordAtomState.word,
+    contextText, // Pass surrounding context instead of empty string
+    {
+      onEvent: (wordInfo: WordInfo) => {
+        const state = store.get(wordExplanationsAtom).get(wordId);
+        if (!state) return;
+
+        console.log('[Content Script] Word explanation event:', wordInfo);
+
+        // Parse raw_response to get meaning and examples
+        const { meaning, examples } = WordsExplanationV2Service.parseRawResponse(
+          wordInfo.raw_response
+        );
+
+        // Format content as markdown
+        let formattedContent = meaning;
+        if (examples.length > 0) {
+          formattedContent += '\n\n**Examples:**\n';
+          examples.forEach((example, idx) => {
+            formattedContent += `${idx + 1}. ${example}\n`;
+          });
+        }
+
+        // On first event
+        if (!state.firstEventReceived) {
+          clearTimeout(timeoutId);
+          
+          // Update atom state with meaning and examples
+          const updated: WordExplanationAtomState = {
+            ...state,
+            meaning,
+            examples,
+            streamedContent: formattedContent,
+            isLoading: false,
+            firstEventReceived: true,
+            shouldAllowFetchMoreExamples: true,
+          };
+          const map = new Map(store.get(wordExplanationsAtom));
+          map.set(wordId, updated);
+          store.set(wordExplanationsAtom, map);
+          updateWordExplanationPopover();
+        } else {
+          // Subsequent events (streaming updates)
+          const updated: WordExplanationAtomState = {
+            ...state,
+            meaning,
+            examples,
+            streamedContent: formattedContent,
+          };
+          const map = new Map(store.get(wordExplanationsAtom));
+          map.set(wordId, updated);
+          store.set(wordExplanationsAtom, map);
+          updateWordExplanationPopover();
+        }
+      },
+      onError: (code: string, message: string) => {
+        clearTimeout(timeoutId);
+        console.error('[Content Script] Word explanation error:', code, message);
+        
+        const currentState = store.get(wordExplanationsAtom).get(wordId);
+        if (!currentState) return;
+
+        const updated: WordExplanationAtomState = {
+          ...currentState,
+          isLoading: false,
+          errorMessage: message || 'Failed to fetch explanation',
+        };
+        const map = new Map(store.get(wordExplanationsAtom));
+        map.set(wordId, updated);
+        store.set(wordExplanationsAtom, map);
+        updateWordExplanationPopover();
+        
+        showToast(message || 'Failed to fetch explanation', 'error');
+      },
+      onComplete: () => {
+        console.log('[Content Script] Word explanation streaming complete');
+        clearTimeout(timeoutId);
+      },
+      onSubscriptionRequired: () => {
+        clearTimeout(timeoutId);
+        console.log('[Content Script] Subscription required for word explanation');
+        
+        const currentState = store.get(wordExplanationsAtom).get(wordId);
+        if (!currentState) return;
+
+        const updated: WordExplanationAtomState = {
+          ...currentState,
+          isLoading: false,
+        };
+        const map = new Map(store.get(wordExplanationsAtom));
+        map.set(wordId, updated);
+        store.set(wordExplanationsAtom, map);
+        updateWordExplanationPopover();
+        
+        store.set(showSubscriptionModalAtom, true);
+      },
+      onLoginRequired: () => {
+        clearTimeout(timeoutId);
+        console.log('[Content Script] Login required for word explanation');
+        
+        const currentState = store.get(wordExplanationsAtom).get(wordId);
+        if (!currentState) return;
+
+        const updated: WordExplanationAtomState = {
+          ...currentState,
+          isLoading: false,
+        };
+        const map = new Map(store.get(wordExplanationsAtom));
+        map.set(wordId, updated);
+        store.set(wordExplanationsAtom, map);
+        updateWordExplanationPopover();
+        
+        // Login modal will be shown by global handler
+      },
+    },
+    abortController.signal
+  );
+}
+
+/**
  * Handler for "Get synonyms" utility button
  */
 async function handleGetSynonyms(wordId: string): Promise<void> {
@@ -3192,6 +3385,173 @@ function handleAskAIClose(): void {
 }
 
 /**
+ * Extract surrounding context for a word
+ * Returns 7 words before + the word + 7 words after
+ */
+function extractSurroundingContext(word: string, range: Range | null): string {
+  if (!range) {
+    return `The word "${word}" in context.`;
+  }
+
+  try {
+    // Get the parent element containing the text
+    const container = range.commonAncestorContainer;
+    const parentElement = container.nodeType === Node.TEXT_NODE 
+      ? container.parentElement 
+      : container as Element;
+    
+    if (!parentElement) {
+      return `The word "${word}" in context.`;
+    }
+
+    // Get all text content from the parent
+    const fullText = parentElement.textContent || '';
+    
+    // Find the position of the selected word in the full text
+    const rangeStart = range.startOffset;
+    const rangeEnd = range.endOffset;
+    
+    // Calculate the actual position in the full text
+    let currentOffset = 0;
+    const walker = document.createTreeWalker(
+      parentElement,
+      NodeFilter.SHOW_TEXT,
+      null
+    );
+    
+    let foundNode = false;
+    let textBeforeRange = '';
+    let textAfterRange = '';
+    
+    while (walker.nextNode()) {
+      const node = walker.currentNode;
+      
+      if (node === container) {
+        foundNode = true;
+        textBeforeRange = fullText.substring(0, currentOffset + rangeStart);
+        textAfterRange = fullText.substring(currentOffset + rangeEnd);
+        break;
+      }
+      
+      currentOffset += node.textContent?.length || 0;
+    }
+    
+    if (!foundNode) {
+      // Fallback: use simple string split
+      textBeforeRange = fullText.substring(0, fullText.indexOf(word));
+      textAfterRange = fullText.substring(fullText.indexOf(word) + word.length);
+    }
+    
+    // Split by whitespace to get words
+    const wordsBefore = textBeforeRange.trim().split(/\s+/).filter(w => w.length > 0);
+    const wordsAfter = textAfterRange.trim().split(/\s+/).filter(w => w.length > 0);
+    
+    // Take last 7 words before
+    const contextBefore = wordsBefore.slice(-7).join(' ');
+    
+    // Take first 7 words after
+    const contextAfter = wordsAfter.slice(0, 7).join(' ');
+    
+    // Construct the context
+    const parts = [];
+    if (contextBefore) parts.push(contextBefore);
+    parts.push(word);
+    if (contextAfter) parts.push(contextAfter);
+    
+    return parts.join(' ');
+  } catch (error) {
+    console.error('[Content Script] Error extracting surrounding context:', error);
+    return `The word "${word}" in context.`;
+  }
+}
+
+/**
+ * Extract surrounding context for a text selection
+ * Returns 15 words before + selected text + 15 words after
+ */
+function extractSurroundingContextForText(selectedText: string, range: Range | null): string {
+  if (!range) {
+    return selectedText;
+  }
+
+  try {
+    // Get the parent element containing the text
+    const container = range.commonAncestorContainer;
+    const parentElement = container.nodeType === Node.TEXT_NODE 
+      ? container.parentElement 
+      : container as Element;
+    
+    if (!parentElement) {
+      return selectedText;
+    }
+
+    // Get all text content from the parent
+    const fullText = parentElement.textContent || '';
+    
+    // Find the position of the selected text in the full text
+    const rangeStart = range.startOffset;
+    const rangeEnd = range.endOffset;
+    
+    // Calculate the actual position in the full text
+    let currentOffset = 0;
+    const walker = document.createTreeWalker(
+      parentElement,
+      NodeFilter.SHOW_TEXT,
+      null
+    );
+    
+    let foundNode = false;
+    let textBeforeRange = '';
+    let textAfterRange = '';
+    
+    while (walker.nextNode()) {
+      const node = walker.currentNode;
+      
+      if (node === container) {
+        foundNode = true;
+        textBeforeRange = fullText.substring(0, currentOffset + rangeStart);
+        textAfterRange = fullText.substring(currentOffset + rangeEnd);
+        break;
+      }
+      
+      currentOffset += node.textContent?.length || 0;
+    }
+    
+    if (!foundNode) {
+      // Fallback: use simple string split
+      const selectedIndex = fullText.indexOf(selectedText);
+      if (selectedIndex >= 0) {
+        textBeforeRange = fullText.substring(0, selectedIndex);
+        textAfterRange = fullText.substring(selectedIndex + selectedText.length);
+      } else {
+        return selectedText;
+      }
+    }
+    
+    // Split by whitespace to get words
+    const wordsBefore = textBeforeRange.trim().split(/\s+/).filter(w => w.length > 0);
+    const wordsAfter = textAfterRange.trim().split(/\s+/).filter(w => w.length > 0);
+    
+    // Take last 15 words before
+    const contextBefore = wordsBefore.slice(-15).join(' ');
+    
+    // Take first 15 words after
+    const contextAfter = wordsAfter.slice(0, 15).join(' ');
+    
+    // Construct the context
+    const parts = [];
+    if (contextBefore) parts.push(contextBefore);
+    parts.push(selectedText);
+    if (contextAfter) parts.push(contextAfter);
+    
+    return parts.join(' ');
+  } catch (error) {
+    console.error('[Content Script] Error extracting surrounding context for text:', error);
+    return selectedText;
+  }
+}
+
+/**
  * Handler for Ask AI send message
  */
 async function handleAskAISendMessage(wordId: string, question: string): Promise<void> {
@@ -3231,8 +3591,12 @@ async function handleAskAISendMessage(wordId: string, question: string): Promise
   const abortController = new AbortController();
   updatedState.askAI.abortController = abortController;
 
-  // Get context for the word (use streamedContent or construct from word)
-  const initialContext = wordAtomState.streamedContent || `The word "${wordAtomState.word}" in context.`;
+  // Get context for the word: extract 7 words before + word + 7 words after
+  const contextText = extractSurroundingContext(wordAtomState.word, wordAtomState.range);
+  
+  // Format initial context with word of interest
+  const initialContext = `Here is the context: ${contextText}. Here is the word of interest: ${wordAtomState.word}.`;
+  console.log('[Content Script] Formatted initial context for Ask AI:', initialContext);
 
   try {
     await WordAskService.ask(
@@ -3837,6 +4201,11 @@ function updateTextExplanationPanel(): void {
       const previousSimplifiedTexts = currentActiveExplanation.previousSimplifiedTexts || [];
       const textStartIndex = currentActiveExplanation.textStartIndex;
       const textLength = currentActiveExplanation.textLength;
+      const range = currentActiveExplanation.range;
+      
+      // Extract surrounding context for the text (15 words before + text + 15 words after)
+      const contextText = extractSurroundingContextForText(selectedText, range);
+      console.log('[Content Script] Extracted context for Simplify More API:', contextText);
       
       // Abort current request if any
       const newAbortController = new AbortController();
@@ -3861,7 +4230,7 @@ function updateTextExplanationPanel(): void {
             {
               textStartIndex,
               textLength,
-              text: selectedText,
+              text: contextText, // Pass surrounding context instead of just selected text
               previousSimplifiedTexts: previousSimplifiedTexts,
             },
           ],
@@ -4617,6 +4986,7 @@ function updateWordExplanationPopover(): void {
         isSavingWord: atomState?.isSavingWord || false,
         onBookmarkClick: () => handleWordBookmarkClick(visibleWordId!),
         // Handlers
+        onGetContextualMeaning: () => handleGetContextualMeaning(visibleWordId!),
         onGetMoreExamples: () => handleGetMoreExamples(visibleWordId!),
         onGetSynonyms: () => handleGetSynonyms(visibleWordId!),
         onGetAntonyms: () => handleGetAntonyms(visibleWordId!),

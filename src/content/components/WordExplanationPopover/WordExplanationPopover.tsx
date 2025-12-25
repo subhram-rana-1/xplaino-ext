@@ -1,7 +1,7 @@
 // src/content/components/WordExplanationPopover/WordExplanationPopover.tsx
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
-import { BookText, GraduationCap, Bookmark, Lightbulb, MessageCircle, BookOpen, ArrowLeftRight, Languages } from 'lucide-react';
+import { BookText, GraduationCap, Bookmark, Lightbulb, MessageCircle, BookOpen, ArrowLeftRight, Languages, Sparkles } from 'lucide-react';
 import { ButtonGroup, ButtonItem } from '@/components/ui/ButtonGroup';
 import { useEmergeAnimation } from '@/hooks/useEmergeAnimation';
 import styles from './WordExplanationPopover.module.css';
@@ -59,6 +59,8 @@ export interface WordExplanationPopoverProps {
   onBookmarkClick?: () => void;
   
   // Handlers for utility buttons
+  /** Handler for Get contextual meaning button (re-fetch initial explanation) */
+  onGetContextualMeaning?: () => void;
   /** Handler for Get more examples button */
   onGetMoreExamples?: () => void;
   /** Handler for Get synonyms button */
@@ -100,6 +102,7 @@ export const WordExplanationPopover: React.FC<WordExplanationPopoverProps> = ({
   isSaved = false,
   isSavingWord = false,
   onBookmarkClick,
+  onGetContextualMeaning,
   onGetMoreExamples,
   onGetSynonyms,
   onGetAntonyms,
@@ -436,8 +439,24 @@ export const WordExplanationPopover: React.FC<WordExplanationPopoverProps> = ({
         ) : content ? (
           <ReactMarkdown>{content}</ReactMarkdown>
         ) : (
-          <div className={getClassName('placeholderState')}>
-            No explanation available
+          <div className={getClassName('noExplanationContainer')}>
+            <button 
+              className={getClassName('getContextualMeaningButton')}
+              onClick={onGetContextualMeaning}
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <>
+                  <div className={getClassName('buttonSpinner')} />
+                  <span>Loading...</span>
+                </>
+              ) : (
+                <>
+                  <Sparkles size={18} strokeWidth={2.5} />
+                  <span>Get contextual meaning</span>
+                </>
+              )}
+            </button>
           </div>
         )}
       </div>
@@ -445,46 +464,49 @@ export const WordExplanationPopover: React.FC<WordExplanationPopoverProps> = ({
       {/* Utility Actions */}
       <div className={getClassName('utilityActions')}>
         {activeTab === 'contextual' ? (
-          <>
-            <div className={getClassName('utilityButtonWrapper')}>
-              <button 
-                className={`${getClassName('utilityButton')} ${(isLoadingExamples || !shouldAllowFetchMoreExamples) ? getClassName('utilityButtonDisabled') : ''}`}
-                onClick={handleGetMoreExamples}
-                onMouseEnter={() => setActiveTooltip('examples')}
-                onMouseLeave={() => setActiveTooltip(null)}
-                aria-label="Get more examples"
-                disabled={isLoadingExamples || !shouldAllowFetchMoreExamples}
-              >
-                {isLoadingExamples ? (
-                  <div className={getClassName('buttonSpinner')} />
-                ) : (
-                  <Lightbulb size={20} strokeWidth={2.5} />
+          // Only show utility buttons if there's content
+          content ? (
+            <>
+              <div className={getClassName('utilityButtonWrapper')}>
+                <button 
+                  className={`${getClassName('utilityButton')} ${(isLoadingExamples || !shouldAllowFetchMoreExamples) ? getClassName('utilityButtonDisabled') : ''}`}
+                  onClick={handleGetMoreExamples}
+                  onMouseEnter={() => setActiveTooltip('examples')}
+                  onMouseLeave={() => setActiveTooltip(null)}
+                  aria-label="Get more examples"
+                  disabled={isLoadingExamples || !shouldAllowFetchMoreExamples}
+                >
+                  {isLoadingExamples ? (
+                    <div className={getClassName('buttonSpinner')} />
+                  ) : (
+                    <Lightbulb size={20} strokeWidth={2.5} />
+                  )}
+                </button>
+                {activeTooltip === 'examples' && !isLoadingExamples && (
+                  <div className={getClassName('utilityTooltip')}>
+                    {shouldAllowFetchMoreExamples ? 'Get more examples' : 'No more examples'}
+                  </div>
                 )}
-              </button>
-              {activeTooltip === 'examples' && !isLoadingExamples && (
-                <div className={getClassName('utilityTooltip')}>
-                  {shouldAllowFetchMoreExamples ? 'Get more examples' : 'No more examples'}
-                </div>
-              )}
-            </div>
-            <div className={getClassName('utilityButtonWrapper')}>
-              <button 
-                ref={askAIButtonRef}
-                className={getClassName('utilityButton')} 
-                onClick={handleAskAI}
-                onMouseEnter={() => setActiveTooltip('askAI')}
-                onMouseLeave={() => setActiveTooltip(null)}
-                aria-label="Ask AI"
-              >
-                <MessageCircle size={20} strokeWidth={2.5} />
-              </button>
-              {activeTooltip === 'askAI' && (
-                <div className={getClassName('utilityTooltip')}>
-                  Ask AI
-                </div>
-              )}
-            </div>
-          </>
+              </div>
+              <div className={getClassName('utilityButtonWrapper')}>
+                <button 
+                  ref={askAIButtonRef}
+                  className={getClassName('utilityButton')} 
+                  onClick={handleAskAI}
+                  onMouseEnter={() => setActiveTooltip('askAI')}
+                  onMouseLeave={() => setActiveTooltip(null)}
+                  aria-label="Ask AI"
+                >
+                  <MessageCircle size={20} strokeWidth={2.5} />
+                </button>
+                {activeTooltip === 'askAI' && (
+                  <div className={getClassName('utilityTooltip')}>
+                    Ask AI
+                  </div>
+                )}
+              </div>
+            </>
+          ) : null
         ) : (
           <>
             <div className={getClassName('utilityButtonWrapper')}>
