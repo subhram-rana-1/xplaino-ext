@@ -4467,25 +4467,24 @@ function updateTextExplanationPanel(): void {
   }
   
   if (!handleTranslateCallback) {
-    handleTranslateCallback = async (_language?: string) => {
+    handleTranslateCallback = async (selectedLanguage?: string) => {
       const currentActiveExplanation = store.get(activeTextExplanationAtom);
       if (!currentActiveExplanation) return;
       
       const explanationId = currentActiveExplanation.id;
       const selectedText = currentActiveExplanation.selectedText;
       
-      // Get target language from Chrome storage
-      const nativeLanguage = await ChromeStorage.getUserSettingNativeLanguage();
-      if (!nativeLanguage) {
-        console.error('[Content Script] No native language set');
-        showToast('Please set your native language in settings', 'error');
+      // Use language from dropdown instead of Chrome storage
+      if (!selectedLanguage) {
+        console.error('[Content Script] No language selected from dropdown');
+        showToast('Please select a language from the dropdown', 'error');
         return;
       }
       
-      const languageCode = getLanguageCode(nativeLanguage);
+      const languageCode = getLanguageCode(selectedLanguage);
       if (!languageCode) {
-        console.error('[Content Script] Could not get language code for:', nativeLanguage);
-        showToast('Invalid language setting', 'error');
+        console.error('[Content Script] Could not get language code for:', selectedLanguage);
+        showToast('Invalid language selected', 'error');
         return;
       }
       
@@ -4493,10 +4492,10 @@ function updateTextExplanationPanel(): void {
       const currentState = store.get(textExplanationsAtom).get(explanationId);
       if (currentState) {
         const existingTranslation = currentState.translations.find(
-          t => t.language === nativeLanguage
+          t => t.language === selectedLanguage
         );
         if (existingTranslation) {
-          console.log('[Content Script] Translation already exists for language:', nativeLanguage);
+          console.log('[Content Script] Translation already exists for language:', selectedLanguage);
           return;
         }
       }
@@ -4529,7 +4528,7 @@ function updateTextExplanationPanel(): void {
               
               updateExplanationInMap(explanationId, (state) => {
                 state.translations.push({
-                  language: nativeLanguage,
+                  language: selectedLanguage,
                   translated_content: translatedText,
                 });
                 return state;
