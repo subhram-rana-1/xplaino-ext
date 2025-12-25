@@ -239,11 +239,123 @@
   justify-content: center !important;
 }
 
+/* Options Button Wrapper */
+.optionsButtonWrapper {
+  position: relative !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+/* Disable Button Slide In Animation */
+.disableButtonSlideIn {
+  animation: disableButtonSlideIn 0.25s cubic-bezier(0.4, 0, 0.2, 1) forwards !important;
+}
+
+@keyframes disableButtonSlideIn {
+  from {
+    opacity: 0 !important;
+    transform: translateX(8px) scale(0.8) !important;
+  }
+  to {
+    opacity: 1 !important;
+    transform: translateX(0) scale(1) !important;
+  }
+}
+
+/* Disable Button Slide Out Animation */
+.disableButtonSlideOut {
+  animation: disableButtonSlideOut 0.2s cubic-bezier(0.4, 0, 0.2, 1) forwards !important;
+}
+
+@keyframes disableButtonSlideOut {
+  from {
+    opacity: 1 !important;
+    transform: translateX(0) scale(1) !important;
+  }
+  to {
+    opacity: 0 !important;
+    transform: translateX(8px) scale(0.8) !important;
+  }
+}
+
+/* Action Button Options Popover */
+.actionButtonOptionsPopover {
+  position: absolute !important;
+  top: calc(100% + 8px) !important;
+  left: 50% !important;
+  margin-left: -60px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 2px !important;
+  background: var(--color-white) !important;
+  border-radius: 15px !important;
+  padding: 4px !important;
+  box-shadow: 0 0 12px rgba(149, 39, 245, 0.35) !important;
+  /* Animation is handled by JavaScript useEmergeAnimation hook */
+  z-index: 20 !important;
+  width: fit-content !important;
+  min-width: 120px !important;
+}
+
+.actionButtonOptionsPopover::before {
+  content: '' !important;
+  position: absolute !important;
+  bottom: 100% !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  border: 6px solid transparent !important;
+  border-bottom-color: var(--color-white) !important;
+}
+
+/* Action Button Option Button */
+.actionButtonOption {
+  display: flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  padding: 6px 10px !important;
+  background: transparent !important;
+  border: none !important;
+  border-radius: 10px !important;
+  cursor: pointer !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  color: var(--color-primary-light) !important;
+  white-space: nowrap !important;
+  transition: all 0.15s ease !important;
+  text-align: left !important;
+  width: 100% !important;
+}
+
+.actionButtonOption:hover {
+  background: var(--color-primary-very-light) !important;
+  color: var(--color-primary) !important;
+}
+
+.actionButtonOption:active {
+  transform: scale(0.98) !important;
+}
+
+.actionButtonOption svg {
+  width: 14px !important;
+  height: 14px !important;
+  color: inherit !important;
+  stroke: currentColor !important;
+  stroke-width: 2.5 !important;
+  fill: none !important;
+  flex-shrink: 0 !important;
+}
+
+.actionButtonOption span {
+  flex: 1 !important;
+}
+
 /* Disable Popover */
 .disablePopover {
   position: absolute !important;
   top: calc(100% + 8px) !important;
-  right: 0 !important;
+  left: 50% !important;
+  margin-left: -60px !important;
   display: flex !important;
   flex-direction: column !important;
   gap: 2px !important;
@@ -260,7 +372,8 @@
   content: '' !important;
   position: absolute !important;
   bottom: 100% !important;
-  right: 10px !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
   border: 6px solid transparent !important;
   border-bottom-color: var(--color-white) !important;
 }

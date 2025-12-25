@@ -7,4 +7,6 @@ export { ContentActionButton } from './ContentActionButton';
 export type { ContentActionButtonProps } from './ContentActionButton';
 export { DisablePopover } from './DisablePopover';
 export type { DisablePopoverProps } from './DisablePopover';
+export { ActionButtonOptionsPopover } from './ActionButtonOptionsPopover';
+export type { ActionButtonOptionsPopoverProps } from './ActionButtonOptionsPopover';
 

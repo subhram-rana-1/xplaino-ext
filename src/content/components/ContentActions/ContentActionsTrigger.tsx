@@ -13,6 +13,10 @@ export interface ContentActionsTriggerProps {
   onTranslate?: (selectedText: string) => void;
   /** Callback when Bookmark is clicked */
   onBookmark?: (selectedText: string) => void;
+  /** Callback when Synonym is clicked */
+  onSynonym?: (selectedText: string) => void;
+  /** Callback when Opposite is clicked */
+  onOpposite?: (selectedText: string) => void;
   /** Callback to show disable notification modal */
   onShowModal?: () => void;
 }
@@ -37,6 +41,8 @@ export const ContentActionsTrigger: React.FC<ContentActionsTriggerProps> = ({
   onGrammar,
   onTranslate,
   onBookmark,
+  onSynonym,
+  onOpposite,
   onShowModal,
 }) => {
   const [selection, setSelection] = useState<SelectionState | null>(null);
@@ -421,6 +427,34 @@ export const ContentActionsTrigger: React.FC<ContentActionsTriggerProps> = ({
     }
   }, [selection, onBookmark]);
 
+  const handleSynonym = useCallback(() => {
+    if (selection) {
+      console.log('[ContentActions] Synonym:', selection.text);
+      onSynonym?.(selection.text);
+    }
+  }, [selection, onSynonym]);
+
+  const handleOpposite = useCallback(() => {
+    if (selection) {
+      console.log('[ContentActions] Opposite:', selection.text);
+      onOpposite?.(selection.text);
+    }
+  }, [selection, onOpposite]);
+
+  // Handle action completion - clear selection and hide all UI
+  const handleActionComplete = useCallback(() => {
+    // Clear window selection
+    const windowSelection = window.getSelection();
+    if (windowSelection) {
+      windowSelection.removeAllRanges();
+    }
+    
+    // Reset all states (this will unmount the component)
+    setSelection(null);
+    setShowButtonGroup(false);
+    setIsHovering(false);
+  }, []);
+
   // Don't render if no selection
   if (!selection) return null;
 
@@ -466,10 +500,13 @@ export const ContentActionsTrigger: React.FC<ContentActionsTriggerProps> = ({
         onGrammar={handleGrammar}
         onTranslate={handleTranslate}
         onBookmark={handleBookmark}
+        onSynonym={handleSynonym}
+        onOpposite={handleOpposite}
         onMouseEnter={handleContainerMouseEnter}
         onMouseLeave={handleContainerMouseLeave}
         onKeepActive={handleKeepActive}
         onShowModal={onShowModal}
+        onActionComplete={handleActionComplete}
       />
     </div>
   );
