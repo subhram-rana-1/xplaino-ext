@@ -16,8 +16,9 @@
 /* Popover Container */
 .popoverContainer {
   position: fixed !important;
-  min-width: 300px !important;
-  max-width: 450px !important;
+  width: 400px !important;
+  min-width: 400px !important;
+  max-width: 400px !important;
   background: var(--color-white, #FFFFFF) !important;
   border-radius: 30px !important;
   box-shadow: 0 4px 20px rgba(149, 39, 245, 0.3) !important;
@@ -58,17 +59,35 @@
   align-items: center !important;
   justify-content: center !important;
   border-radius: 8px !important;
-  transition: background 0.2s ease !important;
+  transition: all 0.2s ease !important;
   color: var(--color-text-secondary, #718096) !important;
 }
 
-.headerBookmark:hover {
+.headerBookmark:hover:not(:disabled) {
   background: rgba(149, 39, 245, 0.1) !important;
+  color: var(--color-primary, #9527F5) !important;
+}
+
+.headerBookmark:disabled {
+  cursor: not-allowed !important;
+  opacity: 0.6 !important;
+}
+
+.headerBookmarkSaved {
   color: var(--color-primary, #9527F5) !important;
 }
 
 .headerBookmark svg {
   display: block !important;
+}
+
+.bookmarkSpinner {
+  width: 18px !important;
+  height: 18px !important;
+  border: 2px solid rgba(149, 39, 245, 0.2) !important;
+  border-top-color: var(--color-primary, #9527F5) !important;
+  border-radius: 50% !important;
+  animation: spin 0.6s linear infinite !important;
 }
 
 /* Main Content */
@@ -93,6 +112,12 @@
 .mainContent strong {
   font-weight: inherit !important;
   color: inherit !important;
+}
+
+.mainContent .sectionTitle,
+.grammarContent .sectionTitle {
+  font-weight: 700 !important;
+  color: var(--color-primary, #9527F5) !important;
 }
 
 .mainContent ul,
@@ -439,10 +464,19 @@
 
 .sectionTitle {
   font-size: 14px !important;
-  font-weight: 600 !important;
-  color: #1a1a1a !important;
+  font-weight: 700 !important;
+  color: var(--color-primary, #9527F5) !important;
   margin: 0 !important;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
+}
+
+/* Ensure sectionTitle overrides mainContent strong styles */
+.mainContent .sectionTitle,
+.grammarContent .sectionTitle,
+.mainContent strong.sectionTitle,
+.grammarContent strong.sectionTitle {
+  font-weight: 700 !important;
+  color: var(--color-primary, #9527F5) !important;
 }
 
 .list {
@@ -461,6 +495,13 @@
 
 .listItem:last-child {
   margin-bottom: 0 !important;
+}
+
+.commaSeparated {
+  font-size: 13px !important;
+  line-height: 1.6 !important;
+  color: #333 !important;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
 }
 
 

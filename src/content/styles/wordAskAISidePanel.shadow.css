@@ -1,0 +1,513 @@
+/* src/content/styles/wordAskAISidePanel.shadow.css */
+/* Shadow DOM styles for Word Ask AI Side Panel */
+
+/* Font isolation - prevent website CSS interference */
+:host {
+  all: initial !important;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
+}
+
+/* CSS Variables */
+:host {
+  --color-primary: #9527F5;
+  --color-primary-dark: #8607F5;
+  --color-primary-light: #BF7EFA;
+  --color-white: #FFFFFF;
+  --color-text: #2D3748;
+  --color-text-secondary: #718096;
+  --color-disabled: #CBD5E0;
+  --color-error: #EF4444;
+}
+
+/* Reset all elements for font isolation */
+* {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
+  box-sizing: border-box !important;
+}
+
+.wordAskAISidePanel {
+  position: fixed !important;
+  top: 80px !important;
+  right: 0 !important;
+  bottom: 80px !important;
+  width: var(--panel-width, 560px) !important;
+  min-width: 300px !important;
+  max-width: 800px !important;
+  background: var(--color-white, #FFFFFF) !important;
+  border-radius: 30px 0 0 30px !important;
+  box-shadow: 0 0 20px rgba(149, 39, 245, 0.3) !important;
+  z-index: 2147483646 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), 
+              top 0.3s cubic-bezier(0.4, 0, 0.2, 1), 
+              bottom 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              border-radius 0.2s ease !important;
+}
+
+.wordAskAISidePanel.open {
+  opacity: 1 !important;
+  visibility: visible !important;
+  pointer-events: auto !important;
+}
+
+.wordAskAISidePanel.verticallyExpanded {
+  top: 0 !important;
+  bottom: 0 !important;
+  border-radius: 0 !important;
+}
+
+.resizeHandle {
+  position: absolute !important;
+  left: 0 !important;
+  top: 50% !important;
+  transform: translateY(-50%) !important;
+  width: 4px !important;
+  height: 50px !important;
+  background: var(--color-primary-light, #BF7EFA) !important;
+  border-radius: 0 3px 3px 0 !important;
+  cursor: ew-resize !important;
+  pointer-events: auto !important;
+  z-index: 10000 !important;
+  transition: background 0.2s ease, height 0.2s ease, width 0.2s ease !important;
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  touch-action: none !important;
+}
+
+.resizeHandle:hover,
+.resizeHandle:active {
+  background: var(--color-primary, #9527F5) !important;
+  width: 6px !important;
+  height: 70px !important;
+}
+
+.header {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  padding: 8px 12px !important;
+  background: rgba(149, 39, 245, 0.05) !important;
+  height: 48px !important;
+  border-bottom: 1px solid rgba(149, 39, 245, 0.1) !important;
+  flex-shrink: 0 !important;
+  box-sizing: border-box !important;
+}
+
+.headerLeft {
+  display: flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+  flex-shrink: 0 !important;
+}
+
+.headerCenter {
+  flex: 1 !important;
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+}
+
+.headerRight {
+  width: 64px !important;
+  flex-shrink: 0 !important;
+}
+
+.headerTitle {
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  color: var(--color-primary, #9527F5) !important;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
+}
+
+.iconButton {
+  width: 32px !important;
+  height: 32px !important;
+  border: none !important;
+  background: transparent !important;
+  cursor: pointer !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border-radius: 10px !important;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  padding: 0 !important;
+  outline: none !important;
+}
+
+.iconButton:hover {
+  background: rgba(149, 39, 245, 0.1) !important;
+}
+
+.iconButton:active {
+  transform: scale(0.95) !important;
+}
+
+.iconButton svg {
+  width: 18px !important;
+  height: 18px !important;
+  color: var(--color-primary-light, #BF7EFA) !important;
+  stroke: var(--color-primary-light, #BF7EFA) !important;
+  stroke-width: 2.5 !important;
+  fill: none !important;
+  pointer-events: none !important;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.iconButton:hover svg {
+  color: var(--color-primary, #9527F5) !important;
+  stroke: var(--color-primary, #9527F5) !important;
+}
+
+.content {
+  flex: 1 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+  background: var(--color-white, #FFFFFF) !important;
+}
+
+.chatContainer {
+  flex: 1 !important;
+  overflow-y: auto !important;
+  padding: 16px 20px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 12px !important;
+  scrollbar-width: thin !important;
+  scrollbar-color: var(--color-primary-light, #B66DFF) transparent !important;
+}
+
+.chatContainer::-webkit-scrollbar {
+  width: 6px !important;
+}
+
+.chatContainer::-webkit-scrollbar-track {
+  background: transparent !important;
+}
+
+.chatContainer::-webkit-scrollbar-thumb {
+  background-color: var(--color-primary-light, #B66DFF) !important;
+  border-radius: 3px !important;
+}
+
+.message {
+  padding: 12px !important;
+  border-radius: 12px !important;
+  font-size: 14px !important;
+  line-height: 1.5 !important;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
+  word-wrap: break-word !important;
+  max-width: 85% !important;
+}
+
+.userMessage {
+  background: rgba(149, 39, 245, 0.08) !important;
+  color: var(--color-text, #2D3748) !important;
+  align-self: flex-end !important;
+  border-radius: 20px 20px 0 20px !important;
+}
+
+.assistantMessage {
+  background: none !important;
+  color: var(--color-text, #2D3748) !important;
+  align-self: center !important;
+  max-width: 100% !important;
+}
+
+.assistantMessage p {
+  margin: 0 0 8px 0 !important;
+}
+
+.assistantMessage p:last-child {
+  margin-bottom: 0 !important;
+}
+
+.assistantMessage ul,
+.assistantMessage ol {
+  margin: 8px 0 !important;
+  padding-left: 20px !important;
+}
+
+.assistantMessage li {
+  margin: 4px 0 !important;
+}
+
+.assistantMessage code {
+  background: rgba(149, 39, 245, 0.1) !important;
+  padding: 2px 6px !important;
+  border-radius: 4px !important;
+  font-family: 'Monaco', 'Courier New', monospace !important;
+  font-size: 13px !important;
+}
+
+.cursor {
+  display: inline-block !important;
+  width: 2px !important;
+  height: 1em !important;
+  background-color: var(--color-primary, #9527F5) !important;
+  margin-left: 2px !important;
+  animation: blink 1s step-end infinite !important;
+}
+
+@keyframes blink {
+  0%, 50% {
+    opacity: 1 !important;
+  }
+  51%, 100% {
+    opacity: 0 !important;
+  }
+}
+
+.loadingDots {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  padding: 12px !important;
+  font-size: 24px !important;
+  color: var(--color-primary, #9527F5) !important;
+  font-weight: 600 !important;
+  letter-spacing: 4px !important;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
+}
+
+/* Built-in Prompts */
+.builtInPromptsContainer {
+  padding: 12px 20px !important;
+  border-top: 1px solid #E2E8F0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 8px !important;
+  flex-shrink: 0 !important;
+}
+
+.promptsWrapper {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 8px !important;
+}
+
+.promptButton {
+  padding: 8px 16px !important;
+  background: var(--color-white, #FFFFFF) !important;
+  color: #4A5568 !important;
+  border: 1px solid #E2E8F0 !important;
+  border-radius: 999px !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
+  cursor: pointer !important;
+  transition: all 0.2s ease !important;
+  white-space: nowrap !important;
+}
+
+.promptButton:hover:not(:disabled) {
+  background: rgba(149, 39, 245, 0.08) !important;
+  color: var(--color-primary, #9527F5) !important;
+  border-color: rgba(149, 39, 245, 0.2) !important;
+}
+
+.promptButton:disabled {
+  opacity: 0.5 !important;
+  cursor: not-allowed !important;
+}
+
+/* Per-message questions (similar to Summary Chat) */
+.suggestedQuestions {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 8px !important;
+  margin-top: 12px !important;
+  padding-top: 12px !important;
+  border-top: 1px solid #E2E8F0 !important;
+}
+
+.questionItem {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  padding: 8px 12px !important;
+  border: none !important;
+  background: transparent !important;
+  cursor: pointer !important;
+  text-align: left !important;
+  border-radius: 8px !important;
+  transition: all 0.2s ease !important;
+}
+
+.questionItem:hover:not(:disabled) {
+  background: transparent !important;
+}
+
+.questionItem:hover:not(:disabled) .questionIcon {
+  color: var(--color-primary, #9527F5) !important;
+}
+
+.questionItem:hover:not(:disabled) .questionText {
+  color: var(--color-primary, #9527F5) !important;
+}
+
+.questionItem:disabled {
+  opacity: 0.5 !important;
+  cursor: not-allowed !important;
+}
+
+.questionIcon {
+  color: var(--color-primary-light, #BF7EFA) !important;
+  flex-shrink: 0 !important;
+  transition: color 0.2s ease !important;
+}
+
+.questionText {
+  font-size: 13px !important;
+  color: var(--color-text-secondary, #718096) !important;
+  line-height: 1.4 !important;
+  transition: color 0.2s ease !important;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
+}
+
+/* Input Container */
+.inputContainer {
+  padding: 16px 20px !important;
+  display: flex !important;
+  gap: 8px !important;
+  align-items: center !important;
+  flex-shrink: 0 !important;
+}
+
+.input {
+  flex: 1 !important;
+  padding: 10px 14px !important;
+  border: 1px solid #E2E8F0 !important;
+  border-radius: 20px !important;
+  font-size: 14px !important;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
+  color: var(--color-text, #2D3748) !important;
+  outline: none !important;
+  transition: border-color 0.2s ease !important;
+  background: var(--color-white, #FFFFFF) !important;
+}
+
+.input:focus {
+  border-color: var(--color-primary, #9527F5) !important;
+}
+
+.input:disabled {
+  background: #F7FAFC !important;
+  cursor: not-allowed !important;
+  opacity: 0.6 !important;
+}
+
+.input::placeholder {
+  color: var(--color-text-secondary, #A0AEC0) !important;
+}
+
+.sendButton {
+  width: 36px !important;
+  height: 36px !important;
+  border-radius: 50% !important;
+  background: var(--color-primary, #9527F5) !important;
+  border: none !important;
+  cursor: pointer !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  transition: all 0.2s ease !important;
+  padding: 0 !important;
+  flex-shrink: 0 !important;
+  color: var(--color-white, #FFFFFF) !important;
+}
+
+.sendButton:hover:not(:disabled) {
+  background: var(--color-primary-dark, #8607F5) !important;
+  transform: scale(1.05) !important;
+}
+
+.sendButton:active:not(:disabled) {
+  transform: scale(0.95) !important;
+}
+
+.sendButton:disabled {
+  opacity: 0.5 !important;
+  cursor: not-allowed !important;
+  background: var(--color-disabled, #CBD5E0) !important;
+}
+
+.sendButton svg {
+  width: 18px !important;
+  height: 18px !important;
+  color: var(--color-white, #FFFFFF) !important;
+  stroke: var(--color-white, #FFFFFF) !important;
+  fill: none !important;
+}
+
+.stopButton {
+  width: 36px !important;
+  height: 36px !important;
+  border-radius: 50% !important;
+  background: var(--color-error, #EF4444) !important;
+  border: none !important;
+  cursor: pointer !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  transition: all 0.2s ease !important;
+  padding: 0 !important;
+  flex-shrink: 0 !important;
+  color: var(--color-white, #FFFFFF) !important;
+}
+
+.stopButton:hover {
+  background: #DC2626 !important;
+  transform: scale(1.05) !important;
+}
+
+.stopButton:active {
+  transform: scale(0.95) !important;
+}
+
+.stopButton svg {
+  width: 18px !important;
+  height: 18px !important;
+  color: var(--color-white, #FFFFFF) !important;
+  stroke: var(--color-white, #FFFFFF) !important;
+  fill: none !important;
+}
+
+.deleteButton {
+  width: 36px !important;
+  height: 36px !important;
+  border-radius: 50% !important;
+  background: transparent !important;
+  border: none !important;
+  color: #A0AEC0 !important;
+  cursor: pointer !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  transition: all 0.2s ease !important;
+  padding: 0 !important;
+  flex-shrink: 0 !important;
+}
+
+.deleteButton:hover {
+  background: rgba(239, 68, 68, 0.1) !important;
+  color: #EF4444 !important;
+}
+
+.deleteButton:active {
+  transform: scale(0.95) !important;
+}
+
+.deleteButton svg {
+  width: 18px !important;
+  height: 18px !important;
+  color: currentColor !important;
+  stroke: currentColor !important;
+  fill: none !important;
+}
+

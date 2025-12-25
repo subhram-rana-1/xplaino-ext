@@ -30,7 +30,7 @@ export interface SynonymsCallbacks {
  * Service for fetching synonyms for words
  */
 export class WordSynonymsService {
-  private static readonly ENDPOINT = '/api/v2/get-synonyms';
+  private static readonly ENDPOINT = '/api/v2/synonyms';
 
   /**
    * Get synonyms for words
@@ -88,7 +88,11 @@ export class WordSynonymsService {
               return;
             }
             
-            const data: SynonymsResponse = await retryResponse.json();
+            const rawData = await retryResponse.json();
+            // Transform API response from { results: [...] } to { synonyms: [...] }
+            const data: SynonymsResponse = {
+              synonyms: rawData.results || []
+            };
             callbacks.onSuccess(data);
             return;
           } catch (refreshError) {
@@ -127,7 +131,11 @@ export class WordSynonymsService {
         return;
       }
 
-      const data: SynonymsResponse = await response.json();
+      const rawData = await response.json();
+      // Transform API response from { results: [...] } to { synonyms: [...] }
+      const data: SynonymsResponse = {
+        synonyms: rawData.results || []
+      };
       callbacks.onSuccess(data);
     } catch (error) {
       if ((error as Error).name === 'AbortError') {

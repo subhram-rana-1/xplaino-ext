@@ -30,7 +30,7 @@ export interface AntonymsCallbacks {
  * Service for fetching antonyms for words
  */
 export class WordAntonymsService {
-  private static readonly ENDPOINT = '/api/v2/get-antonyms';
+  private static readonly ENDPOINT = '/api/v2/antonyms';
 
   /**
    * Get antonyms for words
@@ -88,7 +88,11 @@ export class WordAntonymsService {
               return;
             }
             
-            const data: AntonymsResponse = await retryResponse.json();
+            const rawData = await retryResponse.json();
+            // Transform API response from { results: [...] } to { antonyms: [...] }
+            const data: AntonymsResponse = {
+              antonyms: rawData.results || []
+            };
             callbacks.onSuccess(data);
             return;
           } catch (refreshError) {
@@ -127,7 +131,11 @@ export class WordAntonymsService {
         return;
       }
 
-      const data: AntonymsResponse = await response.json();
+      const rawData = await response.json();
+      // Transform API response from { results: [...] } to { antonyms: [...] }
+      const data: AntonymsResponse = {
+        antonyms: rawData.results || []
+      };
       callbacks.onSuccess(data);
     } catch (error) {
       if ((error as Error).name === 'AbortError') {

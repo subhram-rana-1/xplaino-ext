@@ -166,13 +166,18 @@ export const ContentActionsButtonGroup: React.FC<ContentActionsButtonGroupProps>
         delay={0}
       />
       
-      {/* Bookmark button */}
-      <ContentActionButton
-        icon="bookmark"
-        tooltip="Bookmark"
-        onClick={onBookmark}
-        delay={1}
-      />
+      {/* Bookmark button - only show for text selections, hide for word selections */}
+      {!isWordSelection && (
+        <ContentActionButton
+          icon="bookmark"
+          tooltip="Bookmark"
+          onClick={() => {
+            onBookmark();
+            handleHideButtonGroup();
+          }}
+          delay={1}
+        />
+      )}
       
       {/* Options button (3 dots) with options popover */}
       <div className="optionsButtonWrapper">

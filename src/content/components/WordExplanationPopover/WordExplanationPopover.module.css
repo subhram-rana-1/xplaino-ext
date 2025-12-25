@@ -10,8 +10,9 @@
 
 .popoverContainer {
   position: fixed;
-  min-width: 300px;
-  max-width: 450px;
+  width: 400px;
+  min-width: 400px;
+  max-width: 400px;
   background: var(--color-white, #FFFFFF);
   border-radius: 30px;
   box-shadow: 0 4px 20px rgba(149, 39, 245, 0.3);
@@ -48,17 +49,35 @@
   align-items: center;
   justify-content: center;
   border-radius: 8px;
-  transition: background 0.2s ease;
+  transition: all 0.2s ease;
   color: var(--color-text-secondary, #718096);
 }
 
-.headerBookmark:hover {
+.headerBookmark:hover:not(:disabled) {
   background: rgba(149, 39, 245, 0.1);
+  color: var(--color-primary, #9527F5);
+}
+
+.headerBookmark:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.headerBookmarkSaved {
   color: var(--color-primary, #9527F5);
 }
 
 .headerBookmark svg {
   display: block;
+}
+
+.bookmarkSpinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(149, 39, 245, 0.2);
+  border-top-color: var(--color-primary, #9527F5);
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
 }
 
 .mainContent {
@@ -82,6 +101,15 @@
 .mainContent strong {
   font-weight: inherit;
   color: inherit;
+}
+
+/* Ensure sectionTitle overrides mainContent strong styles */
+.mainContent .sectionTitle,
+.grammarContent .sectionTitle,
+.mainContent strong.sectionTitle,
+.grammarContent strong.sectionTitle {
+  font-weight: 700 !important;
+  color: var(--color-primary, #9527F5) !important;
 }
 
 .mainContent ul,
@@ -277,8 +305,8 @@
 
 .sectionTitle {
   font-size: 14px;
-  font-weight: 600;
-  color: #1a1a1a;
+  font-weight: 700 !important;
+  color: var(--color-primary, #9527F5) !important;
   margin: 0;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
 }
@@ -299,6 +327,13 @@
 
 .listItem:last-child {
   margin-bottom: 0;
+}
+
+.commaSeparated {
+  font-size: 18px;
+  line-height: 1.6;
+  color: #333;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
 

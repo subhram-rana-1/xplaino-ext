@@ -59,7 +59,7 @@ const Toggle: React.FC<{
       />
     );
   };
-  const [language, setLanguage] = useState<string>('English');
+  const [language, setLanguage] = useState<string>('None');
   const [translationView, setTranslationView] = useState<'append' | 'replace'>('append');
   const [globalTheme, setGlobalTheme] = useState<'light' | 'dark'>('light');
   const [domainTheme, setDomainTheme] = useState<'light' | 'dark'>('light');
@@ -97,6 +97,8 @@ const Toggle: React.FC<{
 
       if (lang) {
         setLanguage(lang);
+      } else {
+        setLanguage('None');
       }
       if (transView) setTranslationView(transView);
       if (gTheme) setGlobalTheme(gTheme);
@@ -157,6 +159,7 @@ const Toggle: React.FC<{
 
   // Comprehensive languages list from comp project
   const languageOptions = [
+    { value: 'None', label: 'None' },
     { value: 'English', label: 'English' },
     { value: 'Español', label: 'Español' },
     { value: 'Français', label: 'Français' },

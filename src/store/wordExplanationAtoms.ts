@@ -12,7 +12,7 @@ export interface ChatMessage {
 export interface WordAskAIState {
   chatHistory: ChatMessage[];
   streamingText: string;
-  possibleQuestions: string[];
+  messageQuestions: Record<number, string[]>; // Questions per message index
   isRequesting: boolean;
   abortController: AbortController | null;
   firstChunkReceived: boolean;
@@ -73,6 +73,12 @@ export interface WordExplanationState {
   firstEventReceived: boolean;
   /** Abort controller for initial explanation */
   abortController: AbortController | null;
+  /** Whether the word is saved/bookmarked */
+  isSaved: boolean;
+  /** ID of the saved word (from API response, needed for deletion) */
+  savedWordId: string | null;
+  /** Loading state while saving/unsaving */
+  isSavingWord: boolean;
 }
 
 // ============================================
@@ -84,6 +90,12 @@ export const wordExplanationsAtom = atom<Map<string, WordExplanationState>>(new 
 
 /** Currently active/selected word ID (null if no word popover is open) */
 export const activeWordIdAtom = atom<string | null>(null);
+
+/** Whether the Word Ask AI side panel is open */
+export const wordAskAISidePanelOpenAtom = atom<boolean>(false);
+
+/** Word ID for which the Ask AI side panel is open */
+export const wordAskAISidePanelWordIdAtom = atom<string | null>(null);
 
 // ============================================
 // DERIVED ATOMS
@@ -126,7 +138,7 @@ export function createInitialWordState(
     askAI: {
       chatHistory: [],
       streamingText: '',
-      possibleQuestions: [],
+      messageQuestions: {},
       isRequesting: false,
       abortController: null,
       firstChunkReceived: false,
@@ -152,6 +164,9 @@ export function createInitialWordState(
     streamedContent: '',
     firstEventReceived: false,
     abortController: new AbortController(),
+    isSaved: false,
+    savedWordId: null,
+    isSavingWord: false,
   };
 }
 

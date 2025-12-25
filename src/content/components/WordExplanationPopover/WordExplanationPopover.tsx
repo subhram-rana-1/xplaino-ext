@@ -50,6 +50,14 @@ export interface WordExplanationPopoverProps {
   /** Whether translation is in progress */
   isLoadingTranslation?: boolean;
   
+  // Bookmark/Save state
+  /** Whether the word is saved/bookmarked */
+  isSaved?: boolean;
+  /** Whether save/unsave is in progress */
+  isSavingWord?: boolean;
+  /** Handler for bookmark icon click */
+  onBookmarkClick?: () => void;
+  
   // Handlers for utility buttons
   /** Handler for Get more examples button */
   onGetMoreExamples?: () => void;
@@ -58,9 +66,11 @@ export interface WordExplanationPopoverProps {
   /** Handler for Get antonyms/opposite button */
   onGetAntonyms?: () => void;
   /** Handler for Translate button */
-  onTranslate?: (languageCode: string) => void;
+  onTranslate?: (languageCode?: string) => void;
   /** Handler for Ask AI button */
   onAskAI?: () => void;
+  /** Callback when Ask AI button ref is ready */
+  onAskAIButtonMount?: (ref: React.RefObject<HTMLButtonElement>) => void;
 }
 
 const tabButtons: ButtonItem[] = [
@@ -87,14 +97,19 @@ export const WordExplanationPopover: React.FC<WordExplanationPopoverProps> = ({
   isLoadingSynonyms = false,
   isLoadingAntonyms = false,
   isLoadingTranslation = false,
+  isSaved = false,
+  isSavingWord = false,
+  onBookmarkClick,
   onGetMoreExamples,
   onGetSynonyms,
   onGetAntonyms,
   onTranslate,
   onAskAI,
+  onAskAIButtonMount,
 }) => {
   const wasVisible = useRef(false);
   const [position, setPosition] = useState<{ top: number; left: number } | null>(null);
+  const askAIButtonRef = useRef<HTMLButtonElement>(null);
 
   console.log('[WordExplanationPopover] Render with props:', {
     visible,
@@ -288,6 +303,13 @@ export const WordExplanationPopover: React.FC<WordExplanationPopoverProps> = ({
     onAskAI?.();
   };
 
+  // Pass Ask AI button ref to parent when mounted
+  useEffect(() => {
+    if (askAIButtonRef.current) {
+      onAskAIButtonMount?.(askAIButtonRef);
+    }
+  }, [onAskAIButtonMount]);
+
   const handleGetSynonyms = () => {
     console.log('[WordExplanationPopover] Get synonyms clicked');
     onGetSynonyms?.();
@@ -300,8 +322,8 @@ export const WordExplanationPopover: React.FC<WordExplanationPopoverProps> = ({
 
   const handleTranslate = () => {
     console.log('[WordExplanationPopover] Translate clicked');
-    // For now, translate to Spanish (ES) - can be made configurable later
-    onTranslate?.('ES');
+    // Language will be retrieved from Chrome storage in the handler
+    onTranslate?.();
   };
 
   // Don't render if shouldn't be visible
@@ -342,8 +364,17 @@ export const WordExplanationPopover: React.FC<WordExplanationPopoverProps> = ({
       {/* Header with Word and Bookmark */}
       <div className={getClassName('header')}>
         <span className={getClassName('headerWord')}>{word}</span>
-        <button className={getClassName('headerBookmark')} aria-label="Bookmark">
-          <Bookmark size={18} strokeWidth={2} />
+        <button 
+          className={`${getClassName('headerBookmark')} ${isSaved ? getClassName('headerBookmarkSaved') : ''}`}
+          aria-label={isSaved ? "Remove bookmark" : "Bookmark"}
+          onClick={onBookmarkClick}
+          disabled={isSavingWord}
+        >
+          {isSavingWord ? (
+            <div className={getClassName('bookmarkSpinner')} />
+          ) : (
+            <Bookmark size={18} strokeWidth={2} fill={isSaved ? "currentColor" : "none"} />
+          )}
         </button>
       </div>
 
@@ -365,35 +396,34 @@ export const WordExplanationPopover: React.FC<WordExplanationPopoverProps> = ({
             {synonyms.length > 0 && (
               <div className={getClassName('section')}>
                 <strong className={getClassName('sectionTitle')}>Synonyms:</strong>
-                <ul className={getClassName('list')}>
-                  {synonyms.map((syn, idx) => (
-                    <li key={idx} className={getClassName('listItem')}>{syn}</li>
-                  ))}
-                </ul>
+                <div className={getClassName('commaSeparated')}>
+                  {synonyms.join(', ')}
+                </div>
               </div>
             )}
             
             {antonyms.length > 0 && (
               <div className={getClassName('section')}>
                 <strong className={getClassName('sectionTitle')}>Antonyms:</strong>
-                <ul className={getClassName('list')}>
-                  {antonyms.map((ant, idx) => (
-                    <li key={idx} className={getClassName('listItem')}>{ant}</li>
-                  ))}
-                </ul>
+                <div className={getClassName('commaSeparated')}>
+                  {antonyms.join(', ')}
+                </div>
               </div>
             )}
             
             {translations.length > 0 && (
               <div className={getClassName('section')}>
-                <strong className={getClassName('sectionTitle')}>Translations:</strong>
-                <ul className={getClassName('list')}>
+                <strong className={getClassName('sectionTitle')}>
+                  Translation{translations.length > 1 ? 's' : ''}({translations.map(t => t.language).join(', ')}):
+                </strong>
+                <div className={getClassName('commaSeparated')}>
                   {translations.map((trans, idx) => (
-                    <li key={idx} className={getClassName('listItem')}>
-                      <strong>{trans.language}:</strong> {trans.translated_content}
-                    </li>
+                    <span key={idx}>
+                      {trans.translated_content}
+                      {idx < translations.length - 1 && ', '}
+                    </span>
                   ))}
-                </ul>
+                </div>
               </div>
             )}
             
@@ -439,6 +469,7 @@ export const WordExplanationPopover: React.FC<WordExplanationPopoverProps> = ({
             </div>
             <div className={getClassName('utilityButtonWrapper')}>
               <button 
+                ref={askAIButtonRef}
                 className={getClassName('utilityButton')} 
                 onClick={handleAskAI}
                 onMouseEnter={() => setActiveTooltip('askAI')}
