@@ -40,6 +40,7 @@ import wordExplanationPopoverStyles from './styles/wordExplanationPopover.shadow
 import wordAskAISidePanelStyles from './styles/wordAskAISidePanel.shadow.css?inline';
 import folderListModalStyles from './styles/folderListModal.shadow.css?inline';
 import savedParagraphIconStyles from './styles/savedParagraphIcon.shadow.css?inline';
+import saveLinkModalStyles from './styles/saveLinkModal.shadow.css?inline';
 
 // Import color CSS variables
 import { FAB_COLOR_VARIABLES } from '../constants/colors.css.js';
@@ -784,6 +785,7 @@ function updateSidePanel(initialTab?: 'summary' | 'settings' | 'my'): void {
           useShadowDom: true,
           onClose: () => setSidePanelOpen(false),
           initialTab: initialTab,
+          onShowToast: showToast,
         })
       )
     );
@@ -813,6 +815,7 @@ function injectSidePanel(): void {
   
   // Inject component styles
   injectStyles(shadow, sidePanelStyles);
+  injectStyles(shadow, saveLinkModalStyles);
 
   // Append to document
   document.body.appendChild(host);
@@ -826,6 +829,7 @@ function injectSidePanel(): void {
         useShadowDom: true,
         onClose: () => setSidePanelOpen(false),
         initialTab: 'summary',
+        onShowToast: showToast,
       })
     )
   );

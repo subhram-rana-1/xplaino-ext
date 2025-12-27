@@ -1,14 +1,27 @@
 // src/content/components/SidePanel/SidePanel.tsx
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { useSetAtom } from 'jotai';
+import { useSetAtom, useAtomValue } from 'jotai';
 import styles from './SidePanel.module.css';
 import { Header } from './Header';
 import { Footer } from './Footer';
 import { SummaryView } from './SummaryView';
 import { SettingsView } from './SettingsView';
 import { MyView } from './MyView';
+import { SaveLinkModal } from '../SaveLinkModal/SaveLinkModal';
 import { ChromeStorage } from '@/storage/chrome-local/ChromeStorage';
 import { showLoginModalAtom } from '@/store/uiAtoms';
+import { summaryAtom, summariseStateAtom } from '@/store/summaryAtoms';
+import { SavedLinkService } from '@/api-services/SavedLinkService';
+
+// Reference link pattern: [[[ ref text ]]]
+const REF_LINK_PATTERN = /\[\[\[\s*(.+?)\s*\]\]\]/g;
+
+/**
+ * Filter out reference links ([[[ text ]]]) from summary text
+ */
+function filterReferenceLinks(summary: string): string {
+  return summary.replace(REF_LINK_PATTERN, '').trim();
+}
 
 export interface SidePanelProps {
   /** Whether panel is open */
@@ -21,6 +34,8 @@ export interface SidePanelProps {
   onLoginRequired?: () => void;
   /** Initial tab to show when panel opens */
   initialTab?: TabType;
+  /** Callback to show toast message */
+  onShowToast?: (message: string, type?: 'success' | 'error') => void;
 }
 
 type TabType = 'summary' | 'settings' | 'my';
@@ -35,16 +50,30 @@ export const SidePanel: React.FC<SidePanelProps> = ({
   useShadowDom = false,
   onLoginRequired,
   initialTab,
+  onShowToast,
 }) => {
   const [activeTab, setActiveTab] = useState<TabType>(initialTab || 'summary');
   const [width, setWidth] = useState(DEFAULT_WIDTH);
   const [isVerticallyExpanded, setIsVerticallyExpanded] = useState(false);
   const [isSlidingOut, setIsSlidingOut] = useState(false);
   const [expandedLoaded, setExpandedLoaded] = useState(false);
+  const [isSaveLinkModalOpen, setIsSaveLinkModalOpen] = useState(false);
+  const [isSavingLink, setIsSavingLink] = useState(false);
+  const [savedLinkId, setSavedLinkId] = useState<string | null>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   
   // Jotai setter for login modal
   const setShowLoginModal = useSetAtom(showLoginModalAtom);
+  
+  // Get summary state to determine bookmark visibility
+  const summary = useAtomValue(summaryAtom);
+  const summariseState = useAtomValue(summariseStateAtom);
+  
+  // Determine if bookmark should be shown
+  const showBookmark = activeTab === 'summary' && summariseState === 'done' && summary.trim().length > 0;
+  
+  // Determine if bookmark is filled (saved)
+  const isBookmarked = savedLinkId !== null;
 
   // Handle login button click - show login modal
   const handleLoginClick = useCallback(() => {
@@ -135,6 +164,137 @@ export const SidePanel: React.FC<SidePanelProps> = ({
     setIsVerticallyExpanded((prev) => !prev);
   }, []);
 
+  // Handle remove link
+  const handleRemoveLink = useCallback(async () => {
+    if (!savedLinkId) {
+      return;
+    }
+
+    await SavedLinkService.removeSavedLink(
+      savedLinkId,
+      {
+        onSuccess: () => {
+          console.log('[SidePanel] Link removed successfully');
+          setSavedLinkId(null); // Clear saved link ID
+          onShowToast?.('Link removed successfully!', 'success');
+        },
+        onError: (errorCode, errorMessage) => {
+          console.error('[SidePanel] Failed to remove link:', errorCode, errorMessage);
+          let displayMessage = 'Failed to remove link';
+          
+          if (errorCode === 'NOT_FOUND') {
+            displayMessage = 'Link not found';
+          } else if (errorCode === 'NETWORK_ERROR') {
+            displayMessage = 'Network error. Please check your connection.';
+          } else if (errorMessage) {
+            displayMessage = errorMessage;
+          }
+          
+          onShowToast?.(displayMessage, 'error');
+        },
+        onLoginRequired: () => {
+          console.log('[SidePanel] Login required for removing link');
+          setShowLoginModal(true);
+          onLoginRequired?.();
+        },
+        onSubscriptionRequired: () => {
+          console.log('[SidePanel] Subscription required for removing link');
+          onShowToast?.('Subscription required to remove links', 'error');
+        },
+      }
+    );
+  }, [savedLinkId, onShowToast, setShowLoginModal, onLoginRequired]);
+
+  // Handle bookmark click - toggle between save and remove
+  const handleBookmark = useCallback(() => {
+    if (savedLinkId) {
+      // If already saved, remove it
+      handleRemoveLink();
+    } else {
+      // If not saved, show modal to save
+      if (!summary || summary.trim().length === 0) {
+        onShowToast?.('No summary available to save', 'error');
+        return;
+      }
+      setIsSaveLinkModalOpen(true);
+    }
+  }, [savedLinkId, summary, onShowToast, handleRemoveLink]);
+
+  // Handle save from modal
+  const handleSaveLink = useCallback(async (name: string) => {
+    if (!summary || summary.trim().length === 0) {
+      onShowToast?.('No summary available to save', 'error');
+      setIsSaveLinkModalOpen(false);
+      return;
+    }
+
+    setIsSavingLink(true);
+
+    const currentUrl = window.location.href;
+    const pageTitle = document.title || '';
+
+    // Limit URL length to 1024 characters (API constraint)
+    const urlToSave = currentUrl.length > 1024 ? currentUrl.substring(0, 1024) : currentUrl;
+    
+    // Use provided name or fall back to page title, limit to 50 characters (API constraint)
+    const nameToSave = (name || pageTitle).length > 50 
+      ? (name || pageTitle).substring(0, 50) 
+      : (name || pageTitle);
+
+    // Filter out reference links from summary
+    const filteredSummary = filterReferenceLinks(summary);
+
+    await SavedLinkService.saveLink(
+      {
+        url: urlToSave,
+        summary: filteredSummary,
+        name: nameToSave || undefined,
+      },
+      {
+        onSuccess: (response) => {
+          console.log('[SidePanel] Link saved successfully:', response);
+          setIsSavingLink(false);
+          setIsSaveLinkModalOpen(false);
+          setSavedLinkId(response.id); // Store saved link ID
+          onShowToast?.('Link saved successfully!', 'success');
+        },
+        onError: (errorCode, errorMessage) => {
+          console.error('[SidePanel] Failed to save link:', errorCode, errorMessage);
+          setIsSavingLink(false);
+          let displayMessage = 'Failed to save link';
+          
+          // Handle specific error codes
+          if (errorCode === 'VAL_001') {
+            displayMessage = 'URL is too long';
+          } else if (errorCode === 'VAL_002') {
+            displayMessage = 'Name is too long';
+          } else if (errorCode === 'NOT_FOUND') {
+            displayMessage = 'Folder not found';
+          } else if (errorCode === 'NETWORK_ERROR') {
+            displayMessage = 'Network error. Please check your connection.';
+          } else if (errorMessage) {
+            displayMessage = errorMessage;
+          }
+          
+          onShowToast?.(displayMessage, 'error');
+        },
+        onLoginRequired: () => {
+          console.log('[SidePanel] Login required for saving link');
+          setIsSavingLink(false);
+          setIsSaveLinkModalOpen(false);
+          setShowLoginModal(true);
+          onLoginRequired?.();
+        },
+        onSubscriptionRequired: () => {
+          console.log('[SidePanel] Subscription required for saving link');
+          setIsSavingLink(false);
+          setIsSaveLinkModalOpen(false);
+          onShowToast?.('Subscription required to save links', 'error');
+        },
+      }
+    );
+  }, [summary, onShowToast, setShowLoginModal, onLoginRequired]);
+
   // Class names for Shadow DOM vs CSS Modules
   const sidePanelClass = getClassName(
     `sidePanel ${isOpen ? 'open' : ''} ${isSlidingOut ? 'slidingOut' : ''} ${isVerticallyExpanded ? 'verticallyExpanded' : ''}`,
@@ -163,6 +323,10 @@ export const SidePanel: React.FC<SidePanelProps> = ({
         brandImageSrc={chrome.runtime.getURL('src/assets/photos/brand-name.png')}
         useShadowDom={useShadowDom}
         isExpanded={isVerticallyExpanded}
+        activeTab={activeTab}
+        onBookmark={handleBookmark}
+        showBookmark={showBookmark}
+        isBookmarked={isBookmarked}
       />
 
       {/* Content */}
@@ -186,6 +350,20 @@ export const SidePanel: React.FC<SidePanelProps> = ({
         activeTab={activeTab}
         onTabChange={setActiveTab}
         useShadowDom={useShadowDom}
+      />
+
+      {/* Save Link Modal */}
+      <SaveLinkModal
+        isOpen={isSaveLinkModalOpen}
+        onClose={() => {
+          if (!isSavingLink) {
+            setIsSaveLinkModalOpen(false);
+          }
+        }}
+        onSave={handleSaveLink}
+        initialName={document.title || ''}
+        useShadowDom={useShadowDom}
+        isSaving={isSavingLink}
       />
     </div>
   );

@@ -1,7 +1,7 @@
 // src/content/components/SidePanel/Header.tsx
 import React, { useState, useEffect, useRef } from 'react';
 import { useAtomValue, useSetAtom } from 'jotai';
-import { ChevronRight } from 'lucide-react';
+import { ChevronRight, Bookmark } from 'lucide-react';
 import styles from './Header.module.css';
 import { UserProfilePopover } from './UserProfilePopover';
 import { userAuthInfoAtom } from '@/store/uiAtoms';
@@ -67,6 +67,14 @@ export interface HeaderProps {
   useShadowDom?: boolean;
   /** Whether the panel is vertically expanded */
   isExpanded?: boolean;
+  /** Active tab type */
+  activeTab?: 'summary' | 'settings' | 'my';
+  /** Bookmark handler */
+  onBookmark?: () => void;
+  /** Whether to show bookmark icon */
+  showBookmark?: boolean;
+  /** Whether the bookmark is filled (saved) */
+  isBookmarked?: boolean;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -77,6 +85,10 @@ export const Header: React.FC<HeaderProps> = ({
   onLogin,
   useShadowDom = false,
   isExpanded = false,
+  activeTab,
+  onBookmark,
+  showBookmark = false,
+  isBookmarked = false,
 }) => {
   const userAuthInfo = useAtomValue(userAuthInfoAtom);
   const setUserAuthInfo = useSetAtom(userAuthInfoAtom);
@@ -220,61 +232,81 @@ export const Header: React.FC<HeaderProps> = ({
         </button>
       </div>
 
-      {/* Center: Branding */}
-      <div className={getClassName('headerCenter')}>
-        {brandImageSrc ? (
-          <img
-            src={brandImageSrc}
-            alt="Xplaino"
-            className={getClassName('headerBrand')}
-            onClick={handleBrandClick}
-          />
-        ) : (
-          <div
-            className={getClassName('headerBrand')}
-            onClick={handleBrandClick}
-          >
-            Xplaino
-          </div>
-        )}
-      </div>
-
-      {/* Right: Login or Profile */}
-      <div className={getClassName('headerRight')}>
-        {isLoggedIn && userAuthInfo ? (
-          <div className={getClassName('profileContainer')} ref={profileRef}>
-            <button
-              ref={profileButtonRef}
-              className={getClassName('profilePictureButton')}
-              onClick={handleProfileClick}
-              aria-label="User profile"
-              type="button"
+      {/* Center: Branding - Hide when summary tab is active */}
+      {activeTab !== 'summary' && (
+        <div className={getClassName('headerCenter')}>
+          {brandImageSrc ? (
+            <img
+              src={brandImageSrc}
+              alt="Xplaino"
+              className={getClassName('headerBrand')}
+              onClick={handleBrandClick}
+            />
+          ) : (
+            <div
+              className={getClassName('headerBrand')}
+              onClick={handleBrandClick}
             >
-              <img
-                src={userAuthInfo.user?.picture || ''}
-                alt={userAuthInfo.user?.name || 'User'}
-                className={getClassName('profilePicture')}
-              />
-            </button>
-            {showPopover && (
-              <UserProfilePopover
-                userName={userAuthInfo.user?.name || ''}
-                useShadowDom={useShadowDom}
-                onClose={handleClosePopover}
-                sourceRef={profileButtonRef}
-                onCloseRequest={handlePopoverCloseRequest}
-              />
-            )}
-          </div>
-        ) : (
+              Xplaino
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Right: Bookmark (summary tab) or Login/Profile (other tabs) */}
+      <div className={getClassName('headerRight')}>
+        {activeTab === 'summary' && showBookmark ? (
           <button
-            className={getClassName('loginButton')}
-            onClick={handleLogin}
-            aria-label="Login"
+            className={getClassName('headerIconButton')}
+            onClick={onBookmark}
+            aria-label={isBookmarked ? "Remove saved link" : "Save link"}
+            title={isBookmarked ? "Remove saved link" : "Save link"}
             type="button"
           >
-            LOGIN
+            <Bookmark 
+              size={18} 
+              fill={isBookmarked ? "#9527F5" : "none"} 
+              color={isBookmarked ? "#9527F5" : "currentColor"} 
+            />
           </button>
+        ) : activeTab !== 'summary' && (
+          <>
+            {isLoggedIn && userAuthInfo ? (
+              <div className={getClassName('profileContainer')} ref={profileRef}>
+                <button
+                  ref={profileButtonRef}
+                  className={getClassName('profilePictureButton')}
+                  onClick={handleProfileClick}
+                  aria-label="User profile"
+                  type="button"
+                >
+                  <img
+                    src={userAuthInfo.user?.picture || ''}
+                    alt={userAuthInfo.user?.name || 'User'}
+                    className={getClassName('profilePicture')}
+                  />
+                </button>
+                {showPopover && (
+                  <UserProfilePopover
+                    userName={userAuthInfo.user?.name || ''}
+                    useShadowDom={useShadowDom}
+                    onClose={handleClosePopover}
+                    sourceRef={profileButtonRef}
+                    onCloseRequest={handlePopoverCloseRequest}
+                  />
+                )}
+              </div>
+            ) : (
+              <button
+                className={getClassName('loginButton')}
+                onClick={handleLogin}
+                aria-label="Login"
+                type="button"
+              >
+                LOGIN
+              </button>
+            )}
+          </>
         )}
       </div>
     </div>
