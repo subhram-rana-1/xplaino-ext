@@ -167,6 +167,7 @@ export const SidePanel: React.FC<SidePanelProps> = ({
   // Handle remove link
   const handleRemoveLink = useCallback(async () => {
     if (!savedLinkId) {
+      onShowToast?.('No saved link to remove', 'error');
       return;
     }
 
@@ -182,12 +183,23 @@ export const SidePanel: React.FC<SidePanelProps> = ({
           console.error('[SidePanel] Failed to remove link:', errorCode, errorMessage);
           let displayMessage = 'Failed to remove link';
           
+          // Handle specific error codes with user-friendly messages
           if (errorCode === 'NOT_FOUND') {
-            displayMessage = 'Link not found';
+            displayMessage = 'Link not found or already removed';
+            // Clear saved link ID if link doesn't exist
+            setSavedLinkId(null);
+          } else if (errorCode === 'LOGIN_REQUIRED' || errorCode === 'AUTH_001' || errorCode === 'AUTH_002' || errorCode === 'AUTH_003') {
+            displayMessage = 'Please login to remove links';
           } else if (errorCode === 'NETWORK_ERROR') {
-            displayMessage = 'Network error. Please check your connection.';
-          } else if (errorMessage) {
+            displayMessage = 'Network error. Please check your connection and try again.';
+          } else if (errorCode === 'ABORTED') {
+            displayMessage = 'Request was cancelled';
+          } else if (errorCode === 'UNAUTHORIZED') {
+            displayMessage = 'Unauthorized. Please login and try again.';
+          } else if (errorMessage && errorMessage.trim().length > 0) {
             displayMessage = errorMessage;
+          } else {
+            displayMessage = `Failed to remove link (${errorCode})`;
           }
           
           onShowToast?.(displayMessage, 'error');
@@ -196,6 +208,7 @@ export const SidePanel: React.FC<SidePanelProps> = ({
           console.log('[SidePanel] Login required for removing link');
           setShowLoginModal(true);
           onLoginRequired?.();
+          onShowToast?.('Please login to remove links', 'error');
         },
         onSubscriptionRequired: () => {
           console.log('[SidePanel] Subscription required for removing link');

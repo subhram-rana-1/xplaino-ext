@@ -68,6 +68,19 @@
   stroke: var(--color-primary) !important;
 }
 
+/* Bookmarked state - allow fill to be set */
+.headerIconButton.bookmarked svg {
+  fill: #9527F5 !important;
+  color: #9527F5 !important;
+  stroke: #9527F5 !important;
+}
+
+.headerIconButton.bookmarked:hover svg {
+  fill: #7c1ed9 !important;
+  color: #7c1ed9 !important;
+  stroke: #7c1ed9 !important;
+}
+
 /* Center Section: Branding */
 .headerCenter {
   display: flex !important;

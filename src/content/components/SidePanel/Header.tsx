@@ -257,7 +257,7 @@ export const Header: React.FC<HeaderProps> = ({
       <div className={getClassName('headerRight')}>
         {activeTab === 'summary' && showBookmark ? (
           <button
-            className={getClassName('headerIconButton')}
+            className={`${getClassName('headerIconButton')} ${isBookmarked ? getClassName('bookmarked') : ''}`}
             onClick={onBookmark}
             aria-label={isBookmarked ? "Remove saved link" : "Save link"}
             title={isBookmarked ? "Remove saved link" : "Save link"}

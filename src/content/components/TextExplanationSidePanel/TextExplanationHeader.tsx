@@ -136,7 +136,7 @@ export const TextExplanationHeader: React.FC<TextExplanationHeaderProps> = ({
           </button>
           {/* Bookmark button - always show */}
           <button
-            className={getClassName('headerIconButton')}
+            className={`${getClassName('headerIconButton')} ${isBookmarked ? getClassName('bookmarked') : ''}`}
             onClick={onBookmark}
             aria-label={isBookmarked ? "Remove bookmark" : "Bookmark text"}
             title={isBookmarked ? "Remove bookmark" : "Bookmark text"}
