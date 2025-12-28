@@ -35,6 +35,8 @@ export interface FolderListModalProps {
   onNameChange?: (name: string) => void;
   /** Custom modal title (defaults to "Choose folder") */
   modalTitle?: string;
+  /** Mode: 'paragraph' or 'link' - used for context-aware labels */
+  mode?: 'paragraph' | 'link';
 }
 
 interface FolderTreeItemProps {
@@ -45,6 +47,15 @@ interface FolderTreeItemProps {
   getClassName: (name: string) => string;
   expandedFolders: Set<string>;
   toggleFolder: (folderId: string) => void;
+  onAddSubFolder?: (parentFolderId: string) => void;
+  editingFolderId: string | null;
+  editingFolderParentId: string | null;
+  editingFolderName: string;
+  onEditingFolderNameChange: (name: string) => void;
+  onEditingFolderSubmit: (parentFolderId: string | null) => void;
+  onEditingFolderCancel: () => void;
+  editingInputRef: React.RefObject<HTMLInputElement>;
+  isCreatingFolder: boolean;
 }
 
 const FolderTreeItem: React.FC<FolderTreeItemProps> = ({
@@ -55,10 +66,41 @@ const FolderTreeItem: React.FC<FolderTreeItemProps> = ({
   getClassName,
   expandedFolders,
   toggleFolder,
+  onAddSubFolder,
+  editingFolderId,
+  editingFolderParentId,
+  editingFolderName,
+  onEditingFolderNameChange,
+  onEditingFolderSubmit,
+  onEditingFolderCancel,
+  editingInputRef,
+  isCreatingFolder,
 }) => {
+  const [isHovered, setIsHovered] = useState(false);
   const isExpanded = expandedFolders.has(folder.id);
   const isSelected = selectedFolderId === folder.id;
   const hasSubFolders = folder.subFolders && folder.subFolders.length > 0;
+  const isEditingThisFolder = editingFolderId === folder.id;
+  const isEditingChild = editingFolderParentId === folder.id;
+
+  const handleAddSubFolderClick = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (onAddSubFolder) {
+      onAddSubFolder(folder.id);
+    }
+  }, [folder.id, onAddSubFolder]);
+
+  const handleEditingKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      e.stopPropagation();
+      onEditingFolderSubmit(folder.id);
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      e.stopPropagation();
+      onEditingFolderCancel();
+    }
+  }, [folder.id, onEditingFolderSubmit, onEditingFolderCancel]);
 
   return (
     <>
@@ -66,6 +108,8 @@ const FolderTreeItem: React.FC<FolderTreeItemProps> = ({
         className={`${getClassName('folderItem')} ${isSelected ? getClassName('folderItemSelected') : ''}`}
         style={{ paddingLeft: `${level * 20 + 12}px` }}
         onClick={() => onSelectFolder(folder.id)}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
       >
         {hasSubFolders && (
           <button
@@ -91,9 +135,49 @@ const FolderTreeItem: React.FC<FolderTreeItemProps> = ({
             <Folder size={18} />
           )}
         </div>
-        <span className={getClassName('folderName')}>{folder.name}</span>
+        {isEditingThisFolder ? (
+          <>
+            <input
+              ref={editingInputRef}
+              type="text"
+              className={getClassName('editingFolderInput')}
+              value={editingFolderName}
+              onChange={(e) => onEditingFolderNameChange(e.target.value)}
+              onKeyDown={handleEditingKeyDown}
+              onClick={(e) => e.stopPropagation()}
+              disabled={isCreatingFolder}
+              maxLength={50}
+            />
+            <button
+              className={getClassName('cancelEditButton')}
+              onClick={(e) => {
+                e.stopPropagation();
+                onEditingFolderCancel();
+              }}
+              title="Cancel"
+              aria-label="Cancel"
+              disabled={isCreatingFolder}
+            >
+              <X size={16} />
+            </button>
+          </>
+        ) : (
+          <span className={getClassName('folderName')}>{folder.name}</span>
+        )}
+        {!isEditingThisFolder && onAddSubFolder && (
+          <div className={getClassName('folderItemActions')}>
+            <button
+              className={`${getClassName('addFolderButton')} ${isHovered ? getClassName('addFolderButtonVisible') : ''}`}
+              onClick={handleAddSubFolderClick}
+              title="Add new folder"
+              aria-label="Add new folder"
+            >
+              <Plus size={16} />
+            </button>
+          </div>
+        )}
       </div>
-      {hasSubFolders && isExpanded && (
+      {(hasSubFolders || isEditingChild) && isExpanded && (
         <div className={getClassName('subFolders')}>
           {folder.subFolders.map((subFolder) => (
             <FolderTreeItem
@@ -105,8 +189,61 @@ const FolderTreeItem: React.FC<FolderTreeItemProps> = ({
               getClassName={getClassName}
               expandedFolders={expandedFolders}
               toggleFolder={toggleFolder}
+              onAddSubFolder={onAddSubFolder}
+              editingFolderId={editingFolderId}
+              editingFolderParentId={editingFolderParentId}
+              editingFolderName={editingFolderName}
+              onEditingFolderNameChange={onEditingFolderNameChange}
+              onEditingFolderSubmit={onEditingFolderSubmit}
+              onEditingFolderCancel={onEditingFolderCancel}
+              editingInputRef={editingInputRef}
+              isCreatingFolder={isCreatingFolder}
             />
           ))}
+          {isEditingChild && (
+            <div
+              className={`${getClassName('folderItem')} ${getClassName('editingFolderItem')}`}
+              style={{ paddingLeft: `${(level + 1) * 20 + 12}px` }}
+            >
+              <div className={getClassName('expandButtonSpacer')} />
+              <div className={getClassName('folderIcon')}>
+                <Folder size={18} />
+              </div>
+              <input
+                ref={editingInputRef}
+                type="text"
+                className={getClassName('editingFolderInput')}
+                value={editingFolderName}
+                onChange={(e) => onEditingFolderNameChange(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onEditingFolderSubmit(folder.id);
+                  } else if (e.key === 'Escape') {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onEditingFolderCancel();
+                  }
+                }}
+                onClick={(e) => e.stopPropagation()}
+                disabled={isCreatingFolder}
+                maxLength={50}
+              />
+              <button
+                className={getClassName('cancelEditButton')}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onEditingFolderCancel();
+                }}
+                title="Cancel"
+                aria-label="Cancel"
+                disabled={isCreatingFolder}
+              >
+                <X size={16} />
+              </button>
+            </div>
+          )}
         </div>
       )}
     </>
@@ -129,16 +266,18 @@ export const FolderListModal: React.FC<FolderListModalProps> = ({
   initialName = '',
   onNameChange,
   modalTitle = 'Choose folder',
+  mode = 'paragraph',
 }) => {
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(initialSelectedFolderId);
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(
     initialExpandedFolders ? new Set(initialExpandedFolders) : new Set()
   );
-  const [showCreateInput, setShowCreateInput] = useState(false);
-  const [newFolderName, setNewFolderName] = useState('');
+  const [editingFolderId, setEditingFolderId] = useState<string | null>(null);
+  const [editingFolderParentId, setEditingFolderParentId] = useState<string | null>(null);
+  const [editingFolderName, setEditingFolderName] = useState('Untitled');
   const [name, setName] = useState(initialName);
   const [internalRememberChecked, setInternalRememberChecked] = useState(rememberFolderChecked);
-  const createInputRef = useRef<HTMLInputElement>(null);
+  const editingInputRef = useRef<HTMLInputElement>(null);
   const nameInputRef = useRef<HTMLInputElement>(null);
 
   // Update selected folder when initialSelectedFolderId changes (e.g., after folder creation)
@@ -207,41 +346,104 @@ export const FolderListModal: React.FC<FolderListModalProps> = ({
     }
   }, [onClose]);
 
-  const handleCreateFolderClick = useCallback(() => {
-    setShowCreateInput(true);
-    setNewFolderName('');
+  const handleAddRootFolder = useCallback(() => {
+    setEditingFolderId('temp-root');
+    setEditingFolderParentId(null);
+    setEditingFolderName('Untitled');
   }, []);
 
-  const handleCreateFolderSubmit = useCallback(() => {
-    const trimmedName = newFolderName.trim();
+  const handleAddSubFolder = useCallback((parentFolderId: string) => {
+    const tempId = `temp-${Date.now()}`;
+    setEditingFolderId(tempId);
+    setEditingFolderParentId(parentFolderId);
+    setEditingFolderName('Untitled');
+    // Ensure parent folder is expanded
+    setExpandedFolders((prev) => {
+      const newSet = new Set(prev);
+      newSet.add(parentFolderId);
+      return newSet;
+    });
+  }, []);
+
+  const handleEditingFolderSubmit = useCallback((parentFolderId: string | null) => {
+    const trimmedName = editingFolderName.trim();
     if (trimmedName && onCreateFolder) {
-      onCreateFolder(trimmedName, selectedFolderId);
-      setShowCreateInput(false);
-      setNewFolderName('');
+      onCreateFolder(trimmedName, parentFolderId);
+      // Don't clear editing state here - let it persist until API call completes
+      // The editing state will be cleared when folders list updates (on success)
+      // or when user cancels (on error)
     }
-  }, [newFolderName, selectedFolderId, onCreateFolder]);
+  }, [editingFolderName, onCreateFolder]);
 
-  const handleCreateFolderCancel = useCallback(() => {
-    setShowCreateInput(false);
-    setNewFolderName('');
+  const handleEditingFolderCancel = useCallback(() => {
+    setEditingFolderId(null);
+    setEditingFolderParentId(null);
+    setEditingFolderName('Untitled');
   }, []);
 
-  const handleCreateInputKeyDown = useCallback((e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      handleCreateFolderSubmit();
-    } else if (e.key === 'Escape') {
-      e.preventDefault();
-      handleCreateFolderCancel();
-    }
-  }, [handleCreateFolderSubmit, handleCreateFolderCancel]);
-
-  // Focus input when it appears
+  // Focus and select input when editing starts
   useEffect(() => {
-    if (showCreateInput && createInputRef.current) {
-      createInputRef.current.focus();
+    if (editingFolderId && editingInputRef.current) {
+      editingInputRef.current.focus();
+      editingInputRef.current.select();
     }
-  }, [showCreateInput]);
+  }, [editingFolderId]);
+
+  // Track previous state to detect when a folder is successfully added
+  const prevFoldersLengthRef = useRef(folders.length);
+  const prevSubFoldersCountRef = useRef<Map<string, number>>(new Map());
+  
+  // Initialize subfolders count
+  useEffect(() => {
+    const updateCounts = (folderList: FolderWithSubFoldersResponse[]): void => {
+      folderList.forEach(folder => {
+        prevSubFoldersCountRef.current.set(folder.id, folder.subFolders.length);
+        if (folder.subFolders.length > 0) {
+          updateCounts(folder.subFolders);
+        }
+      });
+    };
+    updateCounts(folders);
+  }, []);
+
+  // Clear editing state when a folder is successfully added
+  useEffect(() => {
+    if (editingFolderId && !isCreatingFolder) {
+      let folderAdded = false;
+      
+      if (editingFolderParentId === null) {
+        // Root level: check if folder count increased
+        folderAdded = folders.length > prevFoldersLengthRef.current;
+        prevFoldersLengthRef.current = folders.length;
+      } else {
+        // Subfolder: check if parent's subfolder count increased
+        const findParent = (folderList: FolderWithSubFoldersResponse[]): FolderWithSubFoldersResponse | null => {
+          for (const folder of folderList) {
+            if (folder.id === editingFolderParentId) return folder;
+            if (folder.subFolders.length > 0) {
+              const found = findParent(folder.subFolders);
+              if (found) return found;
+            }
+          }
+          return null;
+        };
+        const parent = findParent(folders);
+        if (parent) {
+          const prevCount = prevSubFoldersCountRef.current.get(editingFolderParentId) || 0;
+          folderAdded = parent.subFolders.length > prevCount;
+          prevSubFoldersCountRef.current.set(editingFolderParentId, parent.subFolders.length);
+        }
+      }
+
+      if (folderAdded) {
+        // Folder was added successfully, clear editing state
+        setEditingFolderId(null);
+        setEditingFolderParentId(null);
+        setEditingFolderName('Untitled');
+      }
+      // If folderAdded is false, keep editing state so user can retry on error
+    }
+  }, [folders, isCreatingFolder, editingFolderId, editingFolderParentId]);
 
   // Handle remember folder checkbox change
   const handleRememberFolderChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -274,6 +476,15 @@ export const FolderListModal: React.FC<FolderListModalProps> = ({
       <div className={getClassName('modalContainer')} onClick={(e) => e.stopPropagation()}>
         <div className={getClassName('modalHeader')}>
           <h2 className={getClassName('modalTitle')}>{modalTitle}</h2>
+          <button
+            className={getClassName('closeButton')}
+            onClick={onClose}
+            disabled={isSaving || isCreatingFolder}
+            aria-label="Close"
+            title="Close"
+          >
+            <X size={20} />
+          </button>
         </div>
 
         <div className={getClassName('modalContent')} onClick={handleModalContentClick}>
@@ -296,104 +507,128 @@ export const FolderListModal: React.FC<FolderListModalProps> = ({
               </div>
             </div>
           )}
-          {/* Create folder input */}
-          {showCreateInput && (
-            <div className={getClassName('createFolderInput')}>
-              <div className={getClassName('folderIcon')}>
-                <Folder size={18} />
-              </div>
-              <input
-                ref={createInputRef}
-                type="text"
-                className={getClassName('folderNameInput')}
-                placeholder="Folder name..."
-                value={newFolderName}
-                onChange={(e) => setNewFolderName(e.target.value)}
-                onKeyDown={handleCreateInputKeyDown}
-                disabled={isCreatingFolder}
-                maxLength={50}
+          <div className={getClassName('folderList')} onClick={handleFolderListClick}>
+            {/* Folder list label */}
+            {folders.length > 0 && !editingFolderId && (
+              <div className={getClassName('folderListLabel')}>Choose folder</div>
+            )}
+            {/* Folder tree */}
+            {folders.map((folder) => (
+              <FolderTreeItem
+                key={folder.id}
+                folder={folder}
+                level={0}
+                selectedFolderId={selectedFolderId}
+                onSelectFolder={handleSelectFolder}
+                getClassName={getClassName}
+                expandedFolders={expandedFolders}
+                toggleFolder={toggleFolder}
+                onAddSubFolder={handleAddSubFolder}
+                editingFolderId={editingFolderId}
+                editingFolderParentId={editingFolderParentId}
+                editingFolderName={editingFolderName}
+                onEditingFolderNameChange={setEditingFolderName}
+                onEditingFolderSubmit={handleEditingFolderSubmit}
+                onEditingFolderCancel={handleEditingFolderCancel}
+                editingInputRef={editingInputRef}
+                isCreatingFolder={isCreatingFolder}
               />
-              {isCreatingFolder ? (
-                <div className={getClassName('createInputSpinner')} />
-              ) : (
-                <button
-                  className={getClassName('cancelCreateButton')}
-                  onClick={handleCreateFolderCancel}
-                  aria-label="Cancel"
-                  title="Cancel"
-                >
-                  <X size={18} />
-                </button>
-              )}
-            </div>
-          )}
-
-          {folders.length === 0 && !showCreateInput ? (
-            <div className={getClassName('emptyState')}>
-              <p>No folders available. Please create a folder first.</p>
-            </div>
-          ) : (
-            <div className={getClassName('folderList')} onClick={handleFolderListClick}>
-              {/* Folder list label */}
-              {folders.length > 0 && !showCreateInput && (
-                <div className={getClassName('folderListLabel')}>Choose folder</div>
-              )}
-              {/* Folder tree */}
-              {folders.map((folder) => (
-                <FolderTreeItem
-                  key={folder.id}
-                  folder={folder}
-                  level={0}
-                  selectedFolderId={selectedFolderId}
-                  onSelectFolder={handleSelectFolder}
-                  getClassName={getClassName}
-                  expandedFolders={expandedFolders}
-                  toggleFolder={toggleFolder}
+            ))}
+            {/* Root-level editing folder */}
+            {editingFolderId === 'temp-root' && (
+              <div
+                className={`${getClassName('folderItem')} ${getClassName('editingFolderItem')}`}
+                style={{ paddingLeft: '12px' }}
+              >
+                <div className={getClassName('expandButtonSpacer')} />
+                <div className={getClassName('folderIcon')}>
+                  <Folder size={18} />
+                </div>
+                <input
+                  ref={editingInputRef}
+                  type="text"
+                  className={getClassName('editingFolderInput')}
+                  value={editingFolderName}
+                  onChange={(e) => setEditingFolderName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleEditingFolderSubmit(null);
+                    } else if (e.key === 'Escape') {
+                      e.preventDefault();
+                      handleEditingFolderCancel();
+                    }
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                  disabled={isCreatingFolder}
+                  maxLength={50}
                 />
-              ))}
-            </div>
-          )}
+                <button
+                  className={getClassName('cancelEditButton')}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleEditingFolderCancel();
+                  }}
+                  title="Cancel"
+                  aria-label="Cancel"
+                  disabled={isCreatingFolder}
+                >
+                  <X size={16} />
+                </button>
+              </div>
+            )}
+            {/* Root-level add folder button */}
+            {!editingFolderId && (
+              <div className={getClassName('addFolderButtonRoot')}>
+                {folders.length === 0 && (
+                  <div className={getClassName('createFolderPrompt')}>
+                    Please create folder to save
+                  </div>
+                )}
+                <button
+                  className={getClassName('addFolderButtonRootButton')}
+                  onClick={handleAddRootFolder}
+                  title="Add new folder"
+                  aria-label="Add new folder"
+                >
+                  <Plus size={16} />
+                  <span>Add new folder</span>
+                </button>
+              </div>
+            )}
+          </div>
         </div>
 
         <div className={getClassName('modalFooter')}>
-          <div className={getClassName('footerLeft')}>
-            <label className={getClassName('rememberFolderLabel')}>
-              <input
-                type="checkbox"
-                className={getClassName('rememberFolderCheckbox')}
-                checked={internalRememberChecked}
-                onChange={handleRememberFolderChange}
-                disabled={selectedFolderId === null || isSaving || isCreatingFolder}
-              />
-              <span>Remember my folder</span>
-            </label>
-          </div>
-          <div className={getClassName('footerRight')}>
-            <button
-              className={getClassName('createFolderButton')}
-              onClick={handleCreateFolderClick}
-              disabled={isSaving || isCreatingFolder || showCreateInput}
-            >
-              <Plus size={16} />
-              Create Folder
-            </button>
-            <div className={getClassName('footerButtons')}>
-            <button
-              className={getClassName('cancelButton')}
-              onClick={onClose}
-              disabled={isSaving || isCreatingFolder}
-            >
-              Cancel
-            </button>
-            <button
-              className={getClassName('saveButton')}
-              onClick={handleSave}
-              disabled={isSaving || isCreatingFolder || selectedFolderId === null}
-            >
-              {isSaving ? 'Saving...' : 'Save Text'}
-            </button>
-          </div>
-          </div>
+          {/* Remember my folder checkbox - shown only when folder is selected */}
+          {selectedFolderId !== null && !isSaving && !isCreatingFolder && (
+            <div className={getClassName('footerLeft')}>
+              <label className={getClassName('rememberFolderLabel')}>
+                <input
+                  type="checkbox"
+                  className={getClassName('rememberFolderCheckbox')}
+                  checked={internalRememberChecked}
+                  onChange={handleRememberFolderChange}
+                />
+                <span>
+                  {mode === 'link' ? 'Remember my folder for links' : 'Remember my folder for paragraph'}
+                </span>
+              </label>
+            </div>
+          )}
+          {selectedFolderId !== null && !isCreatingFolder && (
+            <div className={getClassName('footerRight')}>
+              <div className={getClassName('footerButtons')}>
+                <button
+                  className={getClassName('saveButton')}
+                  onClick={handleSave}
+                  disabled={isSaving}
+                >
+                  {isSaving ? 'Saving...' : 'Save Text'}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

@@ -27,7 +27,7 @@
   z-index: 2147483640 !important;
   display: flex !important;
   flex-direction: column !important;
-  gap: 12px !important;
+  gap: 8px !important;
   box-sizing: border-box !important;
   opacity: 1 !important;
   visibility: visible !important;
@@ -41,6 +41,12 @@
   align-items: center !important;
   padding-bottom: 12px !important;
   border-bottom: 1px solid rgba(149, 39, 245, 0.1) !important;
+}
+
+.headerLeft {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
 }
 
 .headerWord {
@@ -81,6 +87,46 @@
   display: block !important;
 }
 
+.headerCopyButton {
+  background: none !important;
+  border: none !important;
+  cursor: pointer !important;
+  padding: 4px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 6px !important;
+  border-radius: 8px !important;
+  transition: all 0.2s ease !important;
+  color: var(--color-text-secondary, #718096) !important;
+}
+
+.headerCopyButton:hover {
+  background: #eaddf8 !important;
+  color: var(--color-primary, #9527F5) !important;
+}
+
+.headerCopyButton svg {
+  display: block !important;
+}
+
+.headerCopyButtonCopied {
+  color: #10B981 !important;
+}
+
+.headerCopyButtonCopied:hover {
+  background: none !important;
+  color: #10B981 !important;
+}
+
+.headerCopiedText {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  color: #10B981 !important;
+  transition: all 0.2s ease !important;
+}
+
 .bookmarkSpinner {
   width: 18px !important;
   height: 18px !important;
@@ -99,6 +145,8 @@
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
   font-size: 14px !important;
   line-height: 1.6 !important;
+  margin-bottom: 0 !important;
+  padding-bottom: 0 !important;
 }
 
 .mainContent p {
@@ -144,7 +192,7 @@
   justify-content: flex-end !important;
   align-items: center !important;
   gap: 6px !important;
-  padding-top: 8px !important;
+  padding-top: 4px !important;
   min-width: 124px !important;
 }
 

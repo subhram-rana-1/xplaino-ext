@@ -36,6 +36,8 @@ export interface SidePanelProps {
   initialTab?: TabType;
   /** Callback to show toast message */
   onShowToast?: (message: string, type?: 'success' | 'error') => void;
+  /** Callback to show bookmark toast */
+  onShowBookmarkToast?: (type: 'word' | 'paragraph' | 'link', urlPath: string) => void;
   /** Callback when bookmark is clicked (for folder selection) */
   onBookmark?: () => void;
   /** Initial saved link ID (from content script) */
@@ -55,6 +57,7 @@ export const SidePanel: React.FC<SidePanelProps> = ({
   onLoginRequired,
   initialTab,
   onShowToast,
+  onShowBookmarkToast,
   onBookmark,
   initialSavedLinkId = null,
 }) => {
@@ -288,6 +291,7 @@ export const SidePanel: React.FC<SidePanelProps> = ({
           setIsSaveLinkModalOpen(false);
           setSavedLinkId(response.id); // Store saved link ID
           onShowToast?.('Link saved successfully!', 'success');
+          onShowBookmarkToast?.('link', '/user/saved-links');
         },
         onError: (errorCode, errorMessage) => {
           console.error('[SidePanel] Failed to save link:', errorCode, errorMessage);

@@ -1,7 +1,7 @@
 // src/content/components/WordExplanationPopover/WordExplanationPopover.tsx
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
-import { BookText, GraduationCap, Bookmark, Lightbulb, MessageCircle, BookOpen, ArrowLeftRight, Languages, Sparkles } from 'lucide-react';
+import { BookText, GraduationCap, Bookmark, Lightbulb, MessageCircle, BookOpen, ArrowLeftRight, Languages, Sparkles, Copy, Check } from 'lucide-react';
 import { ButtonGroup, ButtonItem } from '@/components/ui/ButtonGroup';
 import { useEmergeAnimation } from '@/hooks/useEmergeAnimation';
 import styles from './WordExplanationPopover.module.css';
@@ -113,6 +113,7 @@ export const WordExplanationPopover: React.FC<WordExplanationPopoverProps> = ({
   const wasVisible = useRef(false);
   const [position, setPosition] = useState<{ top: number; left: number } | null>(null);
   const askAIButtonRef = useRef<HTMLButtonElement>(null);
+  const [isCopied, setIsCopied] = useState(false);
 
   console.log('[WordExplanationPopover] Render with props:', {
     visible,
@@ -329,6 +330,19 @@ export const WordExplanationPopover: React.FC<WordExplanationPopoverProps> = ({
     onTranslate?.();
   };
 
+  // Copy handler
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(word);
+      setIsCopied(true);
+      setTimeout(() => {
+        setIsCopied(false);
+      }, 2000);
+    } catch (error) {
+      console.error('[WordExplanationPopover] Failed to copy word:', error);
+    }
+  };
+
   // Don't render if shouldn't be visible
   if (!shouldRender) {
     console.log('[WordExplanationPopover] Not rendering - shouldRender is false');
@@ -364,9 +378,25 @@ export const WordExplanationPopover: React.FC<WordExplanationPopoverProps> = ({
       className={getClassName('popoverContainer')}
       style={combinedStyle}
     >
-      {/* Header with Word and Bookmark */}
+      {/* Header with Word, Copy Button, and Bookmark */}
       <div className={getClassName('header')}>
-        <span className={getClassName('headerWord')}>{word}</span>
+        <div className={getClassName('headerLeft')}>
+          <span className={getClassName('headerWord')}>{word}</span>
+          <button 
+            className={`${getClassName('headerCopyButton')} ${isCopied ? getClassName('headerCopyButtonCopied') : ''}`}
+            aria-label="Copy word"
+            onClick={handleCopy}
+          >
+            {isCopied ? (
+              <>
+                <Check size={18} strokeWidth={2} />
+                <span className={getClassName('headerCopiedText')}>Copied</span>
+              </>
+            ) : (
+              <Copy size={18} strokeWidth={2} />
+            )}
+          </button>
+        </div>
         <button 
           className={`${getClassName('headerBookmark')} ${isSaved ? getClassName('headerBookmarkSaved') : ''}`}
           aria-label={isSaved ? "Remove bookmark" : "Bookmark"}

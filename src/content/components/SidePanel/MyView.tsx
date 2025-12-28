@@ -37,7 +37,7 @@ export const MyView: React.FC<MyViewProps> = ({ useShadowDom = false }) => {
           <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
         </svg>
       ),
-      text: 'My words',
+      text: 'My saved words',
       url: `${ENV.XPLAINO_WEBSITE_BASE_URL}/my-words`,
     },
     {
@@ -58,7 +58,7 @@ export const MyView: React.FC<MyViewProps> = ({ useShadowDom = false }) => {
           <polyline points="10 9 9 9 8 9" />
         </svg>
       ),
-      text: 'My paragraphs',
+      text: 'My saved paragraphs',
       url: `${ENV.XPLAINO_WEBSITE_BASE_URL}/my-paragraphs`,
     },
     {
@@ -76,7 +76,7 @@ export const MyView: React.FC<MyViewProps> = ({ useShadowDom = false }) => {
           <circle cx="12" cy="10" r="3" />
         </svg>
       ),
-      text: 'My pages',
+      text: 'My saved links',
       url: `${ENV.XPLAINO_WEBSITE_BASE_URL}/my-pages`,
     },
   ];

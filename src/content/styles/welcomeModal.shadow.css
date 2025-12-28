@@ -1,0 +1,158 @@
+/* src/content/styles/welcomeModal.shadow.css */
+/* Shadow DOM compatible styles for Welcome Modal component */
+/* 
+ * Color Variables: These are injected from src/constants/colors.css.ts
+ * NEVER use hardcoded hex or rgba values - always use CSS variables
+ * ALL properties use !important for Shadow DOM style isolation
+ */
+
+:host {
+  all: initial !important;
+  font-family: var(--font-family-primary) !important;
+  /* Ensure animations are not reset by all: initial */
+  animation: none !important;
+  transition: none !important;
+}
+
+* {
+  box-sizing: border-box !important;
+}
+
+/* Color variable fallbacks */
+:host {
+  --color-primary: #9527F5 !important;
+  --color-primary-light: #BF7EFA !important;
+  --color-primary-very-light: #eaddf8 !important;
+  --color-primary-dark: #8607f5 !important;
+  --color-white: #FFFFFF !important;
+}
+
+/* Welcome Modal Container */
+.welcomeModalContainer {
+  position: fixed !important;
+  top: 20px !important;
+  right: 20px !important;
+  z-index: 2147483647 !important;
+  will-change: transform, opacity !important;
+}
+
+/* Hidden state when not visible and not closing */
+.welcomeModalContainer:not(.visible):not(.closing) {
+  opacity: 0 !important;
+  transform: translateX(100%) !important;
+  pointer-events: none !important;
+}
+
+/* Visible state with animation */
+.welcomeModalContainer.visible:not(.closing) {
+  animation: slideInFromRight 0.3s ease forwards !important;
+  pointer-events: auto !important;
+}
+
+/* Closing animation */
+.welcomeModalContainer.closing {
+  animation: slideOutToRight 0.3s ease forwards !important;
+  pointer-events: none !important;
+}
+
+/* Welcome Modal Content */
+.welcomeModalContent {
+  background: var(--color-white) !important;
+  border-radius: 30px !important;
+  padding: 32px 24px !important;
+  box-shadow: 0 0 20px rgba(149, 39, 245, 0.3) !important;
+  min-width: 320px !important;
+  max-width: 400px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  gap: 24px !important;
+}
+
+/* Brand Image Container */
+.welcomeModalImageContainer {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 100% !important;
+}
+
+.welcomeModalImage {
+  max-width: 200px !important;
+  height: auto !important;
+  display: block !important;
+}
+
+/* Instruction Text */
+.welcomeModalText {
+  margin: 0 !important;
+  padding: 0 !important;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
+  font-size: 16px !important;
+  font-weight: 500 !important;
+  color: var(--color-primary-light) !important;
+  text-align: center !important;
+  line-height: 1.5 !important;
+}
+
+/* Buttons Container */
+.welcomeModalButtons {
+  display: flex !important;
+  flex-direction: row !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+  gap: 16px !important;
+  width: 100% !important;
+}
+
+/* Button Base Styles */
+.welcomeModalButton {
+  padding: 10px 16px !important;
+  border: none !important;
+  border-radius: 8px !important;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  cursor: pointer !important;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  outline: none !important;
+  background: var(--color-primary-very-light) !important;
+  color: var(--color-primary-light) !important;
+  text-decoration: none !important;
+  white-space: nowrap !important;
+}
+
+/* Button Hover States */
+.welcomeModalButton:hover {
+  background: var(--color-primary-light) !important;
+  color: var(--color-white) !important;
+  text-decoration: none !important;
+}
+
+.welcomeModalButton:active {
+  transform: scale(0.98) !important;
+}
+
+/* Animations */
+@keyframes slideInFromRight {
+  from {
+    opacity: 0 !important;
+    transform: translateX(100%) !important;
+  }
+  to {
+    opacity: 1 !important;
+    transform: translateX(0) !important;
+  }
+}
+
+@keyframes slideOutToRight {
+  from {
+    opacity: 1 !important;
+    transform: translateX(0) !important;
+  }
+  to {
+    opacity: 0 !important;
+    transform: translateX(100%) !important;
+  }
+}
+

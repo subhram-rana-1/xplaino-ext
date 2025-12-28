@@ -55,7 +55,26 @@
 }
 
 .closeButton {
-  display: none;
+  background: none;
+  border: none;
+  padding: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #9527f5;
+  border-radius: 6px;
+  transition: background-color 0.15s ease;
+  flex-shrink: 0;
+}
+
+.closeButton:hover:not(:disabled) {
+  background-color: #eaddf8;
+}
+
+.closeButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .modalContent {
@@ -63,7 +82,7 @@
   overflow-y: auto;
   overflow-x: hidden;
   padding: 16px 0;
-  min-height: 200px;
+  min-height: 100px;
   max-height: calc(80vh - 180px);
 }
 
@@ -147,6 +166,7 @@
   color: #374151;
   user-select: none;
   border-radius: 13px;
+  position: relative;
 }
 
 .folderItem:hover {
@@ -215,53 +235,17 @@
   text-overflow: ellipsis;
 }
 
-.subFolders {
-  display: flex;
-  flex-direction: column;
-}
-
-.createFolderInput {
+.folderItemActions {
   display: flex;
   align-items: center;
-  padding: 12px 16px;
-  border-bottom: 1px solid #e5e7eb;
-  background-color: #f9fafb;
-  gap: 8px;
-}
-
-.folderNameInput {
-  flex: 1;
-  border: 1px solid #d1d5db;
-  border-radius: 8px;
-  padding: 8px 12px;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  font-size: 0.9375rem;
-  color: #374151;
-  outline: none;
-  transition: border-color 0.15s ease;
-}
-
-.folderNameInput:focus {
-  border-color: #9527f5;
-}
-
-.folderNameInput:disabled {
-  background-color: #f3f4f6;
-  cursor: not-allowed;
-  opacity: 0.6;
-}
-
-.createInputSpinner {
-  width: 20px;
-  height: 20px;
-  border: 2px solid #e5e7eb;
-  border-top-color: #9527f5;
-  border-radius: 50%;
-  animation: spin 0.6s linear infinite;
+  margin-left: auto;
+  padding-left: 8px;
+  width: 24px;
+  height: 24px;
   flex-shrink: 0;
 }
 
-.cancelCreateButton {
+.addFolderButton {
   background: none;
   border: none;
   padding: 4px;
@@ -273,12 +257,122 @@
   border-radius: 4px;
   transition: all 0.15s ease;
   flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  opacity: 0;
+  visibility: hidden;
 }
 
-.cancelCreateButton:hover {
+.addFolderButtonVisible {
+  opacity: 1;
+  visibility: visible;
+}
+
+.addFolderButton:hover {
+  background-color: #f3f4f6;
+  color: #9527f5;
+}
+
+.addFolderButtonRoot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 12px;
+  margin-top: 4px;
+  gap: 12px;
+}
+
+.createFolderPrompt {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 0.875rem;
+  color: #6b7280;
+  text-align: center;
+}
+
+.addFolderButtonRootButton {
+  background-color: #f3e8ff;
+  border: none;
+  padding: 8px 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: #6b7280;
+  border-radius: 12px;
+  transition: all 0.15s ease;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 0.9375rem;
+}
+
+.addFolderButtonRootButton:hover {
+  background-color: #9527f5;
+  color: white;
+}
+
+.addFolderButtonRootButton:hover svg {
+  color: white;
+}
+
+.editingFolderItem {
+  background-color: #f9fafb;
+}
+
+.editingFolderInput {
+  flex: 1;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 0.9375rem;
+  color: #374151;
+  outline: none;
+  transition: border-color 0.15s ease;
+  margin-right: 8px;
+}
+
+.cancelEditButton {
+  background: none;
+  border: none;
+  padding: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #6b7280;
+  border-radius: 4px;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+}
+
+.cancelEditButton:hover:not(:disabled) {
   background-color: #f3f4f6;
   color: #ef4444;
 }
+
+.cancelEditButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.editingFolderInput:focus {
+  border-color: #9527f5;
+}
+
+.editingFolderInput:disabled {
+  background-color: #f3f4f6;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.subFolders {
+  display: flex;
+  flex-direction: column;
+}
+
 
 @keyframes spin {
   to {
@@ -291,7 +385,6 @@
   align-items: center;
   justify-content: space-between;
   padding: 16px 24px;
-  border-top: 1px solid #e5e7eb;
   gap: 16px;
 }
 
@@ -331,10 +424,6 @@
   flex-shrink: 0;
 }
 
-.rememberFolderCheckbox:disabled {
-  cursor: not-allowed;
-  opacity: 0.5;
-}
 
 .footerButtons {
   display: flex;
@@ -342,7 +431,6 @@
   gap: 12px;
 }
 
-.createFolderButton,
 .cancelButton,
 .saveButton {
   padding: 10px 20px;
@@ -358,15 +446,6 @@
   gap: 6px;
 }
 
-.createFolderButton {
-  background-color: #f3f4f6;
-  color: #9527f5;
-}
-
-.createFolderButton:hover:not(:disabled) {
-  background-color: #ede9fe;
-}
-
 .cancelButton {
   background-color: #f3f4f6;
   color: #374151;
@@ -376,7 +455,6 @@
   background-color: #e5e7eb;
 }
 
-.createFolderButton:disabled,
 .cancelButton:disabled {
   opacity: 0.5;
   cursor: not-allowed;

@@ -21,7 +21,7 @@
   z-index: 2147483646; /* One less than spinners/icons */
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
   box-sizing: border-box;
 }
 
@@ -31,6 +31,12 @@
   align-items: center;
   padding-bottom: 12px;
   border-bottom: 1px solid rgba(149, 39, 245, 0.1);
+}
+
+.headerLeft {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .headerWord {
@@ -71,6 +77,46 @@
   display: block;
 }
 
+.headerCopyButton {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+  color: var(--color-text-secondary, #718096);
+}
+
+.headerCopyButton:hover {
+  background: #eaddf8;
+  color: var(--color-primary, #9527F5);
+}
+
+.headerCopyButton svg {
+  display: block;
+}
+
+.headerCopyButtonCopied {
+  color: #10B981;
+}
+
+.headerCopyButtonCopied:hover {
+  background: none;
+  color: #10B981;
+}
+
+.headerCopiedText {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  color: #10B981;
+  transition: all 0.2s ease;
+}
+
 .bookmarkSpinner {
   width: 18px;
   height: 18px;
@@ -88,6 +134,8 @@
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   font-size: 14px;
   line-height: 1.6;
+  margin-bottom: 0;
+  padding-bottom: 0;
 }
 
 .mainContent p {
@@ -135,7 +183,7 @@
   justify-content: flex-end;
   align-items: center;
   gap: 6px;
-  padding-top: 8px;
+  padding-top: 4px;
   min-width: 124px;
 }
 

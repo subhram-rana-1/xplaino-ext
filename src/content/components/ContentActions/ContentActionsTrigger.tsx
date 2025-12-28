@@ -1,6 +1,7 @@
 // src/content/components/ContentActions/ContentActionsTrigger.tsx
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { ContentActionsButtonGroup } from './ContentActionsButtonGroup';
+import { isRangeOverlappingUnderlinedText } from '../../utils/textSelectionUnderline';
 
 export interface ContentActionsTriggerProps {
   /** Whether component is rendered in Shadow DOM */
@@ -19,6 +20,8 @@ export interface ContentActionsTriggerProps {
   onOpposite?: (selectedText: string) => void;
   /** Callback to show disable notification modal */
   onShowModal?: () => void;
+  /** Callback to show toast message */
+  onShowToast?: (message: string, type: 'success' | 'error') => void;
 }
 
 interface SelectionState {
@@ -44,6 +47,7 @@ export const ContentActionsTrigger: React.FC<ContentActionsTriggerProps> = ({
   onSynonym,
   onOpposite,
   onShowModal,
+  onShowToast,
 }) => {
   const [selection, setSelection] = useState<SelectionState | null>(null);
   const [isHovering, setIsHovering] = useState(false);
@@ -115,6 +119,18 @@ export const ContentActionsTrigger: React.FC<ContentActionsTriggerProps> = ({
     const text = windowSelection.toString().trim();
     if (!text) return;
 
+    // Check if the selection overlaps with underlined text
+    if (windowSelection.rangeCount > 0) {
+      const range = windowSelection.getRangeAt(0);
+      if (isRangeOverlappingUnderlinedText(range)) {
+        // Show error toast and prevent button from appearing
+        onShowToast?.('Can\'t select from already selected text', 'error');
+        // Clear the selection
+        windowSelection.removeAllRanges();
+        return;
+      }
+    }
+
     const position = getSelectionPosition(true);
     if (!position) return;
 
@@ -125,7 +141,7 @@ export const ContentActionsTrigger: React.FC<ContentActionsTriggerProps> = ({
     });
     setIsHovering(false);
     setShowButtonGroup(false);
-  }, [getSelectionPosition]);
+  }, [getSelectionPosition, onShowToast]);
 
   // Handle mouse up (text selection)
   const handleMouseUp = useCallback((e: MouseEvent) => {
@@ -173,6 +189,18 @@ export const ContentActionsTrigger: React.FC<ContentActionsTriggerProps> = ({
       const text = windowSelection.toString().trim();
       if (!text || text.length < 2) return;
 
+      // Check if the selection overlaps with underlined text
+      if (windowSelection.rangeCount > 0) {
+        const range = windowSelection.getRangeAt(0);
+        if (isRangeOverlappingUnderlinedText(range)) {
+          // Show error toast and prevent button from appearing
+          onShowToast?.('Can\'t select from already selected text', 'error');
+          // Clear the selection
+          windowSelection.removeAllRanges();
+          return;
+        }
+      }
+
       // If it's a double-click, the dblclick handler will take care of it
       // This is for drag selection only
       const position = getSelectionPosition(false);
@@ -193,7 +221,7 @@ export const ContentActionsTrigger: React.FC<ContentActionsTriggerProps> = ({
       setIsHovering(false);
       setShowButtonGroup(false);
     }, 10);
-  }, [getSelectionPosition, isWordSelection, selection]);
+  }, [getSelectionPosition, isWordSelection, selection, onShowToast]);
 
   // Handle selection change (to hide component when selection is cleared)
   const handleSelectionChange = useCallback(() => {

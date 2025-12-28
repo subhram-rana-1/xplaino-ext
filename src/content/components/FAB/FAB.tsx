@@ -4,6 +4,7 @@ import { ActionButton } from './ActionButton';
 import { FABDisablePopover } from './FABDisablePopover';
 import { TranslationControlPopover } from './TranslationControlPopover';
 import styles from './FAB.module.css';
+import { ENV } from '@/config/env';
 
 export interface FABProps {
   /** Callback when Summarise is clicked */
@@ -219,6 +220,11 @@ export const FAB: React.FC<FABProps> = ({
     setShowDisablePopover(false);
   }, []);
 
+  const handleGoToWebsite = useCallback(() => {
+    console.log('[FAB] Go to website clicked');
+    window.open(ENV.XPLAINO_WEBSITE_BASE_URL, '_blank');
+  }, []);
+
   const iconUrl = getIconUrl(useShadowDom);
 
   // Class names for Shadow DOM vs CSS Modules
@@ -286,6 +292,12 @@ export const FAB: React.FC<FABProps> = ({
           icon="options"
           tooltip="Options"
           onClick={handleOptions}
+          className={actionButtonClass}
+        />
+        <ActionButton
+          icon="globe"
+          tooltip="Go to website"
+          onClick={handleGoToWebsite}
           className={actionButtonClass}
         />
         <ActionButton

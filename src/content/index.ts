@@ -18,6 +18,7 @@ import { WordExplanationPopover, type TabType } from './components/WordExplanati
 import { WordAskAISidePanel } from './components/WordAskAISidePanel';
 import { FolderListModal } from './components/FolderListModal';
 import { SavedParagraphIcon } from './components/SavedParagraphIcon';
+import { WelcomeModal } from './components/WelcomeModal/WelcomeModal';
 
 // Import Shadow DOM utilities
 import {
@@ -40,6 +41,7 @@ import wordExplanationPopoverStyles from './styles/wordExplanationPopover.shadow
 import wordAskAISidePanelStyles from './styles/wordAskAISidePanel.shadow.css?inline';
 import folderListModalStyles from './styles/folderListModal.shadow.css?inline';
 import savedParagraphIconStyles from './styles/savedParagraphIcon.shadow.css?inline';
+import welcomeModalStyles from './styles/welcomeModal.shadow.css?inline';
 
 // Import color CSS variables
 import { FAB_COLOR_VARIABLES } from '../constants/colors.css.js';
@@ -88,6 +90,7 @@ import {
   type ChatMessage,
 } from '../store/wordExplanationAtoms';
 import { ChromeStorage } from '../storage/chrome-local/ChromeStorage';
+import { ENV } from '../config/env';
 
 console.log('[Content Script] Initialized');
 
@@ -106,7 +109,9 @@ const TEXT_EXPLANATION_ICON_HOST_ID = 'xplaino-text-explanation-icon-host';
 const WORD_EXPLANATION_POPOVER_HOST_ID = 'xplaino-word-explanation-popover-host';
 const WORD_ASK_AI_PANEL_HOST_ID = 'xplaino-word-ask-ai-panel-host';
 const TOAST_HOST_ID = 'xplaino-toast-host';
+const BOOKMARK_TOAST_HOST_ID = 'xplaino-bookmark-toast-host';
 const FOLDER_LIST_MODAL_HOST_ID = 'xplaino-folder-list-modal-host';
+const WELCOME_MODAL_HOST_ID = 'xplaino-welcome-modal-host';
 
 /**
  * Domain status enum (must match src/types/domain.ts)
@@ -135,9 +140,11 @@ let wordExplanationPopoverRoot: ReactDOM.Root | null = null;
 let wordAskAISidePanelRoot: ReactDOM.Root | null = null;
 let wordAskAICloseHandler: (() => void) | null = null;
 let toastRoot: ReactDOM.Root | null = null;
+let welcomeModalRoot: ReactDOM.Root | null = null;
 
 // Modal state
 let modalVisible = false;
+let welcomeModalVisible = false;
 
 // Shared state for side panel
 let sidePanelOpen = false;
@@ -147,6 +154,12 @@ let toastMessage: string | null = null;
 let toastType: 'success' | 'error' = 'success';
 let toastClosing: boolean = false;
 let toastTimeoutId: ReturnType<typeof setTimeout> | null = null;
+
+// Bookmark toast state
+let bookmarkToastUrl: string | null = null;
+let bookmarkToastClosing: boolean = false;
+let bookmarkToastType: 'word' | 'paragraph' | 'link' | null = null;
+let bookmarkToastRoot: ReactDOM.Root | null = null;
 
 // Folder List Modal state
 let folderListModalRoot: ReactDOM.Root | null = null;
@@ -160,6 +173,7 @@ let folderModalSelectedFolderId: string | null = null;
 let folderModalExpandedFolders: Set<string> = new Set();
 let folderModalRange: Range | null = null; // Store the selection range for bookmark
 let folderModalRememberChecked: boolean = false; // Track remember folder checkbox state
+let folderModalRememberCheckedInitialized: boolean = false; // Track if checkbox state has been initialized
 // Folder modal mode: 'paragraph' for paragraph saving, 'link' for link saving
 let folderModalMode: 'paragraph' | 'link' | null = null;
 // Link-specific state variables
@@ -839,14 +853,25 @@ function updateSidePanel(initialTab?: 'summary' | 'settings' | 'my'): void {
             console.log('[Content Script] Folders loaded successfully for link:', response.folders.length, 'folders');
             folderModalFolders = response.folders;
             
-            // Check for stored preference folder ID
+            // Check for stored preference folder ID and auto-select/expand if found
             const storedFolderId = await ChromeStorage.getLinkBookmarkPreferenceFolderId();
-            if (storedFolderId && findFolderInTree(response.folders, storedFolderId)) {
-              folderModalSelectedFolderId = storedFolderId;
-              console.log('[Content Script] Auto-selected preferred link folder:', storedFolderId);
+            console.log('[Content Script] Retrieved stored link folder ID from storage:', storedFolderId);
+            if (storedFolderId) {
+              const ancestorPath = findFolderAndGetAncestorPath(response.folders, storedFolderId);
+              if (ancestorPath !== null) {
+                folderModalSelectedFolderId = storedFolderId;
+                // Expand all ancestor folders to show the hierarchical path
+                folderModalExpandedFolders = new Set(ancestorPath);
+                console.log('[Content Script] Auto-selected preferred link folder:', storedFolderId, 'with ancestors:', ancestorPath);
+              } else {
+                folderModalSelectedFolderId = null;
+                folderModalExpandedFolders = new Set();
+                console.log('[Content Script] Stored link folder ID not found in tree, clearing selection. Stored ID:', storedFolderId, 'Available folders:', response.folders);
+              }
             } else {
               folderModalSelectedFolderId = null;
-              console.log('[Content Script] No valid preferred link folder found, clearing selection');
+              folderModalExpandedFolders = new Set();
+              console.log('[Content Script] No stored link folder preference found');
             }
             
             folderModalOpen = true;
@@ -892,6 +917,7 @@ function updateSidePanel(initialTab?: 'summary' | 'settings' | 'my'): void {
           onClose: () => setSidePanelOpen(false),
           initialTab: initialTab,
           onShowToast: showToast,
+          onShowBookmarkToast: showBookmarkToast,
           onBookmark: handleSidePanelBookmark,
           initialSavedLinkId: sidePanelSavedLinkId,
         })
@@ -937,6 +963,7 @@ function injectSidePanel(): void {
         onClose: () => setSidePanelOpen(false),
         initialTab: 'summary',
         onShowToast: showToast,
+        onShowBookmarkToast: showBookmarkToast,
       })
     )
   );
@@ -1001,6 +1028,7 @@ function injectContentActions(): void {
       onSynonym: handleSynonymClick,
       onOpposite: handleAntonymClick,
       onShowModal: showDisableModal,
+      onShowToast: showToast,
     })
   );
 
@@ -1047,20 +1075,33 @@ function updateExplanationInMap(
 }
 
 /**
- * Recursively find if a folder ID exists in the folder tree (including subfolders)
+ * Recursively find a folder ID in the folder tree and return the path of ancestor folder IDs
+ * Returns an array of folder IDs from root to the target folder (excluding the target itself)
+ * Returns null if folder not found
  */
-function findFolderInTree(folders: FolderWithSubFoldersResponse[], folderId: string): boolean {
+function findFolderAndGetAncestorPath(
+  folders: FolderWithSubFoldersResponse[],
+  targetId: string,
+  currentPath: string[] = []
+): string[] | null {
   for (const folder of folders) {
-    if (folder.id === folderId) {
-      return true;
+    if (folder.id === targetId) {
+      // Found the target folder, return the current path (ancestors)
+      return currentPath;
     }
     if (folder.subFolders && folder.subFolders.length > 0) {
-      if (findFolderInTree(folder.subFolders, folderId)) {
-        return true;
+      // Search in subFolders with current folder added to path
+      const result = findFolderAndGetAncestorPath(
+        folder.subFolders,
+        targetId,
+        [...currentPath, folder.id]
+      );
+      if (result !== null) {
+        return result;
       }
     }
   }
-  return false;
+  return null;
 }
 
 /**
@@ -1108,16 +1149,28 @@ async function handleContentActionsBookmarkClick(selectedText: string): Promise<
         folderModalText = text;
         folderModalSourceUrl = window.location.href;
         
-        // Check for stored preference folder ID
+        // Check for stored preference folder ID and auto-select/expand if found
         const storedFolderId = await ChromeStorage.getParagraphBookmarkPreferenceFolderId();
-        if (storedFolderId && findFolderInTree(response.folders, storedFolderId)) {
-          folderModalSelectedFolderId = storedFolderId;
-          console.log('[Content Script] Auto-selected preferred folder:', storedFolderId);
+        console.log('[Content Script] Retrieved stored folder ID from storage:', storedFolderId);
+        if (storedFolderId) {
+          const ancestorPath = findFolderAndGetAncestorPath(response.folders, storedFolderId);
+          if (ancestorPath !== null) {
+            folderModalSelectedFolderId = storedFolderId;
+            // Expand all ancestor folders to show the hierarchical path
+            folderModalExpandedFolders = new Set(ancestorPath);
+            console.log('[Content Script] Auto-selected preferred folder:', storedFolderId, 'with ancestors:', ancestorPath);
+          } else {
+            folderModalSelectedFolderId = null;
+            folderModalExpandedFolders = new Set();
+            console.log('[Content Script] Stored folder ID not found in tree, clearing selection. Stored ID:', storedFolderId, 'Available folders:', response.folders);
+          }
         } else {
           folderModalSelectedFolderId = null;
-          console.log('[Content Script] No valid preferred folder found, clearing selection');
+          folderModalExpandedFolders = new Set();
+          console.log('[Content Script] No stored folder preference found');
         }
         
+        folderModalRememberCheckedInitialized = false; // Reset flag when modal opens
         folderModalOpen = true;
         injectFolderListModal();
         updateFolderListModal();
@@ -5259,14 +5312,24 @@ function updateTextExplanationPanel(): void {
           folderModalText = text;
           folderModalSourceUrl = window.location.href;
           
-          // Check for stored preference folder ID
+          // Check for stored preference folder ID and auto-select/expand if found
           const storedFolderId = await ChromeStorage.getParagraphBookmarkPreferenceFolderId();
-          if (storedFolderId && findFolderInTree(response.folders, storedFolderId)) {
-            folderModalSelectedFolderId = storedFolderId;
-            console.log('[Content Script] Auto-selected preferred folder:', storedFolderId);
+          if (storedFolderId) {
+            const ancestorPath = findFolderAndGetAncestorPath(response.folders, storedFolderId);
+            if (ancestorPath !== null) {
+              folderModalSelectedFolderId = storedFolderId;
+              // Expand all ancestor folders to show the hierarchical path
+              folderModalExpandedFolders = new Set(ancestorPath);
+              console.log('[Content Script] Auto-selected preferred folder:', storedFolderId, 'with ancestors:', ancestorPath);
+            } else {
+              folderModalSelectedFolderId = null;
+              folderModalExpandedFolders = new Set();
+              console.log('[Content Script] Stored folder ID not found in tree, clearing selection');
+            }
           } else {
             folderModalSelectedFolderId = null;
-            console.log('[Content Script] No valid preferred folder found, clearing selection');
+            folderModalExpandedFolders = new Set();
+            console.log('[Content Script] No stored folder preference found');
           }
           
           folderModalOpen = true;
@@ -5538,6 +5601,7 @@ async function handleWordBookmarkClick(wordId: string): Promise<void> {
             }
           }
           showToast('Word saved successfully!', 'success');
+          showBookmarkToast('word', '/user/saved-words');
         },
         onError: (_code, message) => {
           console.error('[Content Script] Failed to save word:', message);
@@ -6318,6 +6382,334 @@ function removeToast(): void {
 }
 
 // =============================================================================
+// BOOKMARK TOAST INJECTION
+// =============================================================================
+
+/**
+ * Show bookmark toast with link to saved bookmarks page
+ */
+async function showBookmarkToast(type: 'word' | 'paragraph' | 'link', urlPath: string): Promise<void> {
+  // Check if user has disabled this toast
+  let shouldShow = false;
+  if (type === 'word') {
+    shouldShow = !(await ChromeStorage.getDontShowWordBookmarkSavedLinkToast());
+  } else if (type === 'paragraph') {
+    shouldShow = !(await ChromeStorage.getDontShowTextBookmarkSavedLinkToast());
+  } else if (type === 'link') {
+    shouldShow = !(await ChromeStorage.getDontShowLinkBookmarkSavedLinkToast());
+  }
+
+  if (!shouldShow) {
+    console.log('[Content Script] Bookmark toast disabled by user preference');
+    return;
+  }
+
+  const fullUrl = `${ENV.XPLAINO_WEBSITE_BASE_URL}${urlPath}`;
+  bookmarkToastUrl = fullUrl;
+  bookmarkToastType = type;
+  bookmarkToastClosing = false;
+  
+  injectBookmarkToast();
+  updateBookmarkToast();
+}
+
+/**
+ * Inject Bookmark Toast into the page with Shadow DOM
+ */
+function injectBookmarkToast(): void {
+  // Check if already injected
+  if (shadowHostExists(BOOKMARK_TOAST_HOST_ID)) {
+    return;
+  }
+
+  // Create Shadow DOM host
+  const { host, shadow, mountPoint } = createShadowHost({
+    id: BOOKMARK_TOAST_HOST_ID,
+    zIndex: 2147483648, // Same as regular toast
+  });
+
+  // Inject color CSS variables first
+  injectStyles(shadow, FAB_COLOR_VARIABLES);
+  
+  // Inject inline bookmark toast styles
+  const bookmarkToastStyles = `
+    @keyframes slideIn {
+      from {
+        transform: translateX(calc(100% + 20px));
+        opacity: 0;
+      }
+      to {
+        transform: translateX(0);
+        opacity: 1;
+      }
+    }
+    
+    @keyframes slideOut {
+      from {
+        transform: translateX(0);
+        opacity: 1;
+      }
+      to {
+        transform: translateX(calc(100% + 20px));
+        opacity: 0;
+      }
+    }
+    
+    .bookmark-toast-container {
+      position: fixed;
+      top: 100px;
+      right: 20px;
+      z-index: 2147483647;
+      pointer-events: auto;
+      width: 350px;
+    }
+    
+    .bookmark-toast {
+      background: white;
+      border: none;
+      color: #BF7EFA;
+      padding: 1rem 1.25rem;
+      border-radius: 20px;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-size: 0.9375rem;
+      font-weight: 500;
+      box-shadow: 0 4px 20px rgba(149, 39, 245, 0.3);
+      animation: slideIn 0.3s ease-out;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+    
+    .bookmark-toast-closing {
+      animation: slideOut 0.3s ease-in forwards;
+    }
+    
+    .bookmark-toast-message {
+      line-height: 1.5;
+      word-wrap: break-word;
+    }
+    
+    .bookmark-toast-link {
+      color: #BF7EFA;
+      text-decoration: underline;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    
+    .bookmark-toast-link:hover {
+      color: #9527F5;
+    }
+    
+    .bookmark-toast-buttons {
+      display: flex;
+      justify-content: space-between;
+      gap: 0.75rem;
+      margin-top: 0.25rem;
+    }
+    
+    .bookmark-toast-button {
+      flex: 1;
+      padding: 0.5rem 1rem;
+      border: none;
+      border-radius: 13px;
+      background: #eaddf8;
+      color: #BF7EFA;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-size: 0.875rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    
+    .bookmark-toast-button:hover {
+      background: #BF7EFA !important;
+      color: white !important;
+    }
+    
+    .bookmark-toast-button:active {
+      transform: scale(0.98);
+    }
+  `;
+  injectStyles(shadow, bookmarkToastStyles);
+
+  // Append to document
+  document.body.appendChild(host);
+
+  // Render React component
+  bookmarkToastRoot = ReactDOM.createRoot(mountPoint);
+  updateBookmarkToast();
+
+  console.log('[Content Script] Bookmark Toast injected successfully');
+}
+
+/**
+ * Update bookmark toast visibility based on state
+ */
+function updateBookmarkToast(): void {
+  if (!bookmarkToastRoot) {
+    console.warn('[Content Script] bookmarkToastRoot is null, cannot update bookmark toast');
+    return;
+  }
+
+  if (bookmarkToastUrl && bookmarkToastType) {
+    console.log('[Content Script] Rendering bookmark toast with URL:', bookmarkToastUrl, 'type:', bookmarkToastType, 'closing:', bookmarkToastClosing);
+    
+    const handleOkay = () => {
+      bookmarkToastClosing = true;
+      updateBookmarkToast();
+      setTimeout(() => {
+        bookmarkToastUrl = null;
+        bookmarkToastType = null;
+        bookmarkToastClosing = false;
+        updateBookmarkToast();
+      }, 300);
+    };
+
+    const handleDontShowAgain = async () => {
+      // Set the appropriate storage flag
+      if (bookmarkToastType === 'word') {
+        await ChromeStorage.setDontShowWordBookmarkSavedLinkToast(true);
+      } else if (bookmarkToastType === 'paragraph') {
+        await ChromeStorage.setDontShowTextBookmarkSavedLinkToast(true);
+      } else if (bookmarkToastType === 'link') {
+        await ChromeStorage.setDontShowLinkBookmarkSavedLinkToast(true);
+      }
+      
+      bookmarkToastClosing = true;
+      updateBookmarkToast();
+      setTimeout(() => {
+        bookmarkToastUrl = null;
+        bookmarkToastType = null;
+        bookmarkToastClosing = false;
+        updateBookmarkToast();
+      }, 300);
+    };
+
+    const handleLinkClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
+      e.preventDefault();
+      window.open(bookmarkToastUrl || '', '_blank');
+    };
+
+    const toastElement = React.createElement(
+      'div',
+      {
+        className: 'bookmark-toast-container',
+        style: {
+          position: 'fixed',
+          top: '100px',
+          right: '20px',
+          zIndex: 2147483647,
+          width: '350px',
+        }
+      },
+      React.createElement(
+        'div',
+        {
+          className: bookmarkToastClosing ? 'bookmark-toast bookmark-toast-closing' : 'bookmark-toast',
+          style: {
+            background: 'white',
+            border: 'none',
+            color: '#BF7EFA',
+            padding: '1rem 1.25rem',
+            borderRadius: '20px',
+            fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+            fontSize: '0.9375rem',
+            fontWeight: '500',
+            boxShadow: '0 4px 20px rgba(149, 39, 245, 0.3)',
+            animation: bookmarkToastClosing ? 'slideOut 0.3s ease-in forwards' : 'slideIn 0.3s ease-out',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '0.75rem',
+          }
+        },
+        React.createElement(
+          'div',
+          {
+            className: 'bookmark-toast-message',
+            style: {
+              lineHeight: '1.5',
+              wordWrap: 'break-word',
+            }
+          },
+          'Your bookmarks are saved ',
+          React.createElement(
+            'a',
+            {
+              href: bookmarkToastUrl || '#',
+              onClick: handleLinkClick,
+              className: 'bookmark-toast-link',
+              style: {
+                color: '#BF7EFA',
+                textDecoration: 'underline',
+                cursor: 'pointer',
+                fontWeight: '600',
+              }
+            },
+            'here'
+          ),
+          '.'
+        ),
+        React.createElement(
+          'div',
+          {
+            className: 'bookmark-toast-buttons',
+            style: {
+              display: 'flex',
+              justifyContent: 'space-between',
+              gap: '0.75rem',
+              marginTop: '0.25rem',
+            }
+          },
+          React.createElement(
+            'button',
+            {
+              onClick: handleOkay,
+              className: 'bookmark-toast-button',
+              style: {
+                flex: 1,
+                padding: '0.5rem 1rem',
+                border: 'none',
+                borderRadius: '13px',
+                fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+                fontSize: '0.875rem',
+                fontWeight: '500',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+              }
+            },
+            'Okay'
+          ),
+          React.createElement(
+            'button',
+            {
+              onClick: handleDontShowAgain,
+              className: 'bookmark-toast-button',
+              style: {
+                flex: 1,
+                padding: '0.5rem 1rem',
+                border: 'none',
+                borderRadius: '13px',
+                fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+                fontSize: '0.875rem',
+                fontWeight: '500',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+              }
+            },
+            "Don't show again"
+          )
+        )
+      )
+    );
+    
+    bookmarkToastRoot.render(toastElement);
+  } else {
+    console.log('[Content Script] Clearing bookmark toast');
+    bookmarkToastRoot.render(React.createElement(React.Fragment));
+  }
+}
+
+// =============================================================================
 // FOLDER LIST MODAL INJECTION
 // =============================================================================
 
@@ -6379,14 +6771,23 @@ async function updateFolderListModal(): Promise<void> {
     } else {
       storedFolderId = await ChromeStorage.getParagraphBookmarkPreferenceFolderId();
     }
-    const rememberFolderChecked = folderModalSelectedFolderId !== null && 
-                                   folderModalSelectedFolderId === storedFolderId;
-    // Update the tracked checkbox state
-    folderModalRememberChecked = rememberFolderChecked;
+    // Only initialize checkbox state from storage if not already initialized by user
+    // This prevents overwriting user's manual checkbox changes
+    if (!folderModalRememberCheckedInitialized) {
+      const rememberFolderChecked = folderModalSelectedFolderId !== null && 
+                                     folderModalSelectedFolderId === storedFolderId;
+      folderModalRememberChecked = rememberFolderChecked;
+      folderModalRememberCheckedInitialized = true;
+      console.log('[Content Script] Initial checkbox state:', rememberFolderChecked, 'Selected folder:', folderModalSelectedFolderId, 'Stored folder:', storedFolderId);
+    } else {
+      console.log('[Content Script] Checkbox state preserved (user modified):', folderModalRememberChecked, 'Selected folder:', folderModalSelectedFolderId, 'Stored folder:', storedFolderId);
+    }
     
     // Handler for remember folder checkbox change
     const handleRememberFolderChange = async (checked: boolean) => {
+      console.log('[Content Script] Checkbox changed to:', checked, 'Selected folder:', folderModalSelectedFolderId);
       folderModalRememberChecked = checked;
+      folderModalRememberCheckedInitialized = true; // Mark as initialized by user
       // Don't save to storage here - wait until Save is clicked
       // This allows user to change checkbox state without immediately saving
       // Update modal to reflect the change
@@ -6417,12 +6818,13 @@ async function updateFolderListModal(): Promise<void> {
         isCreatingFolder: folderModalCreatingFolder,
         initialSelectedFolderId: folderModalSelectedFolderId,
         initialExpandedFolders: folderModalExpandedFolders,
-        rememberFolderChecked,
+        rememberFolderChecked: folderModalRememberChecked,
         onRememberFolderChange: handleRememberFolderChange,
         showNameInput: folderModalMode === 'link',
         initialName: folderModalMode === 'link' ? folderModalLinkName : undefined,
         onNameChange: folderModalMode === 'link' ? handleNameChange : undefined,
         modalTitle,
+        mode: folderModalMode || 'paragraph',
       })
       )
     );
@@ -6451,16 +6853,6 @@ function rangesMatch(range1: Range | null, range2: Range | null): boolean {
 async function handleFolderModalSave(folderId: string | null): Promise<void> {
   console.log('[Content Script] Saving text to folder:', folderId);
   
-  // If "Remember my folder" checkbox is checked, save the folder preference
-  if (folderModalRememberChecked && folderId) {
-    await ChromeStorage.setParagraphBookmarkPreferenceFolderId(folderId);
-    console.log('[Content Script] Saved folder preference on save:', folderId);
-  } else if (!folderModalRememberChecked) {
-    // If checkbox is unchecked, remove the preference
-    await ChromeStorage.removeParagraphBookmarkPreferenceFolderId();
-    console.log('[Content Script] Removed folder preference on save');
-  }
-  
   // Set saving state
   folderModalSaving = true;
   updateFolderListModal();
@@ -6473,9 +6865,25 @@ async function handleFolderModalSave(folderId: string | null): Promise<void> {
       folder_id: folderId || undefined,
     },
     {
-      onSuccess: (response) => {
+      onSuccess: async (response) => {
         console.log('[Content Script] Text saved successfully with id:', response.id);
+        console.log('[Content Script] Checkbox state:', folderModalRememberChecked, 'Folder ID:', folderId);
+        
+        // If "Remember my folder" checkbox is checked, save the folder preference after successful save
+        if (folderModalRememberChecked && folderId) {
+          await ChromeStorage.setParagraphBookmarkPreferenceFolderId(folderId);
+          console.log('[Content Script] Saved folder preference on save:', folderId);
+          // Verify it was saved
+          const verify = await ChromeStorage.getParagraphBookmarkPreferenceFolderId();
+          console.log('[Content Script] Verified saved folder ID:', verify);
+        } else if (!folderModalRememberChecked) {
+          // If checkbox is unchecked, remove the preference after successful save
+          await ChromeStorage.removeParagraphBookmarkPreferenceFolderId();
+          console.log('[Content Script] Removed folder preference on save');
+        }
+        
         showToast('Text saved successfully!', 'success');
+        showBookmarkToast('paragraph', '/user/saved-paragraphs');
         
         // Preserve folderModalText and folderModalRange before closing modal (which clears them)
         const savedText = folderModalText;
@@ -6694,16 +7102,6 @@ async function handleFolderModalSave(folderId: string | null): Promise<void> {
 async function handleFolderModalSaveForLink(folderId: string | null, name?: string): Promise<void> {
   console.log('[Content Script] Saving link to folder:', folderId, 'with name:', name);
   
-  // If "Remember my folder" checkbox is checked, save the folder preference
-  if (folderModalRememberChecked && folderId) {
-    await ChromeStorage.setLinkBookmarkPreferenceFolderId(folderId);
-    console.log('[Content Script] Saved link folder preference on save:', folderId);
-  } else if (!folderModalRememberChecked) {
-    // If checkbox is unchecked, remove the preference
-    await ChromeStorage.removeLinkBookmarkPreferenceFolderId();
-    console.log('[Content Script] Removed link folder preference on save');
-  }
-  
   // Set saving state
   folderModalSaving = true;
   updateFolderListModal();
@@ -6726,9 +7124,25 @@ async function handleFolderModalSaveForLink(folderId: string | null, name?: stri
       folder_id: folderId || undefined,
     },
     {
-      onSuccess: (response) => {
+      onSuccess: async (response) => {
         console.log('[Content Script] Link saved successfully with id:', response.id);
+        console.log('[Content Script] Checkbox state:', folderModalRememberChecked, 'Folder ID:', folderId);
+        
+        // If "Remember my folder" checkbox is checked, save the folder preference after successful save
+        if (folderModalRememberChecked && folderId) {
+          await ChromeStorage.setLinkBookmarkPreferenceFolderId(folderId);
+          console.log('[Content Script] Saved link folder preference on save:', folderId);
+          // Verify it was saved
+          const verify = await ChromeStorage.getLinkBookmarkPreferenceFolderId();
+          console.log('[Content Script] Verified saved link folder ID:', verify);
+        } else if (!folderModalRememberChecked) {
+          // If checkbox is unchecked, remove the preference after successful save
+          await ChromeStorage.removeLinkBookmarkPreferenceFolderId();
+          console.log('[Content Script] Removed link folder preference on save');
+        }
+        
         showToast('Link saved successfully!', 'success');
+        showBookmarkToast('link', '/user/saved-links');
         
         // Update bookmark icon state based on source
         if (folderModalMode === 'link') {
@@ -6962,6 +7376,7 @@ function closeFolderListModal(): void {
   folderModalSelectedFolderId = null;
   folderModalExpandedFolders = new Set();
   folderModalRememberChecked = false; // Reset checkbox state when modal closes
+  folderModalRememberCheckedInitialized = false; // Reset initialization flag
   // Clear link-specific state
   folderModalMode = null;
   folderModalLinkUrl = '';
@@ -7024,16 +7439,28 @@ async function handleFabSaveUrlClick(): Promise<void> {
         console.log('[Content Script] Folders loaded successfully for FAB link:', response.folders.length, 'folders');
         folderModalFolders = response.folders;
         
-        // Check for stored preference folder ID
+        // Check for stored preference folder ID and auto-select/expand if found
         const storedFolderId = await ChromeStorage.getLinkBookmarkPreferenceFolderId();
-        if (storedFolderId && findFolderInTree(response.folders, storedFolderId)) {
-          folderModalSelectedFolderId = storedFolderId;
-          console.log('[Content Script] Auto-selected preferred link folder:', storedFolderId);
+        console.log('[Content Script] Retrieved stored link folder ID from storage:', storedFolderId);
+        if (storedFolderId) {
+          const ancestorPath = findFolderAndGetAncestorPath(response.folders, storedFolderId);
+          if (ancestorPath !== null) {
+            folderModalSelectedFolderId = storedFolderId;
+            // Expand all ancestor folders to show the hierarchical path
+            folderModalExpandedFolders = new Set(ancestorPath);
+            console.log('[Content Script] Auto-selected preferred link folder:', storedFolderId, 'with ancestors:', ancestorPath);
+          } else {
+            folderModalSelectedFolderId = null;
+            folderModalExpandedFolders = new Set();
+            console.log('[Content Script] Stored link folder ID not found in tree, clearing selection. Stored ID:', storedFolderId, 'Available folders:', response.folders);
+          }
         } else {
           folderModalSelectedFolderId = null;
-          console.log('[Content Script] No valid preferred link folder found, clearing selection');
+          folderModalExpandedFolders = new Set();
+          console.log('[Content Script] No stored link folder preference found');
         }
         
+        folderModalRememberCheckedInitialized = false; // Reset flag when modal opens
         folderModalOpen = true;
         injectFolderListModal();
         updateFolderListModal();
@@ -7247,6 +7674,84 @@ function removeSubscriptionModal(): void {
 }
 
 // =============================================================================
+// WELCOME MODAL INJECTION
+// =============================================================================
+
+/**
+ * Inject Welcome Modal into the page with Shadow DOM
+ */
+function injectWelcomeModal(): void {
+  // Check if already injected
+  if (shadowHostExists(WELCOME_MODAL_HOST_ID)) {
+    console.log('[Content Script] Welcome Modal already injected');
+    updateWelcomeModal();
+    return;
+  }
+
+  // Create Shadow DOM host
+  const { host, shadow, mountPoint } = createShadowHost({
+    id: WELCOME_MODAL_HOST_ID,
+    zIndex: 2147483647, // Highest z-index for modal
+  });
+
+  // Inject color CSS variables first
+  injectStyles(shadow, FAB_COLOR_VARIABLES);
+  
+  // Inject component styles
+  injectStyles(shadow, welcomeModalStyles);
+
+  // Append to document
+  document.body.appendChild(host);
+
+  // Render React component
+  welcomeModalRoot = ReactDOM.createRoot(mountPoint);
+  updateWelcomeModal();
+
+  console.log('[Content Script] Welcome Modal injected successfully');
+}
+
+/**
+ * Update welcome modal visibility based on state
+ */
+function updateWelcomeModal(): void {
+  if (!welcomeModalRoot) return;
+
+  welcomeModalRoot.render(
+    React.createElement(WelcomeModal, {
+      visible: welcomeModalVisible,
+      onOk: handleWelcomeModalOk,
+      onDontShowAgain: handleWelcomeModalDontShowAgain,
+    })
+  );
+}
+
+/**
+ * Remove Welcome Modal from the page
+ */
+function removeWelcomeModal(): void {
+  removeShadowHost(WELCOME_MODAL_HOST_ID, welcomeModalRoot);
+  welcomeModalRoot = null;
+  console.log('[Content Script] Welcome Modal removed');
+}
+
+/**
+ * Handle "Ok" button click
+ */
+function handleWelcomeModalOk(): void {
+  welcomeModalVisible = false;
+  updateWelcomeModal();
+}
+
+/**
+ * Handle "Don't show me again" button click
+ */
+async function handleWelcomeModalDontShowAgain(): Promise<void> {
+  await ChromeStorage.setDontShowWelcomeModal(true);
+  welcomeModalVisible = false;
+  updateWelcomeModal();
+}
+
+// =============================================================================
 // INITIALIZATION
 // =============================================================================
 
@@ -7267,6 +7772,30 @@ async function initContentScript(): Promise<void> {
     injectLoginModal();
     injectSubscriptionModal();
     injectToast();
+    
+    // Check if welcome modal should be shown
+    // Only show if domain is not BANNED or DISABLED
+    const currentDomain = extractDomain(window.location.href);
+    if (currentDomain) {
+      const domainStatus = await ChromeStorage.getDomainStatus(currentDomain);
+      const dontShowWelcomeModal = await ChromeStorage.getDontShowWelcomeModal();
+      
+      // Only show modal if:
+      // 1. User hasn't clicked "Don't show me again"
+      // 2. Domain status is ENABLED (not BANNED, not DISABLED, not INVALID)
+      if (!dontShowWelcomeModal && domainStatus === DomainStatus.ENABLED) {
+        // Show modal after a short delay to ensure page is loaded
+        setTimeout(() => {
+          welcomeModalVisible = true;
+          injectWelcomeModal();
+        }, 500);
+      } else {
+        console.log('[Content Script] Welcome modal not shown:', {
+          dontShowWelcomeModal,
+          domainStatus,
+        });
+      }
+    }
   } else {
     console.log('[Content Script] Not running - extension not allowed on this page');
     removeFAB();
@@ -7277,6 +7806,7 @@ async function initContentScript(): Promise<void> {
     removeTextExplanationPanel();
     removeTextExplanationIconContainer();
     removeToast();
+    removeWelcomeModal();
   }
 }
 

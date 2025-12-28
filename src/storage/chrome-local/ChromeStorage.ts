@@ -28,6 +28,12 @@ export class ChromeStorage {
     UNAUTHENTICATED_USER_ID: 'x_unauthenticated_user_id',
     PARAGRAPH_BOOKMARK_PREFERENCE_FOLDER_ID: 'paragraph_bookmark_preference_folder_id',
     LINK_BOOKMARK_PREFERENCE_FOLDER_ID: 'link_bookmark_preference_folder_id',
+    XPLAINO_PARAGRAPH_BOOKMARK_FOLDER_ID: 'XPLAINO_PARAGRAPH_BOOKMARK_FOLDER_ID',
+    XPLAINO_LINK_BOOKMARK_FOLDER_ID: 'XPLAINO_LINK_BOOKMARK_FOLDER_ID',
+    DONT_SHOW_XPLAINO_TEXT_BOOKMARK_SAVED_LINK_TOAST: 'dont_show_xplaino_text_bookmark_saved_link_toast',
+    DONT_SHOW_XPLAINO_LINK_BOOKMARK_SAVED_LINK_TOAST: 'dont_show_xplaino_link_bookmark_saved_link_toast',
+    DONT_SHOW_XPLAINO_WORD_BOOKMARK_SAVED_LINK_TOAST: 'dont_show_xplaino_word_bookmark_saved_link_toast',
+    DONT_SHOW_WELCOME_MODAL: 'dont_show_welcome_modal',
   } as const;
 
   // ============================================
@@ -467,42 +473,113 @@ export class ChromeStorage {
    * Get the preferred folder ID for paragraph bookmarks
    */
   static async getParagraphBookmarkPreferenceFolderId(): Promise<string | null> {
-    return this.get<string>(this.KEYS.PARAGRAPH_BOOKMARK_PREFERENCE_FOLDER_ID);
+    const key = this.KEYS.XPLAINO_PARAGRAPH_BOOKMARK_FOLDER_ID;
+    console.log('[ChromeStorage] Getting paragraph bookmark folder ID with key:', key);
+    const value = await this.get<string>(key);
+    console.log('[ChromeStorage] Retrieved value:', value);
+    return value;
   }
 
   /**
    * Set the preferred folder ID for paragraph bookmarks
    */
   static async setParagraphBookmarkPreferenceFolderId(folderId: string): Promise<void> {
-    return this.set(this.KEYS.PARAGRAPH_BOOKMARK_PREFERENCE_FOLDER_ID, folderId);
+    const key = this.KEYS.XPLAINO_PARAGRAPH_BOOKMARK_FOLDER_ID;
+    console.log('[ChromeStorage] Setting paragraph bookmark folder ID with key:', key, 'value:', folderId);
+    await this.set(key, folderId);
+    console.log('[ChromeStorage] Set complete, verifying...');
+    const verify = await this.get<string>(key);
+    console.log('[ChromeStorage] Verification after set:', verify);
   }
 
   /**
    * Remove the preferred folder ID for paragraph bookmarks
    */
   static async removeParagraphBookmarkPreferenceFolderId(): Promise<void> {
-    return this.remove(this.KEYS.PARAGRAPH_BOOKMARK_PREFERENCE_FOLDER_ID);
+    return this.remove(this.KEYS.XPLAINO_PARAGRAPH_BOOKMARK_FOLDER_ID);
   }
 
   /**
    * Get the preferred folder ID for link bookmarks
    */
   static async getLinkBookmarkPreferenceFolderId(): Promise<string | null> {
-    return this.get<string>(this.KEYS.LINK_BOOKMARK_PREFERENCE_FOLDER_ID);
+    return this.get<string>(this.KEYS.XPLAINO_LINK_BOOKMARK_FOLDER_ID);
   }
 
   /**
    * Set the preferred folder ID for link bookmarks
    */
   static async setLinkBookmarkPreferenceFolderId(folderId: string): Promise<void> {
-    return this.set(this.KEYS.LINK_BOOKMARK_PREFERENCE_FOLDER_ID, folderId);
+    return this.set(this.KEYS.XPLAINO_LINK_BOOKMARK_FOLDER_ID, folderId);
   }
 
   /**
    * Remove the preferred folder ID for link bookmarks
    */
   static async removeLinkBookmarkPreferenceFolderId(): Promise<void> {
-    return this.remove(this.KEYS.LINK_BOOKMARK_PREFERENCE_FOLDER_ID);
+    return this.remove(this.KEYS.XPLAINO_LINK_BOOKMARK_FOLDER_ID);
+  }
+
+  // --- Bookmark Toast Preferences ---
+  /**
+   * Get whether to show the bookmark saved link toast for text/paragraph bookmarks
+   */
+  static async getDontShowTextBookmarkSavedLinkToast(): Promise<boolean> {
+    const value = await this.get<boolean>(this.KEYS.DONT_SHOW_XPLAINO_TEXT_BOOKMARK_SAVED_LINK_TOAST);
+    return value ?? false;
+  }
+
+  /**
+   * Set whether to show the bookmark saved link toast for text/paragraph bookmarks
+   */
+  static async setDontShowTextBookmarkSavedLinkToast(dontShow: boolean): Promise<void> {
+    return this.set(this.KEYS.DONT_SHOW_XPLAINO_TEXT_BOOKMARK_SAVED_LINK_TOAST, dontShow);
+  }
+
+  /**
+   * Get whether to show the bookmark saved link toast for link bookmarks
+   */
+  static async getDontShowLinkBookmarkSavedLinkToast(): Promise<boolean> {
+    const value = await this.get<boolean>(this.KEYS.DONT_SHOW_XPLAINO_LINK_BOOKMARK_SAVED_LINK_TOAST);
+    return value ?? false;
+  }
+
+  /**
+   * Set whether to show the bookmark saved link toast for link bookmarks
+   */
+  static async setDontShowLinkBookmarkSavedLinkToast(dontShow: boolean): Promise<void> {
+    return this.set(this.KEYS.DONT_SHOW_XPLAINO_LINK_BOOKMARK_SAVED_LINK_TOAST, dontShow);
+  }
+
+  /**
+   * Get whether to show the bookmark saved link toast for word bookmarks
+   */
+  static async getDontShowWordBookmarkSavedLinkToast(): Promise<boolean> {
+    const value = await this.get<boolean>(this.KEYS.DONT_SHOW_XPLAINO_WORD_BOOKMARK_SAVED_LINK_TOAST);
+    return value ?? false;
+  }
+
+  /**
+   * Set whether to show the bookmark saved link toast for word bookmarks
+   */
+  static async setDontShowWordBookmarkSavedLinkToast(dontShow: boolean): Promise<void> {
+    return this.set(this.KEYS.DONT_SHOW_XPLAINO_WORD_BOOKMARK_SAVED_LINK_TOAST, dontShow);
+  }
+
+  // --- Welcome Modal Preference ---
+  /**
+   * Get whether to show the welcome modal
+   */
+  static async getDontShowWelcomeModal(): Promise<boolean> {
+    const value = await this.get<boolean>(this.KEYS.DONT_SHOW_WELCOME_MODAL);
+    return value ?? false;
+  }
+
+  /**
+   * Set whether to show the welcome modal
+   */
+  static async setDontShowWelcomeModal(dontShow: boolean): Promise<void> {
+    return this.set(this.KEYS.DONT_SHOW_WELCOME_MODAL, dontShow);
   }
 }
 

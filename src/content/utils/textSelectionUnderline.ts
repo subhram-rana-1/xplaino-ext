@@ -144,6 +144,98 @@ export function changeUnderlineColor(underlineState: UnderlineState | null, colo
 }
 
 /**
+ * Check if a range overlaps with any underlined text (purple or green)
+ * @param range - The selection range to check
+ * @returns true if the range overlaps with underlined text, false otherwise
+ */
+export function isRangeOverlappingUnderlinedText(range: Range): boolean {
+  if (!range || range.collapsed) {
+    return false;
+  }
+
+  try {
+    // Find all span elements in the document
+    const allSpans = document.querySelectorAll('span');
+    
+    // Check if any part of the range overlaps with an underlined span
+    for (const span of allSpans) {
+      const style = window.getComputedStyle(span);
+      const inlineStyle = (span as HTMLElement).style;
+      
+      // Check if this span has a dashed underline
+      const hasUnderline = style.textDecoration.includes('underline') && 
+                          style.textDecorationStyle === 'dashed';
+      
+      if (!hasUnderline) {
+        continue;
+      }
+      
+      // Check if it's purple or green underline
+      const textDecorationColor = inlineStyle.textDecorationColor || style.textDecorationColor;
+      const isPurple = textDecorationColor.includes('149, 39, 245') || 
+                       textDecorationColor.includes('9527F5') ||
+                       textDecorationColor.includes('rgb(149, 39, 245)');
+      const isGreen = textDecorationColor.includes('0, 200, 0') || 
+                     textDecorationColor.includes('00C800') ||
+                     textDecorationColor.includes('rgb(0, 200, 0)');
+      
+      if (!isPurple && !isGreen) {
+        continue;
+      }
+      
+      // Check if the range overlaps with this span
+      try {
+        const spanRange = document.createRange();
+        spanRange.selectNodeContents(span);
+        
+        // Check if ranges overlap using boundary point comparison
+        // Ranges overlap if: range.start < spanRange.end AND range.end > spanRange.start
+        const rangeStartBeforeSpanEnd = range.compareBoundaryPoints(Range.START_TO_END, spanRange) < 0;
+        const rangeEndAfterSpanStart = range.compareBoundaryPoints(Range.END_TO_START, spanRange) > 0;
+        
+        if (rangeStartBeforeSpanEnd && rangeEndAfterSpanStart) {
+          return true;
+        }
+        
+        // Also check if the range's start or end container is within the span
+        const startContainer = range.startContainer;
+        const endContainer = range.endContainer;
+        
+        // Check if startContainer or endContainer is the span itself or a descendant
+        if (span === startContainer || span === endContainer || 
+            span.contains(startContainer) || span.contains(endContainer)) {
+          return true;
+        }
+        
+        // Check if the span is within the range by comparing boundaries
+        // Span is within range if: range.start <= spanRange.start AND range.end >= spanRange.end
+        const rangeStartBeforeSpanStart = range.compareBoundaryPoints(Range.START_TO_START, spanRange) <= 0;
+        const rangeEndAfterSpanEnd = range.compareBoundaryPoints(Range.END_TO_END, spanRange) >= 0;
+        
+        if (rangeStartBeforeSpanStart && rangeEndAfterSpanEnd) {
+          return true;
+        }
+      } catch (error) {
+        // If range comparison fails, try a simpler approach
+        // Check if the range's start or end container is within the span
+        const startContainer = range.startContainer;
+        const endContainer = range.endContainer;
+        
+        if (span === startContainer || span === endContainer ||
+            span.contains(startContainer) || span.contains(endContainer)) {
+          return true;
+        }
+      }
+    }
+    
+    return false;
+  } catch (error) {
+    console.error('[textSelectionUnderline] Error checking for overlapping underlined text:', error);
+    return false;
+  }
+}
+
+/**
  * Pulse the background color of the underlined text three times with green color
  * @param underlineState - The underline state containing the wrapper element
  */
