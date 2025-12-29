@@ -44,7 +44,7 @@ import savedParagraphIconStyles from './styles/savedParagraphIcon.shadow.css?inl
 import welcomeModalStyles from './styles/welcomeModal.shadow.css?inline';
 
 // Import color CSS variables
-import { FAB_COLOR_VARIABLES } from '../constants/colors.css.js';
+import { ALL_COLOR_VARIABLES } from '../constants/colors.css.js';
 
 // Import services and utilities
 import { SummariseService } from '../api-services/SummariseService';
@@ -426,7 +426,7 @@ function injectFAB(): void {
   });
 
   // Inject color CSS variables first
-  injectStyles(shadow, FAB_COLOR_VARIABLES);
+  injectStyles(shadow, ALL_COLOR_VARIABLES);
   
   // Inject component styles
   injectStyles(shadow, fabStyles);
@@ -945,7 +945,7 @@ function injectSidePanel(): void {
   });
 
   // Inject color CSS variables first
-  injectStyles(shadow, FAB_COLOR_VARIABLES);
+  injectStyles(shadow, ALL_COLOR_VARIABLES);
   
   // Inject component styles
   injectStyles(shadow, sidePanelStyles);
@@ -1001,7 +1001,7 @@ function injectContentActions(): void {
   });
 
   // Inject color CSS variables first
-  injectStyles(shadow, FAB_COLOR_VARIABLES);
+  injectStyles(shadow, ALL_COLOR_VARIABLES);
   
   // Inject component styles
   injectStyles(shadow, contentActionsStyles);
@@ -5421,7 +5421,7 @@ function injectTextExplanationPanel(): void {
   // Inject component styles first (they define variables after all:initial)
   injectStyles(shadow, textExplanationSidePanelStyles);
   // Then inject color variables to override/ensure they're set
-  injectStyles(shadow, FAB_COLOR_VARIABLES);
+  injectStyles(shadow, ALL_COLOR_VARIABLES);
 
   document.body.appendChild(host);
 
@@ -5959,7 +5959,7 @@ function injectTextExplanationIconContainer(): void {
     zIndex: 2147483647, // Highest z-index
   });
 
-  injectStyles(shadow, FAB_COLOR_VARIABLES);
+  injectStyles(shadow, ALL_COLOR_VARIABLES);
   injectStyles(shadow, textExplanationIconStyles);
 
   document.body.appendChild(host);
@@ -6148,7 +6148,7 @@ function injectDisableModal(): void {
   });
 
   // Inject color CSS variables first
-  injectStyles(shadow, FAB_COLOR_VARIABLES);
+  injectStyles(shadow, ALL_COLOR_VARIABLES);
   
   // Inject component styles
   injectStyles(shadow, disableNotificationModalStyles);
@@ -6268,7 +6268,7 @@ function injectToast(): void {
   });
 
   // Inject color CSS variables first
-  injectStyles(shadow, FAB_COLOR_VARIABLES);
+  injectStyles(shadow, ALL_COLOR_VARIABLES);
   
   // Inject inline toast styles (since we don't have a separate toast shadow CSS)
   const toastStyles = `
@@ -6429,7 +6429,7 @@ function injectBookmarkToast(): void {
   });
 
   // Inject color CSS variables first
-  injectStyles(shadow, FAB_COLOR_VARIABLES);
+  injectStyles(shadow, ALL_COLOR_VARIABLES);
   
   // Inject inline bookmark toast styles
   const bookmarkToastStyles = `
@@ -6607,15 +6607,15 @@ function updateBookmarkToast(): void {
         {
           className: bookmarkToastClosing ? 'bookmark-toast bookmark-toast-closing' : 'bookmark-toast',
           style: {
-            background: 'white',
+            background: 'var(--color-white)',
             border: 'none',
-            color: '#BF7EFA',
+            color: 'var(--color-primary-light)',
             padding: '1rem 1.25rem',
             borderRadius: '20px',
-            fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+            fontFamily: 'var(--font-family-primary)',
             fontSize: '0.9375rem',
             fontWeight: '500',
-            boxShadow: '0 4px 20px rgba(149, 39, 245, 0.3)',
+            boxShadow: '0 4px 20px var(--color-primary-opacity-30)',
             animation: bookmarkToastClosing ? 'slideOut 0.3s ease-in forwards' : 'slideIn 0.3s ease-out',
             display: 'flex',
             flexDirection: 'column',
@@ -6639,7 +6639,7 @@ function updateBookmarkToast(): void {
               onClick: handleLinkClick,
               className: 'bookmark-toast-link',
               style: {
-                color: '#BF7EFA',
+                color: 'var(--color-primary-light)',
                 textDecoration: 'underline',
                 cursor: 'pointer',
                 fontWeight: '600',
@@ -6729,7 +6729,7 @@ function injectFolderListModal(): void {
   });
 
   // Inject color CSS variables first
-  injectStyles(shadow, FAB_COLOR_VARIABLES);
+  injectStyles(shadow, ALL_COLOR_VARIABLES);
   
   // Inject folder list modal styles
   injectStyles(shadow, folderListModalStyles);
@@ -7564,7 +7564,7 @@ function injectLoginModal(): void {
   });
 
   // Inject color CSS variables first
-  injectStyles(shadow, FAB_COLOR_VARIABLES);
+  injectStyles(shadow, ALL_COLOR_VARIABLES);
   
   // Inject component styles
   injectStyles(shadow, loginModalStyles);
@@ -7643,7 +7643,7 @@ function injectSubscriptionModal(): void {
   });
 
   // Inject color CSS variables first
-  injectStyles(shadow, FAB_COLOR_VARIABLES);
+  injectStyles(shadow, ALL_COLOR_VARIABLES);
   
   // Inject component styles
   injectStyles(shadow, subscriptionModalStyles);
@@ -7695,7 +7695,7 @@ function injectWelcomeModal(): void {
   });
 
   // Inject color CSS variables first
-  injectStyles(shadow, FAB_COLOR_VARIABLES);
+  injectStyles(shadow, ALL_COLOR_VARIABLES);
   
   // Inject component styles
   injectStyles(shadow, welcomeModalStyles);
@@ -7942,7 +7942,7 @@ function injectSavedParagraphIconContainer(): void {
     zIndex: 2147483647, // Highest z-index
   });
 
-  injectStyles(shadow, FAB_COLOR_VARIABLES);
+  injectStyles(shadow, ALL_COLOR_VARIABLES);
   injectStyles(shadow, savedParagraphIconStyles);
 
   document.body.appendChild(host);

@@ -11,18 +11,18 @@
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
-  background-color: rgba(0, 0, 0, 0.5) !important;
+  background-color: var(--color-overlay) !important;
 }
 
 .modalContainer {
   position: relative !important;
-  background: white !important;
+  background: var(--color-white) !important;
   border-radius: 30px !important;
   width: 90% !important;
   max-width: 500px !important;
   display: flex !important;
   flex-direction: column !important;
-  box-shadow: 0 10px 40px rgba(149, 39, 245, 0.2) !important;
+  box-shadow: 0 10px 40px var(--color-primary-opacity-20) !important;
   animation: modalSlideIn 0.25s ease-out !important;
 }
 
@@ -42,15 +42,15 @@
   align-items: center !important;
   justify-content: space-between !important;
   padding: 20px 24px !important;
-  border-bottom: 1px solid #e5e7eb !important;
+  border-bottom: 1px solid var(--color-border-gray-200) !important;
 }
 
 .modalTitle {
   margin: 0 !important;
   font-size: 1.25rem !important;
   font-weight: 600 !important;
-  color: #111827 !important;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+  color: var(--color-gray-800-alt) !important;
+  font-family: var(--font-family-primary) !important;
 }
 
 .closeButton {
@@ -61,14 +61,14 @@
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
-  color: #6b7280 !important;
+  color: var(--color-gray-600-alt) !important;
   border-radius: 4px !important;
   transition: all 0.15s ease !important;
 }
 
 .closeButton:hover {
-  background-color: #f3f4f6 !important;
-  color: #111827 !important;
+  background-color: var(--color-bg-gray-100) !important;
+  color: var(--color-gray-800-alt) !important;
 }
 
 .modalContent {
@@ -82,39 +82,39 @@
 }
 
 .inputLabel {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+  font-family: var(--font-family-primary) !important;
   font-size: 0.875rem !important;
   font-weight: 500 !important;
-  color: #374151 !important;
+  color: var(--color-gray-700-alt) !important;
 }
 
 .nameInput {
   width: 100% !important;
-  border: 1px solid #d1d5db !important;
+  border: 1px solid var(--color-border-gray-300) !important;
   border-radius: 10px !important;
   padding: 12px 16px !important;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+  font-family: var(--font-family-primary) !important;
   font-size: 0.9375rem !important;
-  color: #374151 !important;
+  color: var(--color-gray-700-alt) !important;
   outline: none !important;
   transition: border-color 0.15s ease !important;
   box-sizing: border-box !important;
 }
 
 .nameInput:focus {
-  border-color: #9527f5 !important;
+  border-color: var(--color-primary) !important;
 }
 
 .nameInput:disabled {
-  background-color: #f3f4f6 !important;
+  background-color: var(--color-bg-gray-100) !important;
   cursor: not-allowed !important;
   opacity: 0.6 !important;
 }
 
 .charCount {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+  font-family: var(--font-family-primary) !important;
   font-size: 0.75rem !important;
-  color: #6b7280 !important;
+  color: var(--color-gray-600-alt) !important;
   text-align: right !important;
 }
 
@@ -123,7 +123,7 @@
   align-items: center !important;
   justify-content: flex-end !important;
   padding: 16px 24px !important;
-  border-top: 1px solid #e5e7eb !important;
+  border-top: 1px solid var(--color-border-gray-200) !important;
   gap: 12px !important;
 }
 
@@ -133,19 +133,19 @@
   border-radius: 10px !important;
   font-size: 0.9375rem !important;
   font-weight: 500 !important;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+  font-family: var(--font-family-primary) !important;
   cursor: pointer !important;
   transition: all 0.2s ease !important;
   border: none !important;
 }
 
 .cancelButton {
-  background-color: #f3f4f6 !important;
-  color: #374151 !important;
+  background-color: var(--color-bg-gray-100) !important;
+  color: var(--color-gray-700-alt) !important;
 }
 
 .cancelButton:hover:not(:disabled) {
-  background-color: #e5e7eb !important;
+  background-color: var(--color-border-gray-200) !important;
 }
 
 .cancelButton:disabled {
@@ -154,14 +154,14 @@
 }
 
 .saveButton {
-  background-color: #9527f5 !important;
-  color: white !important;
-  box-shadow: 0 2px 8px rgba(149, 39, 245, 0.25) !important;
+  background-color: var(--color-primary) !important;
+  color: var(--color-white) !important;
+  box-shadow: 0 2px 8px var(--color-primary-opacity-25) !important;
 }
 
 .saveButton:hover:not(:disabled) {
-  background-color: #7c1ed9 !important;
-  box-shadow: 0 4px 12px rgba(149, 39, 245, 0.35) !important;
+  background-color: var(--color-primary-hover-dark) !important;
+  box-shadow: 0 4px 12px var(--color-primary-opacity-35) !important;
 }
 
 .saveButton:disabled {

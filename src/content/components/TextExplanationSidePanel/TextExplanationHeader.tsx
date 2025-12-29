@@ -2,6 +2,7 @@
 import React from 'react';
 import { Minus, Bookmark, Trash2, Eye } from 'lucide-react';
 import styles from './TextExplanationHeader.module.css';
+import { COLORS } from '../../../constants/colors';
 
 // Custom expand icon - arrows pointing away from center (up and down)
 const ExpandVerticalIcon: React.FC<{ size?: number }> = ({ size = 18 }) => (
@@ -142,7 +143,7 @@ export const TextExplanationHeader: React.FC<TextExplanationHeaderProps> = ({
             title={isBookmarked ? "Remove bookmark" : "Bookmark text"}
             type="button"
           >
-            <Bookmark size={18} fill={isBookmarked ? "#9527F5" : "none"} color={isBookmarked ? "#9527F5" : "currentColor"} />
+            <Bookmark size={18} fill={isBookmarked ? COLORS.PRIMARY : "none"} color={isBookmarked ? COLORS.PRIMARY : "currentColor"} />
           </button>
           {/* Delete button - only show when there's content */}
           {showDeleteIcon && (

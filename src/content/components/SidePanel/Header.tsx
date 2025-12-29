@@ -7,6 +7,7 @@ import { UserProfilePopover } from './UserProfilePopover';
 import { userAuthInfoAtom } from '@/store/uiAtoms';
 import { ChromeStorage } from '@/storage/chrome-local/ChromeStorage';
 import { ENV } from '@/config/env';
+import { COLORS } from '@/constants/colors';
 
 // Custom expand icon - arrows pointing away from center (up and down)
 const ExpandVerticalIcon: React.FC<{ size?: number }> = ({ size = 18 }) => (
@@ -265,8 +266,8 @@ export const Header: React.FC<HeaderProps> = ({
           >
             <Bookmark 
               size={18} 
-              fill={isBookmarked ? "#9527F5" : "none"} 
-              color={isBookmarked ? "#9527F5" : "currentColor"} 
+              fill={isBookmarked ? COLORS.PRIMARY : "none"} 
+              color={isBookmarked ? COLORS.PRIMARY : "currentColor"} 
             />
           </button>
         ) : activeTab !== 'summary' && (

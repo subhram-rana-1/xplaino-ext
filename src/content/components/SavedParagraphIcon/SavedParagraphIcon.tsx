@@ -2,6 +2,7 @@
 import React, { useState, useCallback } from 'react';
 import { Bookmark } from 'lucide-react';
 import styles from './SavedParagraphIcon.module.css';
+import { COLORS } from '../../../constants/colors';
 
 export interface SavedParagraphIconProps {
   /** Position of the icon */
@@ -222,7 +223,7 @@ export const SavedParagraphIcon: React.FC<SavedParagraphIconProps> = ({
         aria-label="Remove bookmark"
         title="Remove bookmark"
       >
-        <Bookmark size={16} fill="#9527F5" color="#9527F5" />
+        <Bookmark size={16} fill={COLORS.PRIMARY} color={COLORS.PRIMARY} />
       </button>
     </div>
   );

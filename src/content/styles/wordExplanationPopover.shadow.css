@@ -1,17 +1,7 @@
 /* src/content/styles/wordExplanationPopover.shadow.css */
 /* Shadow DOM styles for Word Explanation Popover */
 
-/* CSS Variables */
-:host {
-  --color-primary: #9527F5;
-  --color-primary-dark: #8607F5;
-  --color-primary-light: #B66DFF;
-  --color-primary-hover-bg: rgba(149, 39, 245, 0.1);
-  --color-white: #FFFFFF;
-  --color-text: #2D3748;
-  --color-text-secondary: #718096;
-  --color-disabled: #CBD5E0;
-}
+/* Color variables are injected via getAllColorVariables() from src/constants/colors.css.ts */
 
 /* Popover Container */
 .popoverContainer {
@@ -19,9 +9,9 @@
   width: 400px !important;
   min-width: 400px !important;
   max-width: 400px !important;
-  background: var(--color-white, #FFFFFF) !important;
+  background: var(--color-white) !important;
   border-radius: 30px !important;
-  box-shadow: 0 4px 20px rgba(149, 39, 245, 0.3) !important;
+  box-shadow: 0 4px 20px var(--color-primary-opacity-30) !important;
   border: none !important;
   padding: 15px !important;
   z-index: 2147483640 !important;
@@ -40,7 +30,7 @@
   justify-content: space-between !important;
   align-items: center !important;
   padding-bottom: 12px !important;
-  border-bottom: 1px solid rgba(149, 39, 245, 0.1) !important;
+  border-bottom: 1px solid var(--color-primary-opacity-10) !important;
 }
 
 .headerLeft {
@@ -50,10 +40,10 @@
 }
 
 .headerWord {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
+  font-family: var(--font-family-primary) !important;
   font-size: 18px !important;
   font-weight: 600 !important;
-  color: var(--color-primary, #9527F5) !important;
+  color: var(--color-primary) !important;
 }
 
 .headerBookmark {
@@ -66,12 +56,12 @@
   justify-content: center !important;
   border-radius: 8px !important;
   transition: all 0.2s ease !important;
-  color: var(--color-text-secondary, #718096) !important;
+  color: var(--color-text-secondary) !important;
 }
 
 .headerBookmark:hover:not(:disabled) {
-  background: rgba(149, 39, 245, 0.1) !important;
-  color: var(--color-primary, #9527F5) !important;
+  background: var(--color-primary-opacity-10) !important;
+  color: var(--color-primary) !important;
 }
 
 .headerBookmark:disabled {
@@ -80,7 +70,7 @@
 }
 
 .headerBookmarkSaved {
-  color: var(--color-primary, #9527F5) !important;
+  color: var(--color-primary) !important;
 }
 
 .headerBookmark svg {
@@ -98,12 +88,12 @@
   gap: 6px !important;
   border-radius: 8px !important;
   transition: all 0.2s ease !important;
-  color: var(--color-text-secondary, #718096) !important;
+  color: var(--color-text-secondary) !important;
 }
 
 .headerCopyButton:hover {
-  background: #eaddf8 !important;
-  color: var(--color-primary, #9527F5) !important;
+  background: var(--color-primary-very-light) !important;
+  color: var(--color-primary) !important;
 }
 
 .headerCopyButton svg {
@@ -111,26 +101,26 @@
 }
 
 .headerCopyButtonCopied {
-  color: #10B981 !important;
+  color: var(--color-success) !important;
 }
 
 .headerCopyButtonCopied:hover {
   background: none !important;
-  color: #10B981 !important;
+  color: var(--color-success) !important;
 }
 
 .headerCopiedText {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
+  font-family: var(--font-family-primary) !important;
   font-size: 14px !important;
   font-weight: 500 !important;
-  color: #10B981 !important;
+  color: var(--color-success) !important;
   transition: all 0.2s ease !important;
 }
 
 .bookmarkSpinner {
   width: 18px !important;
   height: 18px !important;
-  border: 2px solid rgba(149, 39, 245, 0.2) !important;
+  border: 2px solid var(--color-primary-opacity-20) !important;
   border-top-color: var(--color-primary, #9527F5) !important;
   border-radius: 50% !important;
   animation: spin 0.6s linear infinite !important;
@@ -141,8 +131,8 @@
   flex: 1 !important;
   overflow-y: auto !important;
   max-height: 400px !important;
-  color: var(--color-text, #2D3748) !important;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
+  color: var(--color-text-primary) !important;
+  font-family: var(--font-family-primary) !important;
   font-size: 14px !important;
   line-height: 1.6 !important;
   margin-bottom: 0 !important;
@@ -165,7 +155,7 @@
 .mainContent .sectionTitle,
 .grammarContent .sectionTitle {
   font-weight: 700 !important;
-  color: var(--color-primary, #9527F5) !important;
+  color: var(--color-primary) !important;
 }
 
 .mainContent ul,
@@ -179,7 +169,7 @@
 }
 
 .mainContent code {
-  background: rgba(149, 39, 245, 0.1) !important;
+  background: var(--color-primary-opacity-10) !important;
   padding: 2px 6px !important;
   border-radius: 4px !important;
   font-family: 'Monaco', 'Courier New', monospace !important;
@@ -219,7 +209,7 @@
 }
 
 .utilityButton:hover:not(:disabled) {
-  background: #eaddf8 !important;
+  background: var(--color-primary-very-light) !important;
 }
 
 .utilityButton:active:not(:disabled) {
@@ -236,7 +226,7 @@
 .utilityButton svg {
   width: 20px !important;
   height: 20px !important;
-  color: #BF7EFA !important;
+  color: var(--color-primary-light) !important;
   stroke: #BF7EFA !important;
   stroke-width: 2.5 !important;
   fill: none !important;
@@ -245,7 +235,7 @@
 }
 
 .utilityButton:hover svg {
-  color: var(--color-primary, #9527F5) !important;
+  color: var(--color-primary) !important;
   stroke: var(--color-primary, #9527F5) !important;
 }
 
@@ -254,15 +244,15 @@
   bottom: calc(100% + 8px) !important;
   left: 50% !important;
   transform: translateX(-50%) !important;
-  background: #eaddf8 !important;
-  color: #BF7EFA !important;
+  background: var(--color-primary-very-light) !important;
+  color: var(--color-primary-light) !important;
   padding: 4px 12px !important;
   border-radius: 999px !important;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
+  font-family: var(--font-family-primary) !important;
   font-size: 12px !important;
   font-weight: 500 !important;
   white-space: nowrap !important;
-  box-shadow: 0 2px 8px rgba(149, 39, 245, 0.15) !important;
+  box-shadow: 0 2px 8px var(--color-primary-opacity-15) !important;
   pointer-events: none !important;
   z-index: 10 !important;
   animation: tooltipFadeIn 0.15s ease forwards !important;
@@ -275,7 +265,7 @@
   left: 50% !important;
   transform: translateX(-50%) !important;
   border: 5px solid transparent !important;
-  border-top-color: #eaddf8 !important;
+  border-top-color: var(--color-primary-very-light) !important;
 }
 
 @keyframes tooltipFadeIn {
@@ -304,14 +294,14 @@
   justify-content: center !important;
   gap: 8px !important;
   padding: 20px !important;
-  color: var(--color-text-secondary, #718096) !important;
+  color: var(--color-text-secondary) !important;
   font-size: 14px !important;
 }
 
 .spinner {
   width: 16px !important;
   height: 16px !important;
-  border: 2px solid rgba(149, 39, 245, 0.2) !important;
+  border: 2px solid var(--color-primary-opacity-20) !important;
   border-top-color: var(--color-primary, #9527F5) !important;
   border-radius: 50% !important;
   animation: spin 0.8s linear infinite !important;
@@ -326,7 +316,7 @@
 /* Error State */
 .errorState {
   padding: 20px !important;
-  color: #EF4444 !important;
+  color: var(--color-error) !important;
   text-align: center !important;
   font-size: 14px !important;
 }
@@ -334,7 +324,7 @@
 /* Placeholder State */
 .placeholderState {
   padding: 20px !important;
-  color: var(--color-text-secondary, #718096) !important;
+  color: var(--color-text-secondary) !important;
   text-align: center !important;
   font-size: 14px !important;
   font-style: italic !important;
@@ -361,21 +351,21 @@
   border-radius: 8px !important;
   font-size: 14px !important;
   font-weight: 600 !important;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
+  font-family: var(--font-family-primary) !important;
   cursor: pointer !important;
   transition: all 0.2s ease !important;
-  box-shadow: 0 2px 8px rgba(149, 39, 245, 0.25) !important;
+  box-shadow: 0 2px 8px var(--color-primary-opacity-25) !important;
 }
 
 .getContextualMeaningButton:hover:not(:disabled) {
-  background: var(--color-primary-hover, #7d1fd4) !important;
-  box-shadow: 0 4px 12px rgba(149, 39, 245, 0.35) !important;
+  background: var(--color-primary-hover-alt) !important;
+  box-shadow: 0 4px 12px var(--color-primary-opacity-35) !important;
   transform: translateY(-1px) !important;
 }
 
 .getContextualMeaningButton:active:not(:disabled) {
   transform: translateY(0) !important;
-  box-shadow: 0 2px 6px rgba(149, 39, 245, 0.3) !important;
+  box-shadow: 0 2px 6px var(--color-primary-opacity-30) !important;
 }
 
 .getContextualMeaningButton:disabled {
@@ -386,7 +376,7 @@
 .getContextualMeaningButton .buttonSpinner {
   width: 16px !important;
   height: 16px !important;
-  border: 2px solid rgba(255, 255, 255, 0.3) !important;
+  border: 2px solid var(--color-white-opacity-30) !important;
   border-top-color: white !important;
   border-radius: 50% !important;
   animation: spin 0.6s linear infinite !important;
@@ -439,7 +429,7 @@
   margin: 0 !important;
   padding: 0 !important;
   display: block !important;
-  color: #718096 !important;
+  color: var(--color-gray-600) !important;
   stroke: #718096 !important;
   fill: none !important;
   pointer-events: none !important;
@@ -457,8 +447,8 @@
 }
 
 .buttonLabel {
-  color: #718096 !important;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
+  color: var(--color-gray-600) !important;
+  font-family: var(--font-family-primary) !important;
   font-size: 14px !important;
   font-weight: 500 !important;
   transition: color 0.2s ease !important;
@@ -475,7 +465,7 @@
 
 /* Word Span Styles */
 .word-explanation-loading {
-  background: rgba(149, 39, 245, 0.1) !important;
+  background: var(--color-primary-opacity-10) !important;
   border-radius: 2px !important;
   padding: 2px 4px !important;
   animation: pulsate-purple 1.5s ease-in-out infinite !important;
@@ -485,15 +475,15 @@
 
 @keyframes pulsate-purple {
   0%, 100% {
-    background-color: rgba(149, 39, 245, 0.1) !important;
+    background-color: var(--color-primary-opacity-10) !important;
   }
   50% {
-    background-color: rgba(149, 39, 245, 0.25) !important;
+    background-color: var(--color-primary-opacity-25) !important;
   }
 }
 
 .word-explanation-active {
-  background: rgba(0, 200, 0, 0.15) !important;
+  background: var(--color-success-opacity-15) !important;
   border-radius: 4px !important;
   padding: 2px 4px !important;
   cursor: pointer !important;
@@ -502,7 +492,7 @@
 }
 
 .word-explanation-active:hover {
-  background: rgba(0, 200, 0, 0.25) !important;
+  background: var(--color-success-opacity-25) !important;
 }
 
 /* Scale bounce animation for word span */
@@ -532,7 +522,7 @@
 .purple-spinner {
   width: 18px !important;
   height: 18px !important;
-  border: 2px solid rgba(149, 39, 245, 0.2) !important;
+  border: 2px solid var(--color-primary-opacity-20) !important;
   border-top-color: var(--color-primary, #9527F5) !important;
   border-radius: 50% !important;
   animation: spin 0.8s linear infinite !important;
@@ -542,8 +532,8 @@
 .buttonSpinner {
   width: 20px !important;
   height: 20px !important;
-  border: 2px solid rgba(149, 39, 245, 0.2) !important;
-  border-top-color: #9527f5 !important;
+  border: 2px solid var(--color-primary-opacity-20) !important;
+  border-top-color: var(--color-primary) !important;
   border-radius: 50% !important;
   animation: spin 0.6s linear infinite !important;
 }
@@ -565,9 +555,9 @@
 .sectionTitle {
   font-size: 14px !important;
   font-weight: 700 !important;
-  color: var(--color-primary, #9527F5) !important;
+  color: var(--color-primary) !important;
   margin: 0 !important;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
+  font-family: var(--font-family-primary) !important;
 }
 
 /* Ensure sectionTitle overrides mainContent strong styles */
@@ -576,7 +566,7 @@
 .mainContent strong.sectionTitle,
 .grammarContent strong.sectionTitle {
   font-weight: 700 !important;
-  color: var(--color-primary, #9527F5) !important;
+  color: var(--color-primary) !important;
 }
 
 .list {
@@ -588,9 +578,9 @@
 .listItem {
   font-size: 13px !important;
   line-height: 1.6 !important;
-  color: #333 !important;
+  color: var(--color-text-dark) !important;
   margin-bottom: 4px !important;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
+  font-family: var(--font-family-primary) !important;
 }
 
 .listItem:last-child {
@@ -600,8 +590,8 @@
 .commaSeparated {
   font-size: 13px !important;
   line-height: 1.6 !important;
-  color: #333 !important;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
+  color: var(--color-text-dark) !important;
+  font-family: var(--font-family-primary) !important;
 }
 
 

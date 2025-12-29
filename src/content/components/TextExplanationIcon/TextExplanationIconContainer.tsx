@@ -3,6 +3,7 @@ import React from 'react';
 import { Bookmark } from 'lucide-react';
 import { TextExplanationIcon } from './TextExplanationIcon';
 import styles from './TextExplanationIconContainer.module.css';
+import { COLORS } from '../../../constants/colors';
 
 export interface TextExplanationIconData {
   id: string;
@@ -84,7 +85,7 @@ export const TextExplanationIconContainer: React.FC<TextExplanationIconContainer
                 title="Remove bookmark"
                 type="button"
               >
-                <Bookmark size={16} fill="#9527F5" color="#9527F5" />
+                <Bookmark size={16} fill={COLORS.PRIMARY} color={COLORS.PRIMARY} />
               </button>
             </div>
           );
