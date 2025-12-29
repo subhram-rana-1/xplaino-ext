@@ -14,6 +14,7 @@ import { LoginModal } from './components/LoginModal';
 import { SubscriptionModal } from './components/SubscriptionModal/SubscriptionModal';
 import { TextExplanationSidePanel } from './components/TextExplanationSidePanel';
 import { TextExplanationIconContainer } from './components/TextExplanationIcon';
+import { ImageExplanationIcon } from './components/ImageExplanationIcon/ImageExplanationIcon';
 import { WordExplanationPopover, type TabType } from './components/WordExplanationPopover';
 import { WordAskAISidePanel } from './components/WordAskAISidePanel';
 import { FolderListModal } from './components/FolderListModal';
@@ -37,6 +38,7 @@ import loginModalStyles from './styles/loginModal.shadow.css?inline';
 import subscriptionModalStyles from './styles/subscriptionModal.shadow.css?inline';
 import textExplanationSidePanelStyles from './styles/textExplanationSidePanel.shadow.css?inline';
 import textExplanationIconStyles from './styles/textExplanationIcon.shadow.css?inline';
+import imageExplanationIconStyles from './styles/imageExplanationIcon.shadow.css?inline';
 import wordExplanationPopoverStyles from './styles/wordExplanationPopover.shadow.css?inline';
 import wordAskAISidePanelStyles from './styles/wordAskAISidePanel.shadow.css?inline';
 import folderListModalStyles from './styles/folderListModal.shadow.css?inline';
@@ -50,8 +52,10 @@ import { getCurrentTheme } from '../constants/theme';
 // Import services and utilities
 import { SummariseService } from '../api-services/SummariseService';
 import { SimplifyService } from '../api-services/SimplifyService';
+import { SimplifyImageService } from '../api-services/SimplifyImageService';
 import { TranslateService, getLanguageCode, TranslateTextItem } from '../api-services/TranslateService';
 import { AskService } from '../api-services/AskService';
+import { AskImageService } from '../api-services/AskImageService';
 import { ApiErrorHandler } from '../api-services/ApiErrorHandler';
 import { WordsExplanationV2Service, type WordInfo } from '../api-services/WordsExplanationV2Service';
 import { MoreExamplesService } from '../api-services/MoreExamplesService';
@@ -83,6 +87,12 @@ import {
   type TextExplanationState,
 } from '../store/textExplanationAtoms';
 import {
+  imageExplanationsAtom,
+  activeImageExplanationIdAtom,
+  imageExplanationPanelOpenAtom,
+  type ImageExplanationState,
+} from '../store/imageExplanationAtoms';
+import {
   wordExplanationsAtom,
   activeWordIdAtom,
   wordAskAISidePanelOpenAtom,
@@ -107,6 +117,8 @@ const LOGIN_MODAL_HOST_ID = 'xplaino-login-modal-host';
 const SUBSCRIPTION_MODAL_HOST_ID = 'xplaino-subscription-modal-host';
 const TEXT_EXPLANATION_PANEL_HOST_ID = 'xplaino-text-explanation-panel-host';
 const TEXT_EXPLANATION_ICON_HOST_ID = 'xplaino-text-explanation-icon-host';
+const IMAGE_EXPLANATION_PANEL_HOST_ID = 'xplaino-image-explanation-panel-host';
+const IMAGE_EXPLANATION_ICON_HOST_ID = 'xplaino-image-explanation-icon-host';
 const WORD_EXPLANATION_POPOVER_HOST_ID = 'xplaino-word-explanation-popover-host';
 const WORD_ASK_AI_PANEL_HOST_ID = 'xplaino-word-ask-ai-panel-host';
 const TOAST_HOST_ID = 'xplaino-toast-host';
@@ -137,6 +149,8 @@ let loginModalRoot: ReactDOM.Root | null = null;
 let subscriptionModalRoot: ReactDOM.Root | null = null;
 let textExplanationPanelRoot: ReactDOM.Root | null = null;
 let textExplanationIconRoot: ReactDOM.Root | null = null;
+let imageExplanationPanelRoot: ReactDOM.Root | null = null;
+let imageExplanationIconRoot: ReactDOM.Root | null = null;
 let wordExplanationPopoverRoot: ReactDOM.Root | null = null;
 let wordAskAISidePanelRoot: ReactDOM.Root | null = null;
 let wordAskAICloseHandler: (() => void) | null = null;
@@ -5442,6 +5456,1071 @@ function removeTextExplanationPanel(): void {
 }
 
 // =============================================================================
+// IMAGE EXPLANATION
+// =============================================================================
+
+// Track hovered images and their icon states
+const hoveredImages = new Map<HTMLImageElement, { iconId: string }>();
+// Track hide timeouts for images (to delay icon disappearance)
+const imageHideTimeouts = new Map<HTMLImageElement, ReturnType<typeof setTimeout>>();
+// Track if mouse is over icon (to keep it visible)
+const iconHoverStates = new Map<string, boolean>();
+
+/**
+ * Convert image element to File/Blob
+ * Handles CORS issues by trying fetch first, then canvas for same-origin images
+ */
+async function convertImageToFile(imageElement: HTMLImageElement): Promise<File | null> {
+  // Determine MIME type from image source or default to PNG
+  let mimeType = 'image/png';
+  if (imageElement.src) {
+    if (imageElement.src.includes('.jpg') || imageElement.src.includes('.jpeg')) {
+      mimeType = 'image/jpeg';
+    } else if (imageElement.src.includes('.webp')) {
+      mimeType = 'image/webp';
+    } else if (imageElement.src.includes('.gif')) {
+      mimeType = 'image/gif';
+    }
+  }
+  
+  // First, try fetching the image directly (works if CORS is properly configured)
+  try {
+    const response = await fetch(imageElement.src, {
+      mode: 'cors',
+      credentials: 'omit',
+    });
+    
+    if (response.ok) {
+      const blob = await response.blob();
+      const fetchedMimeType = blob.type || mimeType;
+      const file = new File([blob], 'image.png', { type: fetchedMimeType });
+      console.log('[Content Script] Successfully fetched image via fetch API');
+      return file;
+    }
+  } catch (fetchError) {
+    console.log('[Content Script] Fetch failed (CORS issue), trying canvas approach:', fetchError);
+    // Continue to canvas approach
+  }
+  
+  // If fetch fails, try canvas approach (works for same-origin images)
+  // Note: Canvas will be tainted for cross-origin images, so we catch that error
+  try {
+    // Create canvas
+    const canvas = document.createElement('canvas');
+    canvas.width = imageElement.naturalWidth || imageElement.width;
+    canvas.height = imageElement.naturalHeight || imageElement.height;
+    
+    const ctx = canvas.getContext('2d');
+    if (!ctx) {
+      console.error('[Content Script] Failed to get canvas context');
+      return null;
+    }
+    
+    // Draw image to canvas
+    ctx.drawImage(imageElement, 0, 0);
+    
+    // Convert to blob - this will throw SecurityError if canvas is tainted
+    return new Promise<File | null>((resolve) => {
+      try {
+        canvas.toBlob((blob) => {
+          if (!blob) {
+            console.error('[Content Script] Failed to convert canvas to blob');
+            resolve(null);
+            return;
+          }
+          
+          // Convert blob to File
+          const file = new File([blob], 'image.png', { type: mimeType });
+          console.log('[Content Script] Successfully converted image via canvas');
+          resolve(file);
+        }, mimeType);
+      } catch (toBlobError) {
+        // Canvas is tainted (cross-origin image)
+        console.error('[Content Script] Canvas is tainted (cross-origin image):', toBlobError);
+        resolve(null);
+      }
+    });
+  } catch (error) {
+    // Catch any errors during canvas operations
+    if (error instanceof Error && error.name === 'SecurityError') {
+      console.error('[Content Script] SecurityError: Cannot export tainted canvas (cross-origin image)');
+    } else {
+      console.error('[Content Script] Error converting image to file via canvas:', error);
+    }
+    return null;
+  }
+}
+
+/**
+ * Update image explanation icon container
+ */
+function updateImageExplanationIconContainer(): void {
+  if (!imageExplanationIconRoot) {
+    console.warn('[Content Script] imageExplanationIconRoot is null, cannot update icon container');
+    return;
+  }
+  
+  const explanations = store.get(imageExplanationsAtom);
+  const activeId = store.get(activeImageExplanationIdAtom);
+  
+  console.log('[Content Script] updateImageExplanationIconContainer:', {
+    explanationsCount: explanations.size,
+    activeId,
+    icons: Array.from(explanations.values()).map(exp => ({
+      id: exp.id,
+      isSpinning: exp.isSpinning,
+      firstChunkReceived: exp.firstChunkReceived,
+      position: exp.iconPosition,
+    })),
+  });
+  
+  const icons = Array.from(explanations.values()).map((explanation) => ({
+    id: explanation.id,
+    position: explanation.iconPosition,
+    isSpinning: explanation.isSpinning,
+    onClick: () => {
+      // If already has content, toggle panel
+      if (explanation.firstChunkReceived) {
+        const currentOpen = store.get(imageExplanationPanelOpenAtom);
+        store.set(imageExplanationPanelOpenAtom, !currentOpen);
+        if (!currentOpen) {
+          store.set(activeImageExplanationIdAtom, explanation.id);
+        } else {
+          store.set(activeImageExplanationIdAtom, null);
+        }
+        updateImageExplanationPanel();
+        updateImageExplanationIconContainer();
+      } else {
+        // If not yet simplified, trigger simplify API
+        handleImageIconClick(explanation.imageElement);
+      }
+    },
+    onMouseEnter: () => handleIconMouseEnter(explanation.id),
+    onMouseLeave: () => handleIconMouseLeave(explanation.id),
+    iconRef: explanation.iconRef,
+    isPanelOpen: activeId === explanation.id && store.get(imageExplanationPanelOpenAtom),
+    imageElement: explanation.imageElement,
+    firstChunkReceived: explanation.firstChunkReceived,
+  }));
+  
+  // If no icons, render empty fragment
+  if (icons.length === 0) {
+    imageExplanationIconRoot.render(React.createElement(React.Fragment));
+    return;
+  }
+  
+  imageExplanationIconRoot.render(
+    React.createElement(Provider, { store },
+      React.createElement('div', { 
+        className: 'iconContainer',
+        style: {
+          position: 'fixed',
+          zIndex: 2147483647,
+          pointerEvents: 'none',
+        }
+      },
+        icons.map((icon) =>
+          React.createElement(ImageExplanationIcon, {
+            key: icon.id,
+            position: icon.position,
+            isSpinning: icon.isSpinning,
+            onClick: icon.onClick,
+            useShadowDom: true,
+            iconRef: icon.iconRef ? (element) => {
+              if (icon.iconRef) {
+                icon.iconRef.current = element;
+              }
+            } : undefined,
+            isPanelOpen: icon.isPanelOpen,
+            imageElement: icon.imageElement,
+            onMouseEnter: icon.onMouseEnter,
+            onMouseLeave: icon.onMouseLeave,
+            firstChunkReceived: icon.firstChunkReceived,
+          })
+        )
+      )
+    )
+  );
+}
+
+/**
+ * Inject Image Explanation Icon Container into the page with Shadow DOM
+ */
+function injectImageExplanationIconContainer(): void {
+  if (shadowHostExists(IMAGE_EXPLANATION_ICON_HOST_ID)) {
+    updateImageExplanationIconContainer();
+    return;
+  }
+  
+  const { host, shadow, mountPoint } = createShadowHost({
+    id: IMAGE_EXPLANATION_ICON_HOST_ID,
+    zIndex: 2147483647,
+  });
+  
+  // Inject color CSS variables first (without true flag to match text explanation)
+  injectStyles(shadow, ALL_COLOR_VARIABLES);
+  
+  // Inject component styles
+  injectStyles(shadow, imageExplanationIconStyles);
+  
+  document.body.appendChild(host);
+  
+  imageExplanationIconRoot = ReactDOM.createRoot(mountPoint);
+  updateImageExplanationIconContainer();
+  
+  console.log('[Content Script] Image Explanation Icon Container injected successfully');
+}
+
+/**
+ * Remove Image Explanation Icon Container from the page
+ */
+function removeImageExplanationIconContainer(): void {
+  removeShadowHost(IMAGE_EXPLANATION_ICON_HOST_ID, imageExplanationIconRoot);
+  imageExplanationIconRoot = null;
+  console.log('[Content Script] Image Explanation Icon Container removed');
+}
+
+/**
+ * Handle image hover - show purple icon
+ */
+function handleImageHover(imageElement: HTMLImageElement): void {
+  // Clear any pending hide timeout
+  const existingTimeout = imageHideTimeouts.get(imageElement);
+  if (existingTimeout) {
+    clearTimeout(existingTimeout);
+    imageHideTimeouts.delete(imageElement);
+  }
+  
+  // Skip if already hovered
+  if (hoveredImages.has(imageElement)) {
+    return;
+  }
+  
+  // Skip if image is too small
+  const rect = imageElement.getBoundingClientRect();
+  if (rect.width < 50 || rect.height < 50) {
+    return;
+  }
+  
+  // Calculate icon position (outside image, to the left of top-left corner)
+  const iconPosition = {
+    x: rect.left - 30,
+    y: rect.top + 8,
+  };
+  
+  const iconId = `image-icon-${Date.now()}-${Math.random()}`;
+  hoveredImages.set(imageElement, { iconId });
+  
+  // Create explanation state for hovered image (not yet clicked)
+  const explanationId = `image-explanation-${Date.now()}`;
+  const iconRef: React.MutableRefObject<HTMLElement | null> = { current: null };
+  
+  const newExplanation: ImageExplanationState = {
+    id: explanationId,
+    imageElement,
+    imageFile: new Blob(), // Will be set on click
+    iconPosition,
+    isSpinning: false,
+    streamingText: '',
+    abortController: null,
+    firstChunkReceived: false,
+    iconRef,
+    possibleQuestions: [],
+    shouldAllowSimplifyMore: false,
+    previousSimplifiedTexts: [],
+    simplifiedExplanationCount: 0,
+    chatMessages: [],
+    messageQuestions: {},
+  };
+  
+  // Add to explanations map
+  const explanations = new Map(store.get(imageExplanationsAtom));
+  explanations.set(explanationId, newExplanation);
+  store.set(imageExplanationsAtom, explanations);
+  
+  // Update icon container
+  updateImageExplanationIconContainer();
+}
+
+/**
+ * Handle image hover leave - hide icon if not clicked (with delay)
+ */
+function handleImageHoverLeave(imageElement: HTMLImageElement): void {
+  const hovered = hoveredImages.get(imageElement);
+  if (!hovered) return;
+  
+  // Check if this image has an active explanation (was clicked)
+  const explanations = store.get(imageExplanationsAtom);
+  const hasActiveExplanation = Array.from(explanations.values()).some(
+    (exp) => exp.imageElement === imageElement && exp.firstChunkReceived
+  );
+  
+  // Don't hide if already active
+  if (hasActiveExplanation) {
+    return;
+  }
+  
+  // Find the explanation ID for this image
+  const explanation = Array.from(explanations.values()).find(
+    (exp) => exp.imageElement === imageElement && !exp.firstChunkReceived
+  );
+  
+  if (!explanation) {
+    return;
+  }
+  
+  // Check if mouse is currently over the icon
+  const isIconHovered = iconHoverStates.get(explanation.id);
+  if (isIconHovered) {
+    // Don't hide if mouse is over icon
+    return;
+  }
+  
+  // Set a timeout to hide the icon after a delay (500ms)
+  const timeoutId = setTimeout(() => {
+    // Double-check that mouse is not over icon or image
+    const stillHovered = iconHoverStates.get(explanation.id);
+    if (stillHovered) {
+      return; // Don't hide if mouse moved to icon
+    }
+    
+    hoveredImages.delete(imageElement);
+    imageHideTimeouts.delete(imageElement);
+    
+    // Remove from explanations
+    const currentExplanations = store.get(imageExplanationsAtom);
+    const newExplanations = new Map(currentExplanations);
+    newExplanations.delete(explanation.id);
+    store.set(imageExplanationsAtom, newExplanations);
+    
+    updateImageExplanationIconContainer();
+  }, 500); // 500ms delay
+  
+  imageHideTimeouts.set(imageElement, timeoutId);
+}
+
+/**
+ * Handle icon mouse enter - keep icon visible
+ */
+function handleIconMouseEnter(explanationId: string): void {
+  iconHoverStates.set(explanationId, true);
+  
+  // Clear any pending hide timeout for the associated image
+  const explanations = store.get(imageExplanationsAtom);
+  const explanation = explanations.get(explanationId);
+  if (explanation) {
+    const timeoutId = imageHideTimeouts.get(explanation.imageElement);
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+      imageHideTimeouts.delete(explanation.imageElement);
+    }
+  }
+}
+
+/**
+ * Handle icon mouse leave - schedule hide if image not hovered
+ */
+function handleIconMouseLeave(explanationId: string): void {
+  iconHoverStates.set(explanationId, false);
+  
+  // Check if image is still hovered
+  const explanations = store.get(imageExplanationsAtom);
+  const explanation = explanations.get(explanationId);
+  if (!explanation) {
+    return;
+  }
+  
+  // If image has active explanation, don't hide
+  if (explanation.firstChunkReceived) {
+    return;
+  }
+  
+  // Schedule hide with delay
+  const timeoutId = setTimeout(() => {
+    const stillHovered = iconHoverStates.get(explanationId);
+    if (stillHovered) {
+      return;
+    }
+    
+    hoveredImages.delete(explanation.imageElement);
+    imageHideTimeouts.delete(explanation.imageElement);
+    
+    const currentExplanations = store.get(imageExplanationsAtom);
+    const newExplanations = new Map(currentExplanations);
+    newExplanations.delete(explanationId);
+    store.set(imageExplanationsAtom, newExplanations);
+    
+    updateImageExplanationIconContainer();
+  }, 500);
+  
+  imageHideTimeouts.set(explanation.imageElement, timeoutId);
+}
+
+/**
+ * Handle image icon click - trigger simplify API
+ */
+async function handleImageIconClick(imageElement: HTMLImageElement): Promise<void> {
+  console.log('[Content Script] Image icon clicked');
+  
+  // Find the explanation for this image
+  const explanations = store.get(imageExplanationsAtom);
+  let explanation = Array.from(explanations.values()).find(
+    (exp) => exp.imageElement === imageElement
+  );
+  
+  if (!explanation) {
+    console.warn('[Content Script] No explanation found for clicked image');
+    return;
+  }
+  
+  const explanationId = explanation.id;
+  
+  // Convert image to file
+  let imageFile: File | null = null;
+  try {
+    imageFile = await convertImageToFile(imageElement);
+  } catch (error) {
+    console.error('[Content Script] Error converting image:', error);
+    if (error instanceof Error && error.name === 'SecurityError') {
+      showToast('Cannot process this image due to security restrictions. Please try an image from the same website.', 'error');
+    } else {
+      showToast('Failed to process image. Please try again.', 'error');
+    }
+    return;
+  }
+  
+  if (!imageFile) {
+    console.error('[Content Script] Failed to convert image to file (likely CORS issue)');
+    showToast('Cannot process this image due to security restrictions. Please try an image from the same website.', 'error');
+    return;
+  }
+  
+  // Get current explanations and active ID
+  const currentExplanations = store.get(imageExplanationsAtom);
+  const activeId = store.get(activeImageExplanationIdAtom);
+  
+  // If there's an active explanation, abort it and close its panel
+  if (activeId) {
+    const activeExplanation = currentExplanations.get(activeId);
+    if (activeExplanation?.abortController) {
+      activeExplanation.abortController.abort();
+    }
+    store.set(imageExplanationPanelOpenAtom, false);
+  }
+  
+  // Update explanation with image file and set spinning
+  const updateExplanationInMap = (id: string, updater: (state: ImageExplanationState) => ImageExplanationState) => {
+    const map = new Map(store.get(imageExplanationsAtom));
+    const current = map.get(id);
+    if (current) {
+      map.set(id, updater(current));
+      store.set(imageExplanationsAtom, map);
+      return true;
+    } else {
+      console.warn('[Content Script] Explanation not found in map for update:', id);
+      return false;
+    }
+  };
+  
+  // Ensure explanation exists before updating
+  const currentMap = store.get(imageExplanationsAtom);
+  if (!currentMap.has(explanationId)) {
+    console.error('[Content Script] Explanation not found in map:', explanationId);
+    return;
+  }
+  
+  updateExplanationInMap(explanationId, (state) => ({
+    ...state,
+    imageFile,
+    isSpinning: true,
+    streamingText: '',
+    firstChunkReceived: false,
+    possibleQuestions: [],
+    abortController: new AbortController(),
+  }));
+  
+  // Set as active BEFORE calling API
+  store.set(activeImageExplanationIdAtom, explanationId);
+  console.log('[Content Script] Set active image explanation ID:', explanationId);
+  updateImageExplanationIconContainer();
+  
+  // Get language code from user settings
+  const nativeLanguage = await ChromeStorage.getUserSettingNativeLanguage();
+  const languageCode = nativeLanguage ? (getLanguageCode(nativeLanguage) || undefined) : undefined;
+  
+  // Call simplify_image_v2 API
+  try {
+    await SimplifyImageService.simplify(
+      imageFile,
+      [],
+      languageCode,
+      {
+        onChunk: (_chunk, accumulated) => {
+          let isFirstChunk = false;
+          
+          const updated = updateExplanationInMap(explanationId, (state) => {
+            const updatedState = { ...state, streamingText: accumulated };
+            
+            // On first chunk: stop spinning, open panel
+            if (!updatedState.firstChunkReceived) {
+              isFirstChunk = true;
+              updatedState.firstChunkReceived = true;
+              updatedState.isSpinning = false;
+            }
+            
+            return updatedState;
+          });
+          
+          if (!updated) {
+            console.error('[Content Script] Failed to update explanation in onChunk');
+            return;
+          }
+          
+          // Update UI after state is committed
+          if (isFirstChunk) {
+            console.log('[Content Script] First chunk received for image explanation:', explanationId);
+            
+            // Ensure active ID is set
+            store.set(activeImageExplanationIdAtom, explanationId);
+            
+            // Ensure panel is injected before opening
+            injectImageExplanationPanel();
+            
+            // Open panel
+            store.set(imageExplanationPanelOpenAtom, true);
+            console.log('[Content Script] Set imageExplanationPanelOpenAtom to true');
+            
+            // Small delay to ensure state is committed
+            setTimeout(() => {
+              updateImageExplanationPanel();
+              updateImageExplanationIconContainer();
+            }, 0);
+          } else {
+            // Update panel with new content
+            updateImageExplanationPanel();
+          }
+        },
+        onComplete: (simplifiedText, shouldAllowSimplifyMore, possibleQuestions) => {
+          updateExplanationInMap(explanationId, (state) => ({
+            ...state,
+            streamingText: simplifiedText,
+            shouldAllowSimplifyMore,
+            possibleQuestions,
+            abortController: null,
+          }));
+          updateImageExplanationPanel();
+          updateImageExplanationIconContainer();
+        },
+        onError: (errorCode, errorMessage) => {
+          console.error('[Content Script] Image simplify error:', errorCode, errorMessage);
+          updateExplanationInMap(explanationId, (state) => ({
+            ...state,
+            isSpinning: false,
+            abortController: null,
+          }));
+          showToast(`Error: ${errorMessage}`, 'error');
+          updateImageExplanationIconContainer();
+        },
+        onLoginRequired: () => {
+          store.set(showLoginModalAtom, true);
+        },
+      },
+      store.get(imageExplanationsAtom).get(explanationId)?.abortController || undefined
+    );
+  } catch (error) {
+    console.error('[Content Script] Image simplify exception:', error);
+    updateExplanationInMap(explanationId, (state) => ({
+      ...state,
+      isSpinning: false,
+      abortController: null,
+    }));
+    showToast('An error occurred while simplifying image', 'error');
+    updateImageExplanationIconContainer();
+  }
+}
+
+/**
+ * Handle image ask - call ask_image_v2 API
+ */
+async function handleImageAsk(explanationId: string, question: string): Promise<void> {
+  console.log('[Content Script] Image ask:', question);
+  
+  const explanations = store.get(imageExplanationsAtom);
+  const explanation = explanations.get(explanationId);
+  
+  if (!explanation) {
+    console.error('[Content Script] No explanation found for image ask');
+    return;
+  }
+  
+  // Prepare chat history
+  const chatHistory = explanation.chatMessages.map(msg => ({
+    role: msg.role,
+    content: msg.content,
+  }));
+  
+  // Add user message to chat history
+  const updatedChatHistory = [...chatHistory, { role: 'user' as const, content: question }];
+  
+  // Update explanation with pending question
+  const updateExplanationInMap = (id: string, updater: (state: ImageExplanationState) => ImageExplanationState) => {
+    const map = new Map(store.get(imageExplanationsAtom));
+    const current = map.get(id);
+    if (current) {
+      map.set(id, updater(current));
+      store.set(imageExplanationsAtom, map);
+    }
+  };
+  
+  // Create new abort controller
+  const newAbortController = new AbortController();
+  updateExplanationInMap(explanationId, (state) => ({
+    ...state,
+    abortController: newAbortController,
+    chatMessages: updatedChatHistory,
+  }));
+  
+  // Update panel to show loading state
+  updateImageExplanationPanel();
+  
+  // Get language code
+  const nativeLanguage = await ChromeStorage.getUserSettingNativeLanguage();
+  const languageCode = nativeLanguage ? (getLanguageCode(nativeLanguage) || undefined) : undefined;
+  
+  try {
+    await AskImageService.ask(
+      explanation.imageFile,
+      question,
+      chatHistory, // Send old history (without new user message)
+      'TEXT',
+      languageCode,
+      {
+        onChunk: (_chunk, accumulated) => {
+          updateExplanationInMap(explanationId, (state) => {
+            // Update the last message (assistant message) with streaming text
+            const updatedMessages = [...state.chatMessages];
+            const lastMessage = updatedMessages[updatedMessages.length - 1];
+            
+            if (lastMessage && lastMessage.role === 'assistant') {
+              updatedMessages[updatedMessages.length - 1] = {
+                ...lastMessage,
+                content: accumulated,
+              };
+            } else {
+              // Add new assistant message
+              updatedMessages.push({
+                role: 'assistant',
+                content: accumulated,
+              });
+            }
+            
+            return {
+              ...state,
+              chatMessages: updatedMessages,
+            };
+          });
+          updateImageExplanationPanel();
+        },
+        onComplete: (updatedChatHistory, questions) => {
+          // Get current chat history
+          const currentChatHistory = explanation.chatMessages;
+          
+          // Extract only the assistant message from updatedChatHistory
+          const assistantMessage = updatedChatHistory[updatedChatHistory.length - 1];
+          
+          // Verify it's an assistant message
+          if (assistantMessage && assistantMessage.role === 'assistant') {
+            // Update chat messages
+            const finalMessages = [...currentChatHistory, assistantMessage];
+            
+            // Store questions for the last assistant message (by index)
+            const messageQuestions: Record<number, string[]> = {};
+            if (questions.length > 0) {
+              const assistantMessageIndex = finalMessages.findIndex(
+                (msg, idx) => msg.role === 'assistant' && idx === finalMessages.length - 1
+              );
+              if (assistantMessageIndex >= 0) {
+                messageQuestions[assistantMessageIndex] = questions;
+              }
+            }
+            
+            updateExplanationInMap(explanationId, (state) => ({
+              ...state,
+              chatMessages: finalMessages,
+              messageQuestions: { ...state.messageQuestions, ...messageQuestions },
+              abortController: null,
+            }));
+          }
+          
+          updateImageExplanationPanel();
+        },
+        onError: (errorCode, errorMessage) => {
+          console.error('[Content Script] Image ask error:', errorCode, errorMessage);
+          updateExplanationInMap(explanationId, (state) => ({
+            ...state,
+            abortController: null,
+          }));
+          showToast(`Error: ${errorMessage}`, 'error');
+          updateImageExplanationPanel();
+        },
+        onLoginRequired: () => {
+          store.set(showLoginModalAtom, true);
+        },
+      },
+      newAbortController
+    );
+  } catch (error) {
+    console.error('[Content Script] Image ask exception:', error);
+    updateExplanationInMap(explanationId, (state) => ({
+      ...state,
+      abortController: null,
+    }));
+    showToast('An error occurred while asking about image', 'error');
+    updateImageExplanationPanel();
+  }
+}
+
+/**
+ * Handle image simplify more
+ */
+async function handleImageSimplifyMore(explanationId: string): Promise<void> {
+  const explanations = store.get(imageExplanationsAtom);
+  const explanation = explanations.get(explanationId);
+  
+  if (!explanation) {
+    console.error('[Content Script] No explanation found for image simplify more');
+    return;
+  }
+  
+  const previousSimplifiedTexts = [...explanation.previousSimplifiedTexts, explanation.streamingText];
+  
+  const updateExplanationInMap = (id: string, updater: (state: ImageExplanationState) => ImageExplanationState) => {
+    const map = new Map(store.get(imageExplanationsAtom));
+    const current = map.get(id);
+    if (current) {
+      map.set(id, updater(current));
+      store.set(imageExplanationsAtom, map);
+    }
+  };
+  
+  const newAbortController = new AbortController();
+  updateExplanationInMap(explanationId, (state) => ({
+    ...state,
+    abortController: newAbortController,
+    streamingText: '',
+    firstChunkReceived: false,
+    possibleQuestions: [],
+    isSimplifyRequest: true,
+    previousSimplifiedTexts,
+    simplifiedExplanationCount: state.simplifiedExplanationCount + 1,
+  }));
+  
+  updateImageExplanationPanel();
+  
+  const nativeLanguage = await ChromeStorage.getUserSettingNativeLanguage();
+  const languageCode = nativeLanguage ? (getLanguageCode(nativeLanguage) || undefined) : undefined;
+  
+  try {
+    await SimplifyImageService.simplify(
+      explanation.imageFile,
+      previousSimplifiedTexts,
+      languageCode,
+      {
+        onChunk: (_chunk, accumulated) => {
+          updateExplanationInMap(explanationId, (state) => ({
+            ...state,
+            streamingText: accumulated,
+            firstChunkReceived: true,
+          }));
+          updateImageExplanationPanel();
+        },
+        onComplete: (simplifiedText, shouldAllowSimplifyMore, possibleQuestions) => {
+          updateExplanationInMap(explanationId, (state) => ({
+            ...state,
+            streamingText: simplifiedText,
+            shouldAllowSimplifyMore,
+            possibleQuestions,
+            abortController: null,
+            isSimplifyRequest: false,
+          }));
+          updateImageExplanationPanel();
+        },
+        onError: (errorCode, errorMessage) => {
+          console.error('[Content Script] Image simplify more error:', errorCode, errorMessage);
+          updateExplanationInMap(explanationId, (state) => ({
+            ...state,
+            abortController: null,
+            isSimplifyRequest: false,
+          }));
+          showToast(`Error: ${errorMessage}`, 'error');
+          updateImageExplanationPanel();
+        },
+        onLoginRequired: () => {
+          store.set(showLoginModalAtom, true);
+        },
+      },
+      newAbortController
+    );
+  } catch (error) {
+    console.error('[Content Script] Image simplify more exception:', error);
+    updateExplanationInMap(explanationId, (state) => ({
+      ...state,
+      abortController: null,
+      isSimplifyRequest: false,
+    }));
+    showToast('An error occurred while simplifying image', 'error');
+    updateImageExplanationPanel();
+  }
+}
+
+// Stable callback functions for image explanation panel
+let handleImageQuestionClickCallback: ((question: string) => Promise<void>) | null = null;
+let handleImageInputSubmitCallback: ((inputText: string) => Promise<void>) | null = null;
+let handleImageCloseCallback: (() => void) | null = null;
+let handleImageSimplifyCallback: (() => Promise<void>) | null = null;
+
+let isUpdatingImagePanel = false;
+let pendingImageUpdate = false;
+
+/**
+ * Update image explanation panel state
+ */
+function updateImageExplanationPanel(): void {
+  if (!imageExplanationPanelRoot) {
+    console.warn('[Content Script] imageExplanationPanelRoot is null, cannot update panel');
+    return;
+  }
+  
+  if (isUpdatingImagePanel) {
+    pendingImageUpdate = true;
+    return;
+  }
+  
+  isUpdatingImagePanel = true;
+  pendingImageUpdate = false;
+  
+  const activeId = store.get(activeImageExplanationIdAtom);
+  const panelOpen = store.get(imageExplanationPanelOpenAtom);
+  const explanations = store.get(imageExplanationsAtom);
+  const activeExplanation = activeId ? explanations.get(activeId) : null;
+  
+  console.log('[Content Script] updateImageExplanationPanel:', {
+    activeId,
+    panelOpen,
+    hasActiveExplanation: !!activeExplanation,
+    explanationId: activeExplanation?.id,
+    explanationsCount: explanations.size,
+    allExplanationIds: Array.from(explanations.keys()),
+  });
+  
+  if (!activeExplanation || !panelOpen) {
+    console.log('[Content Script] Panel closed or no active explanation, rendering empty');
+    imageExplanationPanelRoot.render(React.createElement(React.Fragment));
+    isUpdatingImagePanel = false;
+    return;
+  }
+  
+  const streamingText = activeExplanation.streamingText || '';
+  const possibleQuestions = activeExplanation.possibleQuestions || [];
+  const shouldAllowSimplifyMore = activeExplanation.shouldAllowSimplifyMore || false;
+  const firstChunkReceived = activeExplanation.firstChunkReceived || false;
+  const chatMessages = activeExplanation.chatMessages || [];
+  const messageQuestions = activeExplanation.messageQuestions || {};
+  const isRequesting = activeExplanation.abortController !== null;
+  const isSimplifying = activeExplanation.isSimplifyRequest === true;
+  
+  const explanationId = activeExplanation.id;
+  
+  // Set up callbacks
+  if (!handleImageQuestionClickCallback) {
+    handleImageQuestionClickCallback = async (question: string) => {
+      await handleImageAsk(explanationId, question);
+    };
+  }
+  
+  if (!handleImageInputSubmitCallback) {
+    handleImageInputSubmitCallback = async (inputText: string) => {
+      await handleImageAsk(explanationId, inputText);
+    };
+  }
+  
+  if (!handleImageCloseCallback) {
+    handleImageCloseCallback = () => {
+      store.set(imageExplanationPanelOpenAtom, false);
+      store.set(activeImageExplanationIdAtom, null);
+      updateImageExplanationPanel();
+    };
+  }
+  
+  if (!handleImageSimplifyCallback) {
+    handleImageSimplifyCallback = async () => {
+      await handleImageSimplifyMore(explanationId);
+    };
+  }
+  
+  try {
+    imageExplanationPanelRoot.render(
+      React.createElement(Provider, { store },
+        React.createElement(TextExplanationSidePanel, {
+          isOpen: true,
+          onClose: handleImageCloseCallback,
+          iconRef: activeExplanation.iconRef,
+          useShadowDom: true,
+          onLoginRequired: () => {
+            store.set(showLoginModalAtom, true);
+          },
+          streamingText,
+          viewMode: 'contextual',
+          possibleQuestions,
+          onQuestionClick: handleImageQuestionClickCallback,
+          onInputSubmit: handleImageInputSubmitCallback,
+          chatMessages,
+          messageQuestions,
+          onStopRequest: () => {
+            const exp = store.get(imageExplanationsAtom).get(explanationId);
+            if (exp?.abortController) {
+              exp.abortController.abort();
+            }
+          },
+          isRequesting,
+          shouldAllowSimplifyMore,
+          onSimplify: handleImageSimplifyCallback,
+          isSimplifying,
+          showHeaderIcons: true,
+          showDeleteIcon: false,
+          firstChunkReceived,
+          onCloseHandlerReady: () => {
+            // Handler registered for animated close if needed
+          },
+        })
+      )
+    );
+  } finally {
+    isUpdatingImagePanel = false;
+    if (pendingImageUpdate) {
+      setTimeout(() => {
+        updateImageExplanationPanel();
+      }, 0);
+    }
+  }
+}
+
+/**
+ * Inject Image Explanation Panel into the page with Shadow DOM
+ */
+function injectImageExplanationPanel(): void {
+  if (shadowHostExists(IMAGE_EXPLANATION_PANEL_HOST_ID)) {
+    console.log('[Content Script] Image explanation panel host already exists, updating');
+    updateImageExplanationPanel();
+    return;
+  }
+  
+  console.log('[Content Script] Creating new image explanation panel shadow host');
+  const { host, shadow, mountPoint } = createShadowHost({
+    id: IMAGE_EXPLANATION_PANEL_HOST_ID,
+    zIndex: 2147483643,
+  });
+  
+  // Inject component styles first (they define variables after all:initial)
+  injectStyles(shadow, textExplanationSidePanelStyles);
+  // Then inject color variables to override/ensure they're set
+  injectStyles(shadow, ALL_COLOR_VARIABLES);
+  
+  document.body.appendChild(host);
+  console.log('[Content Script] Image explanation panel host appended to body');
+  
+  imageExplanationPanelRoot = ReactDOM.createRoot(mountPoint);
+  console.log('[Content Script] Image explanation panel root created');
+  updateImageExplanationPanel();
+  
+  console.log('[Content Script] Image Explanation Panel injected successfully');
+}
+
+/**
+ * Remove Image Explanation Panel from the page
+ */
+function removeImageExplanationPanel(): void {
+  removeShadowHost(IMAGE_EXPLANATION_PANEL_HOST_ID, imageExplanationPanelRoot);
+  imageExplanationPanelRoot = null;
+  console.log('[Content Script] Image Explanation Panel removed');
+}
+
+/**
+ * Setup image hover detection
+ */
+function setupImageHoverDetection(): void {
+  // Find all images on the page
+  const images = document.querySelectorAll('img');
+  
+  images.forEach((img) => {
+    // Skip if already has listeners
+    if ((img as any).__xplainoImageListener) {
+      return;
+    }
+    
+    const handleMouseEnter = () => {
+      handleImageHover(img);
+    };
+    
+    const handleMouseLeave = () => {
+      handleImageHoverLeave(img);
+    };
+    
+    img.addEventListener('mouseenter', handleMouseEnter);
+    img.addEventListener('mouseleave', handleMouseLeave);
+    
+    // Mark as having listeners
+    (img as any).__xplainoImageListener = true;
+    (img as any).__xplainoImageMouseEnter = handleMouseEnter;
+    (img as any).__xplainoImageMouseLeave = handleMouseLeave;
+  });
+  
+  // Use MutationObserver to handle dynamically added images
+  const observer = new MutationObserver((mutations) => {
+    mutations.forEach((mutation) => {
+      mutation.addedNodes.forEach((node) => {
+        if (node.nodeType === Node.ELEMENT_NODE) {
+          const element = node as HTMLElement;
+          // Check if the added node is an image
+          if (element.tagName === 'IMG') {
+            const img = element as HTMLImageElement;
+            if (!(img as any).__xplainoImageListener) {
+              const handleMouseEnter = () => handleImageHover(img);
+              const handleMouseLeave = () => handleImageHoverLeave(img);
+              img.addEventListener('mouseenter', handleMouseEnter);
+              img.addEventListener('mouseleave', handleMouseLeave);
+              (img as any).__xplainoImageListener = true;
+              (img as any).__xplainoImageMouseEnter = handleMouseEnter;
+              (img as any).__xplainoImageMouseLeave = handleMouseLeave;
+            }
+          }
+          // Check for images within the added node
+          const images = element.querySelectorAll('img');
+          images.forEach((img) => {
+            if (!(img as any).__xplainoImageListener) {
+              const handleMouseEnter = () => handleImageHover(img);
+              const handleMouseLeave = () => handleImageHoverLeave(img);
+              img.addEventListener('mouseenter', handleMouseEnter);
+              img.addEventListener('mouseleave', handleMouseLeave);
+              (img as any).__xplainoImageListener = true;
+              (img as any).__xplainoImageMouseEnter = handleMouseEnter;
+              (img as any).__xplainoImageMouseLeave = handleMouseLeave;
+            }
+          });
+        }
+      });
+    });
+  });
+  
+  observer.observe(document.body, {
+    childList: true,
+    subtree: true,
+  });
+  
+  console.log('[Content Script] Image hover detection setup complete');
+}
+
+// =============================================================================
 // WORD EXPLANATION POPOVER
 // =============================================================================
 
@@ -7773,6 +8852,9 @@ async function initContentScript(): Promise<void> {
     injectLoginModal();
     injectSubscriptionModal();
     injectToast();
+    injectImageExplanationIconContainer();
+    injectImageExplanationPanel();
+    setupImageHoverDetection();
     
     // Check if welcome modal should be shown
     // Only show if domain is not BANNED or DISABLED
@@ -7806,6 +8888,8 @@ async function initContentScript(): Promise<void> {
     removeSubscriptionModal();
     removeTextExplanationPanel();
     removeTextExplanationIconContainer();
+    removeImageExplanationPanel();
+    removeImageExplanationIconContainer();
     removeToast();
     removeWelcomeModal();
   }
