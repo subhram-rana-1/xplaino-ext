@@ -23,14 +23,13 @@ export class FolderService {
   private static readonly ENDPOINT = '/api/folders';
 
   /**
-   * Get all folders for a specific type
+   * Get all folders
    */
   static async getAllFolders(
-    type: 'LINK' | 'PARAGRAPH' | 'WORD',
     callbacks: GetAllFoldersCallbacks,
     abortSignal?: AbortSignal
   ): Promise<void> {
-    const url = `${ENV.API_BASE_URL}${this.ENDPOINT}?type=${type}`;
+    const url = `${ENV.API_BASE_URL}${this.ENDPOINT}`;
     const authHeaders = await ApiHeaders.getAuthHeaders('FolderService');
 
     try {

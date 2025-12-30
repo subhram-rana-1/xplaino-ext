@@ -866,7 +866,6 @@ function updateSidePanel(initialTab?: 'summary' | 'settings' | 'my'): void {
       
       // Get folders and show modal
       FolderService.getAllFolders(
-        'LINK',
         {
           onSuccess: async (response) => {
             console.log('[Content Script] Folders loaded successfully for link:', response.folders.length, 'folders');
@@ -1160,7 +1159,6 @@ async function handleContentActionsBookmarkClick(selectedText: string): Promise<
   
   // Get folders and show modal
   FolderService.getAllFolders(
-    'PARAGRAPH',
     {
       onSuccess: async (response) => {
         console.log('[Content Script] Folders loaded successfully:', response.folders.length, 'folders');
@@ -5323,7 +5321,6 @@ function updateTextExplanationPanel(): void {
     
     // Get folders and show modal
     FolderService.getAllFolders(
-      'PARAGRAPH',
       {
         onSuccess: async (response) => {
           console.log('[Content Script] Folders loaded successfully:', response.folders.length, 'folders');
@@ -6806,7 +6803,6 @@ async function handleWordBookmarkClick(wordId: string): Promise<void> {
     
     // Get folders and show modal
     FolderService.getAllFolders(
-      'WORD',
       {
         onSuccess: async (response) => {
           console.log('[Content Script] Folders loaded successfully for word:', response.folders.length, 'folders');
@@ -8904,7 +8900,6 @@ async function handleFabSaveUrlClick(): Promise<void> {
   
   // Get folders and show modal
   FolderService.getAllFolders(
-    'LINK',
     {
       onSuccess: async (response) => {
         console.log('[Content Script] Folders loaded successfully for FAB link:', response.folders.length, 'folders');
