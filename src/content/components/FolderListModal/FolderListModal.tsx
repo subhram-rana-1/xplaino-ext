@@ -35,8 +35,6 @@ export interface FolderListModalProps {
   onNameChange?: (name: string) => void;
   /** Custom modal title (defaults to "Choose folder") */
   modalTitle?: string;
-  /** Mode: 'paragraph', 'link', 'word', or 'image' - used for context-aware labels */
-  mode?: 'paragraph' | 'link' | 'word' | 'image';
 }
 
 interface FolderTreeItemProps {
@@ -241,7 +239,6 @@ export const FolderListModal: React.FC<FolderListModalProps> = ({
   initialName = '',
   onNameChange,
   modalTitle = 'Choose folder',
-  mode = 'paragraph',
 }) => {
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(initialSelectedFolderId);
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(
@@ -572,7 +569,7 @@ export const FolderListModal: React.FC<FolderListModalProps> = ({
                   onChange={handleRememberFolderChange}
                 />
                 <span>
-                  {mode === 'link' ? 'Remember my folder for links' : mode === 'word' ? 'Remember my folder for word bookmark' : mode === 'image' ? 'Remember my folder for image bookmark' : 'Remember my folder for paragraph'}
+                  Remember my folder
                 </span>
               </label>
             </div>

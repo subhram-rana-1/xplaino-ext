@@ -32,6 +32,7 @@ export class ChromeStorage {
     XPLAINO_LINK_BOOKMARK_FOLDER_ID: 'XPLAINO_LINK_BOOKMARK_FOLDER_ID',
     XPLAINO_WORD_BOOKMARK_FOLDER_ID: 'XPLAINO_WORD_BOOKMARK_FOLDER_ID',
     XPLAINO_IMAGE_BOOKMARK_FOLDER_ID: 'XPLAINO_IMAGE_BOOKMARK_FOLDER_ID',
+    XPLAINO_BOOKMARK_FOLDER_ID: 'XPLAINO_BOOKMARK_FOLDER_ID',
     DONT_SHOW_XPLAINO_TEXT_BOOKMARK_SAVED_LINK_TOAST: 'dont_show_xplaino_text_bookmark_saved_link_toast',
     DONT_SHOW_XPLAINO_LINK_BOOKMARK_SAVED_LINK_TOAST: 'dont_show_xplaino_link_bookmark_saved_link_toast',
     DONT_SHOW_XPLAINO_WORD_BOOKMARK_SAVED_LINK_TOAST: 'dont_show_xplaino_word_bookmark_saved_link_toast',
@@ -595,6 +596,55 @@ export class ChromeStorage {
    */
   static async removeImageBookmarkPreferenceFolderId(): Promise<void> {
     return this.remove(this.KEYS.XPLAINO_IMAGE_BOOKMARK_FOLDER_ID);
+  }
+
+  /**
+   * Get the unified preferred folder ID for all bookmarks
+   * This method includes migration logic to migrate from old type-specific keys
+   */
+  static async getBookmarkPreferenceFolderId(): Promise<string | null> {
+    // First, check if the new unified key exists
+    const unifiedValue = await this.get<string>(this.KEYS.XPLAINO_BOOKMARK_FOLDER_ID);
+    if (unifiedValue) {
+      return unifiedValue;
+    }
+    
+    // If not found, check old keys and migrate if found
+    // Check in order: paragraph, link, word, image
+    const oldKeys = [
+      this.KEYS.XPLAINO_PARAGRAPH_BOOKMARK_FOLDER_ID,
+      this.KEYS.XPLAINO_LINK_BOOKMARK_FOLDER_ID,
+      this.KEYS.XPLAINO_WORD_BOOKMARK_FOLDER_ID,
+      this.KEYS.XPLAINO_IMAGE_BOOKMARK_FOLDER_ID,
+    ];
+    
+    for (const oldKey of oldKeys) {
+      const oldValue = await this.get<string>(oldKey);
+      if (oldValue) {
+        // Migrate to new unified key
+        await this.set(this.KEYS.XPLAINO_BOOKMARK_FOLDER_ID, oldValue);
+        // Remove old key
+        await this.remove(oldKey);
+        console.log('[ChromeStorage] Migrated bookmark folder preference from', oldKey, 'to unified key');
+        return oldValue;
+      }
+    }
+    
+    return null;
+  }
+
+  /**
+   * Set the unified preferred folder ID for all bookmarks
+   */
+  static async setBookmarkPreferenceFolderId(folderId: string): Promise<void> {
+    return this.set(this.KEYS.XPLAINO_BOOKMARK_FOLDER_ID, folderId);
+  }
+
+  /**
+   * Remove the unified preferred folder ID for all bookmarks
+   */
+  static async removeBookmarkPreferenceFolderId(): Promise<void> {
+    return this.remove(this.KEYS.XPLAINO_BOOKMARK_FOLDER_ID);
   }
 
   // --- Bookmark Toast Preferences ---

@@ -876,8 +876,8 @@ function updateSidePanel(initialTab?: 'summary' | 'settings' | 'my'): void {
             folderModalFolders = response.folders;
             
             // Check for stored preference folder ID and auto-select/expand if found
-            const storedFolderId = await ChromeStorage.getLinkBookmarkPreferenceFolderId();
-            console.log('[Content Script] Retrieved stored link folder ID from storage:', storedFolderId);
+            const storedFolderId = await ChromeStorage.getBookmarkPreferenceFolderId();
+            console.log('[Content Script] Retrieved stored bookmark folder ID from storage:', storedFolderId);
             if (storedFolderId) {
               const ancestorPath = findFolderAndGetAncestorPath(response.folders, storedFolderId);
               if (ancestorPath !== null) {
@@ -1171,8 +1171,8 @@ async function handleContentActionsBookmarkClick(selectedText: string): Promise<
         folderModalSourceUrl = window.location.href;
         
         // Check for stored preference folder ID and auto-select/expand if found
-        const storedFolderId = await ChromeStorage.getParagraphBookmarkPreferenceFolderId();
-        console.log('[Content Script] Retrieved stored folder ID from storage:', storedFolderId);
+        const storedFolderId = await ChromeStorage.getBookmarkPreferenceFolderId();
+        console.log('[Content Script] Retrieved stored bookmark folder ID from storage:', storedFolderId);
         if (storedFolderId) {
           const ancestorPath = findFolderAndGetAncestorPath(response.folders, storedFolderId);
           if (ancestorPath !== null) {
@@ -5396,7 +5396,7 @@ function updateTextExplanationPanel(): void {
           folderModalSourceUrl = window.location.href;
           
           // Check for stored preference folder ID and auto-select/expand if found
-          const storedFolderId = await ChromeStorage.getParagraphBookmarkPreferenceFolderId();
+          const storedFolderId = await ChromeStorage.getBookmarkPreferenceFolderId();
           if (storedFolderId) {
             const ancestorPath = findFolderAndGetAncestorPath(response.folders, storedFolderId);
             if (ancestorPath !== null) {
@@ -5709,21 +5709,21 @@ function updateImageExplanationIconContainer(): void {
     };
     
     return {
-      id: explanation.id,
-      position: explanation.iconPosition,
-      isSpinning: explanation.isSpinning,
-      onClick: () => {
+    id: explanation.id,
+    position: explanation.iconPosition,
+    isSpinning: explanation.isSpinning,
+    onClick: () => {
         // Call handleImageIconClick which will toggle if content exists, or make API call if not
         handleImageIconClick(explanation.imageElement).catch((error) => {
           console.error('[Content Script] Error handling image icon click:', error);
         });
-      },
-      onMouseEnter: () => handleIconMouseEnter(explanation.id),
-      onMouseLeave: () => handleIconMouseLeave(explanation.id),
-      iconRef: explanation.iconRef,
-      isPanelOpen: activeId === explanation.id && store.get(imageExplanationPanelOpenAtom),
-      imageElement: explanation.imageElement,
-      firstChunkReceived: explanation.firstChunkReceived,
+    },
+    onMouseEnter: () => handleIconMouseEnter(explanation.id),
+    onMouseLeave: () => handleIconMouseLeave(explanation.id),
+    iconRef: explanation.iconRef,
+    isPanelOpen: activeId === explanation.id && store.get(imageExplanationPanelOpenAtom),
+    imageElement: explanation.imageElement,
+    firstChunkReceived: explanation.firstChunkReceived,
       isBookmarked: !!explanation.savedImageId,
       onBookmarkClick: explanation.savedImageId ? handleBookmarkClick : undefined,
     };
@@ -5857,10 +5857,10 @@ function handleImageHover(imageElement: HTMLImageElement): void {
     shouldAllowSimplifyMore: false,
     previousSimplifiedTexts: [],
     simplifiedExplanationCount: 0,
-      chatMessages: [],
-      messageQuestions: {},
+    chatMessages: [],
+    messageQuestions: {},
       savedImageId: null,
-    };
+  };
   
   // Add to explanations map
   const explanations = new Map(store.get(imageExplanationsAtom));
@@ -6188,11 +6188,11 @@ async function handleImageIconClick(imageElement: HTMLImageElement): Promise<voi
             }
 
             return {
-              ...state,
+            ...state,
               streamingText: '', // Clear streamingText since we added it to chatMessages
-              shouldAllowSimplifyMore,
+            shouldAllowSimplifyMore,
               possibleQuestions: [],
-              abortController: null,
+            abortController: null,
               isSimplifyRequest: false,
               chatMessages,
               messageQuestions,
@@ -6348,19 +6348,19 @@ async function handleImageAsk(explanationId: string, question: string): Promise<
                 // Fallback: add if somehow not present
                 updatedMessages.push(assistantMessage);
               }
-              
-              // Store questions for the last assistant message (by index)
+            
+            // Store questions for the last assistant message (by index)
               const messageQuestions = { ...(state.messageQuestions || {}) };
               if (questions && questions.length > 0) {
                 const assistantMessageIndex = updatedMessages.length - 1;
                 messageQuestions[assistantMessageIndex] = questions;
-              }
-              
+            }
+            
               return {
-                ...state,
+              ...state,
                 chatMessages: updatedMessages,
                 messageQuestions,
-                abortController: null,
+              abortController: null,
               };
             });
           }
@@ -6463,12 +6463,12 @@ async function handleImageSimplifyMore(explanationId: string): Promise<void> {
             }
 
             return {
-              ...state,
+            ...state,
               streamingText: '', // Clear streamingText since we added it to chatMessages
-              shouldAllowSimplifyMore,
+            shouldAllowSimplifyMore,
               possibleQuestions: [],
-              abortController: null,
-              isSimplifyRequest: false,
+            abortController: null,
+            isSimplifyRequest: false,
               chatMessages,
               messageQuestions,
             };
@@ -6721,8 +6721,8 @@ function updateImageExplanationPanel(): void {
           folderModalFolders = response.folders;
           
           // Check for stored preference folder ID and auto-select/expand if found
-          const storedFolderId = await ChromeStorage.getImageBookmarkPreferenceFolderId();
-          console.log('[Content Script] Retrieved stored image folder ID from storage:', storedFolderId);
+          const storedFolderId = await ChromeStorage.getBookmarkPreferenceFolderId();
+          console.log('[Content Script] Retrieved stored bookmark folder ID from storage:', storedFolderId);
           if (storedFolderId) {
             const ancestorPath = findFolderAndGetAncestorPath(response.folders, storedFolderId);
             if (ancestorPath !== null) {
@@ -7133,8 +7133,8 @@ async function handleWordBookmarkClick(wordId: string): Promise<void> {
           folderModalFolders = response.folders;
           
           // Check for stored preference folder ID and auto-select/expand if found
-          const storedFolderId = await ChromeStorage.getWordBookmarkPreferenceFolderId();
-          console.log('[Content Script] Retrieved stored word folder ID from storage:', storedFolderId);
+          const storedFolderId = await ChromeStorage.getBookmarkPreferenceFolderId();
+          console.log('[Content Script] Retrieved stored bookmark folder ID from storage:', storedFolderId);
           if (storedFolderId) {
             const ancestorPath = findFolderAndGetAncestorPath(response.folders, storedFolderId);
             if (ancestorPath !== null) {
@@ -8405,17 +8405,8 @@ async function updateFolderListModal(): Promise<void> {
       ? handleCreateLinkFolder
       : handleCreateParagraphFolder; // Use paragraph folder handler for both paragraph, word, and image modes
     
-    // Check if the selected folder matches the stored preference (different for link, paragraph, word, and image)
-    let storedFolderId: string | null = null;
-    if (folderModalMode === 'link') {
-      storedFolderId = await ChromeStorage.getLinkBookmarkPreferenceFolderId();
-    } else if (folderModalMode === 'word') {
-      storedFolderId = await ChromeStorage.getWordBookmarkPreferenceFolderId();
-    } else if (folderModalMode === 'image') {
-      storedFolderId = await ChromeStorage.getImageBookmarkPreferenceFolderId();
-    } else {
-      storedFolderId = await ChromeStorage.getParagraphBookmarkPreferenceFolderId();
-    }
+    // Check if the selected folder matches the stored preference (unified for all bookmark types)
+    const storedFolderId = await ChromeStorage.getBookmarkPreferenceFolderId();
     // Only initialize checkbox state from storage if not already initialized by user
     // This prevents overwriting user's manual checkbox changes
     if (!folderModalRememberCheckedInitialized) {
@@ -8469,7 +8460,6 @@ async function updateFolderListModal(): Promise<void> {
         initialName: folderModalMode === 'link' ? folderModalLinkName : undefined,
         onNameChange: folderModalMode === 'link' ? handleNameChange : undefined,
         modalTitle,
-        mode: folderModalMode || 'paragraph',
       })
       )
     );
@@ -8516,15 +8506,15 @@ async function handleFolderModalSave(folderId: string | null): Promise<void> {
         
         // If "Remember my folder" checkbox is checked, save the folder preference after successful save
         if (folderModalRememberChecked && folderId) {
-          await ChromeStorage.setParagraphBookmarkPreferenceFolderId(folderId);
-          console.log('[Content Script] Saved folder preference on save:', folderId);
+          await ChromeStorage.setBookmarkPreferenceFolderId(folderId);
+          console.log('[Content Script] Saved bookmark folder preference on save:', folderId);
           // Verify it was saved
-          const verify = await ChromeStorage.getParagraphBookmarkPreferenceFolderId();
-          console.log('[Content Script] Verified saved folder ID:', verify);
+          const verify = await ChromeStorage.getBookmarkPreferenceFolderId();
+          console.log('[Content Script] Verified saved bookmark folder ID:', verify);
         } else if (!folderModalRememberChecked) {
           // If checkbox is unchecked, remove the preference after successful save
-          await ChromeStorage.removeParagraphBookmarkPreferenceFolderId();
-          console.log('[Content Script] Removed folder preference on save');
+          await ChromeStorage.removeBookmarkPreferenceFolderId();
+          console.log('[Content Script] Removed bookmark folder preference on save');
         }
         
         showToast('Text saved successfully!', 'success');
@@ -8775,15 +8765,15 @@ async function handleFolderModalSaveForLink(folderId: string | null, name?: stri
         
         // If "Remember my folder" checkbox is checked, save the folder preference after successful save
         if (folderModalRememberChecked && folderId) {
-          await ChromeStorage.setLinkBookmarkPreferenceFolderId(folderId);
-          console.log('[Content Script] Saved link folder preference on save:', folderId);
+          await ChromeStorage.setBookmarkPreferenceFolderId(folderId);
+          console.log('[Content Script] Saved bookmark folder preference on save:', folderId);
           // Verify it was saved
-          const verify = await ChromeStorage.getLinkBookmarkPreferenceFolderId();
-          console.log('[Content Script] Verified saved link folder ID:', verify);
+          const verify = await ChromeStorage.getBookmarkPreferenceFolderId();
+          console.log('[Content Script] Verified saved bookmark folder ID:', verify);
         } else if (!folderModalRememberChecked) {
           // If checkbox is unchecked, remove the preference after successful save
-          await ChromeStorage.removeLinkBookmarkPreferenceFolderId();
-          console.log('[Content Script] Removed link folder preference on save');
+          await ChromeStorage.removeBookmarkPreferenceFolderId();
+          console.log('[Content Script] Removed bookmark folder preference on save');
         }
         
         showToast('Link saved successfully!', 'success');
@@ -8939,15 +8929,15 @@ async function handleFolderModalSaveForImage(folderId: string | null): Promise<v
         
         // If "Remember my folder" checkbox is checked, save the folder preference after successful save
         if (folderModalRememberChecked && folderId) {
-          await ChromeStorage.setImageBookmarkPreferenceFolderId(folderId);
-          console.log('[Content Script] Saved image folder preference on save:', folderId);
+          await ChromeStorage.setBookmarkPreferenceFolderId(folderId);
+          console.log('[Content Script] Saved bookmark folder preference on save:', folderId);
           // Verify it was saved
-          const verify = await ChromeStorage.getImageBookmarkPreferenceFolderId();
-          console.log('[Content Script] Verified saved image folder ID:', verify);
+          const verify = await ChromeStorage.getBookmarkPreferenceFolderId();
+          console.log('[Content Script] Verified saved bookmark folder ID:', verify);
         } else if (!folderModalRememberChecked) {
           // If checkbox is unchecked, remove the preference after successful save
-          await ChromeStorage.removeImageBookmarkPreferenceFolderId();
-          console.log('[Content Script] Removed image folder preference on save');
+          await ChromeStorage.removeBookmarkPreferenceFolderId();
+          console.log('[Content Script] Removed bookmark folder preference on save');
         }
         
         showToast('Image saved successfully!', 'success');
@@ -9044,15 +9034,15 @@ async function handleFolderModalSaveForWord(folderId: string | null): Promise<vo
         
         // If "Remember my folder" checkbox is checked, save the folder preference after successful save
         if (folderModalRememberChecked && folderId) {
-          await ChromeStorage.setWordBookmarkPreferenceFolderId(folderId);
-          console.log('[Content Script] Saved word folder preference on save:', folderId);
+          await ChromeStorage.setBookmarkPreferenceFolderId(folderId);
+          console.log('[Content Script] Saved bookmark folder preference on save:', folderId);
           // Verify it was saved
-          const verify = await ChromeStorage.getWordBookmarkPreferenceFolderId();
-          console.log('[Content Script] Verified saved word folder ID:', verify);
+          const verify = await ChromeStorage.getBookmarkPreferenceFolderId();
+          console.log('[Content Script] Verified saved bookmark folder ID:', verify);
         } else if (!folderModalRememberChecked) {
           // If checkbox is unchecked, remove the preference after successful save
-          await ChromeStorage.removeWordBookmarkPreferenceFolderId();
-          console.log('[Content Script] Removed word folder preference on save');
+          await ChromeStorage.removeBookmarkPreferenceFolderId();
+          console.log('[Content Script] Removed bookmark folder preference on save');
         }
         
         // Update word state
