@@ -35,8 +35,8 @@ export interface FolderListModalProps {
   onNameChange?: (name: string) => void;
   /** Custom modal title (defaults to "Choose folder") */
   modalTitle?: string;
-  /** Mode: 'paragraph' or 'link' - used for context-aware labels */
-  mode?: 'paragraph' | 'link';
+  /** Mode: 'paragraph', 'link', or 'word' - used for context-aware labels */
+  mode?: 'paragraph' | 'link' | 'word';
 }
 
 interface FolderTreeItemProps {
@@ -47,7 +47,6 @@ interface FolderTreeItemProps {
   getClassName: (name: string) => string;
   expandedFolders: Set<string>;
   toggleFolder: (folderId: string) => void;
-  onAddSubFolder?: (parentFolderId: string) => void;
   editingFolderId: string | null;
   editingFolderParentId: string | null;
   editingFolderName: string;
@@ -66,7 +65,6 @@ const FolderTreeItem: React.FC<FolderTreeItemProps> = ({
   getClassName,
   expandedFolders,
   toggleFolder,
-  onAddSubFolder,
   editingFolderId,
   editingFolderParentId,
   editingFolderName,
@@ -76,19 +74,11 @@ const FolderTreeItem: React.FC<FolderTreeItemProps> = ({
   editingInputRef,
   isCreatingFolder,
 }) => {
-  const [isHovered, setIsHovered] = useState(false);
   const isExpanded = expandedFolders.has(folder.id);
   const isSelected = selectedFolderId === folder.id;
   const hasSubFolders = folder.subFolders && folder.subFolders.length > 0;
   const isEditingThisFolder = editingFolderId === folder.id;
   const isEditingChild = editingFolderParentId === folder.id;
-
-  const handleAddSubFolderClick = useCallback((e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (onAddSubFolder) {
-      onAddSubFolder(folder.id);
-    }
-  }, [folder.id, onAddSubFolder]);
 
   const handleEditingKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
@@ -108,8 +98,6 @@ const FolderTreeItem: React.FC<FolderTreeItemProps> = ({
         className={`${getClassName('folderItem')} ${isSelected ? getClassName('folderItemSelected') : ''}`}
         style={{ paddingLeft: `${level * 20 + 12}px` }}
         onClick={() => onSelectFolder(folder.id)}
-        onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}
       >
         {hasSubFolders && (
           <button
@@ -164,18 +152,6 @@ const FolderTreeItem: React.FC<FolderTreeItemProps> = ({
         ) : (
           <span className={getClassName('folderName')}>{folder.name}</span>
         )}
-        {!isEditingThisFolder && onAddSubFolder && (
-          <div className={getClassName('folderItemActions')}>
-            <button
-              className={`${getClassName('addFolderButton')} ${isHovered ? getClassName('addFolderButtonVisible') : ''}`}
-              onClick={handleAddSubFolderClick}
-              title="Add new folder"
-              aria-label="Add new folder"
-            >
-              <Plus size={16} />
-            </button>
-          </div>
-        )}
       </div>
       {(hasSubFolders || isEditingChild) && isExpanded && (
         <div className={getClassName('subFolders')}>
@@ -189,7 +165,6 @@ const FolderTreeItem: React.FC<FolderTreeItemProps> = ({
               getClassName={getClassName}
               expandedFolders={expandedFolders}
               toggleFolder={toggleFolder}
-              onAddSubFolder={onAddSubFolder}
               editingFolderId={editingFolderId}
               editingFolderParentId={editingFolderParentId}
               editingFolderName={editingFolderName}
@@ -352,19 +327,6 @@ export const FolderListModal: React.FC<FolderListModalProps> = ({
     setEditingFolderName('Untitled');
   }, []);
 
-  const handleAddSubFolder = useCallback((parentFolderId: string) => {
-    const tempId = `temp-${Date.now()}`;
-    setEditingFolderId(tempId);
-    setEditingFolderParentId(parentFolderId);
-    setEditingFolderName('Untitled');
-    // Ensure parent folder is expanded
-    setExpandedFolders((prev) => {
-      const newSet = new Set(prev);
-      newSet.add(parentFolderId);
-      return newSet;
-    });
-  }, []);
-
   const handleEditingFolderSubmit = useCallback((parentFolderId: string | null) => {
     const trimmedName = editingFolderName.trim();
     if (trimmedName && onCreateFolder) {
@@ -523,7 +485,6 @@ export const FolderListModal: React.FC<FolderListModalProps> = ({
                 getClassName={getClassName}
                 expandedFolders={expandedFolders}
                 toggleFolder={toggleFolder}
-                onAddSubFolder={handleAddSubFolder}
                 editingFolderId={editingFolderId}
                 editingFolderParentId={editingFolderParentId}
                 editingFolderName={editingFolderName}
@@ -611,7 +572,7 @@ export const FolderListModal: React.FC<FolderListModalProps> = ({
                   onChange={handleRememberFolderChange}
                 />
                 <span>
-                  {mode === 'link' ? 'Remember my folder for links' : 'Remember my folder for paragraph'}
+                  {mode === 'link' ? 'Remember my folder for links' : mode === 'word' ? 'Remember my folder for word bookmark' : 'Remember my folder for paragraph'}
                 </span>
               </label>
             </div>

@@ -73,6 +73,8 @@ export interface TextExplanationSidePanelProps {
   onCloseHandlerReady?: (handler: () => void) => void;
   /** Whether the text is bookmarked */
   isBookmarked?: boolean;
+  /** Whether to hide the footer (used for image explanations) */
+  hideFooter?: boolean;
 }
 
 const MIN_WIDTH = 300;
@@ -111,6 +113,7 @@ export const TextExplanationSidePanel: React.FC<TextExplanationSidePanelProps> =
   isTranslating = false,
   onCloseHandlerReady,
   isBookmarked = false,
+  hideFooter = false,
 }) => {
   const [width, setWidth] = useState(DEFAULT_WIDTH);
   const [isVerticallyExpanded, setIsVerticallyExpanded] = useState(false);
@@ -429,12 +432,14 @@ export const TextExplanationSidePanel: React.FC<TextExplanationSidePanelProps> =
         />
       </div>
 
-      {/* Footer */}
-      <TextExplanationFooter
-        useShadowDom={useShadowDom}
-        activeView={viewMode}
-        onViewChange={onViewModeChange}
-      />
+      {/* Footer (hidden when hideFooter is true, e.g. for image explanations) */}
+      {!hideFooter && (
+        <TextExplanationFooter
+          useShadowDom={useShadowDom}
+          activeView={viewMode}
+          onViewChange={onViewModeChange}
+        />
+      )}
     </div>
   );
 };

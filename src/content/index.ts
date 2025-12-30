@@ -189,14 +189,18 @@ let folderModalExpandedFolders: Set<string> = new Set();
 let folderModalRange: Range | null = null; // Store the selection range for bookmark
 let folderModalRememberChecked: boolean = false; // Track remember folder checkbox state
 let folderModalRememberCheckedInitialized: boolean = false; // Track if checkbox state has been initialized
-// Folder modal mode: 'paragraph' for paragraph saving, 'link' for link saving
-let folderModalMode: 'paragraph' | 'link' | null = null;
+// Folder modal mode: 'paragraph' for paragraph saving, 'link' for link saving, 'word' for word saving
+let folderModalMode: 'paragraph' | 'link' | 'word' | null = null;
 // Link-specific state variables
 let folderModalLinkUrl: string = '';
 let folderModalLinkName: string = '';
 let folderModalLinkSummary: string | null = null;
 // Track which source initiated the link save (for updating correct bookmark state)
 let folderModalLinkSource: 'sidepanel' | 'fab' | null = null;
+// Word-specific state variables
+let folderModalWord: string | null = null;
+let folderModalWordContextualMeaning: string | null = null;
+let folderModalWordId: string | null = null;
 
 // FAB Saved Link state - tracks if current page is saved
 let fabSavedLinkId: string | null = null;
@@ -5769,6 +5773,11 @@ function handleImageHoverLeave(imageElement: HTMLImageElement): void {
     return;
   }
   
+  // Don't hide if explanation is currently spinning (processing)
+  if (explanation.isSpinning) {
+    return;
+  }
+  
   // Check if mouse is currently over the icon
   const isIconHovered = iconHoverStates.get(explanation.id);
   if (isIconHovered) {
@@ -5784,11 +5793,17 @@ function handleImageHoverLeave(imageElement: HTMLImageElement): void {
       return; // Don't hide if mouse moved to icon
     }
     
+    // Double-check that explanation is not spinning (processing)
+    const currentExplanations = store.get(imageExplanationsAtom);
+    const currentExplanation = currentExplanations.get(explanation.id);
+    if (currentExplanation?.isSpinning) {
+      return; // Don't hide if explanation is processing
+    }
+    
     hoveredImages.delete(imageElement);
     imageHideTimeouts.delete(imageElement);
     
     // Remove from explanations
-    const currentExplanations = store.get(imageExplanationsAtom);
     const newExplanations = new Map(currentExplanations);
     newExplanations.delete(explanation.id);
     store.set(imageExplanationsAtom, newExplanations);
@@ -5835,6 +5850,11 @@ function handleIconMouseLeave(explanationId: string): void {
     return;
   }
   
+  // Don't hide if explanation is currently spinning (processing)
+  if (explanation.isSpinning) {
+    return;
+  }
+  
   // Schedule hide with delay
   const timeoutId = setTimeout(() => {
     const stillHovered = iconHoverStates.get(explanationId);
@@ -5842,10 +5862,16 @@ function handleIconMouseLeave(explanationId: string): void {
       return;
     }
     
+    // Double-check that explanation is not spinning (processing)
+    const currentExplanations = store.get(imageExplanationsAtom);
+    const currentExplanation = currentExplanations.get(explanationId);
+    if (currentExplanation?.isSpinning) {
+      return; // Don't hide if explanation is processing
+    }
+    
     hoveredImages.delete(explanation.imageElement);
     imageHideTimeouts.delete(explanation.imageElement);
     
-    const currentExplanations = store.get(imageExplanationsAtom);
     const newExplanations = new Map(currentExplanations);
     newExplanations.delete(explanationId);
     store.set(imageExplanationsAtom, newExplanations);
@@ -5874,6 +5900,13 @@ async function handleImageIconClick(imageElement: HTMLImageElement): Promise<voi
   }
   
   const explanationId = explanation.id;
+  
+  // Cancel any pending hide timeout for this image
+  const pendingTimeout = imageHideTimeouts.get(imageElement);
+  if (pendingTimeout) {
+    clearTimeout(pendingTimeout);
+    imageHideTimeouts.delete(imageElement);
+  }
   
   // Convert image to file
   let imageFile: File | null = null;
@@ -6001,25 +6034,43 @@ async function handleImageIconClick(imageElement: HTMLImageElement): Promise<voi
           }
         },
         onComplete: (simplifiedText, shouldAllowSimplifyMore, possibleQuestions) => {
-          updateExplanationInMap(explanationId, (state) => ({
-            ...state,
-            streamingText: simplifiedText,
-            shouldAllowSimplifyMore,
-            possibleQuestions,
-            abortController: null,
-          }));
+          updateExplanationInMap(explanationId, (state) => {
+            const existingMessages = state.chatMessages || [];
+            const chatMessages = [...existingMessages];
+            const currentCount = state.simplifiedExplanationCount || 0;
+            const explanationNumber = currentCount > 0 ? currentCount : 1;
+
+            const messageWithHeading = `## Simplified explanation ${explanationNumber}\n\n${simplifiedText}`;
+            chatMessages.push({ role: 'assistant', content: messageWithHeading });
+
+            const messageIndex = chatMessages.length - 1;
+            const messageQuestions = { ...(state.messageQuestions || {}) };
+            if (possibleQuestions && possibleQuestions.length > 0) {
+              messageQuestions[messageIndex] = possibleQuestions;
+            }
+
+            return {
+              ...state,
+              streamingText: '', // Clear streamingText since we added it to chatMessages
+              shouldAllowSimplifyMore,
+              possibleQuestions: [],
+              abortController: null,
+              isSimplifyRequest: false,
+              chatMessages,
+              messageQuestions,
+              simplifiedExplanationCount: explanationNumber,
+            };
+          });
           updateImageExplanationPanel();
           updateImageExplanationIconContainer();
         },
         onError: (errorCode, errorMessage) => {
           console.error('[Content Script] Image simplify error:', errorCode, errorMessage);
-          updateExplanationInMap(explanationId, (state) => ({
-            ...state,
-            isSpinning: false,
-            abortController: null,
-          }));
+          const explanations = store.get(imageExplanationsAtom);
+          if (explanations.has(explanationId)) {
+            removeImageExplanation(explanationId);
+          }
           showToast(`Error: ${errorMessage}`, 'error');
-          updateImageExplanationIconContainer();
         },
         onLoginRequired: () => {
           store.set(showLoginModalAtom, true);
@@ -6122,34 +6173,41 @@ async function handleImageAsk(explanationId: string, question: string): Promise<
           updateImageExplanationPanel();
         },
         onComplete: (updatedChatHistory, questions) => {
-          // Get current chat history
-          const currentChatHistory = explanation.chatMessages;
-          
           // Extract only the assistant message from updatedChatHistory
           const assistantMessage = updatedChatHistory[updatedChatHistory.length - 1];
           
           // Verify it's an assistant message
           if (assistantMessage && assistantMessage.role === 'assistant') {
-            // Update chat messages
-            const finalMessages = [...currentChatHistory, assistantMessage];
-            
-            // Store questions for the last assistant message (by index)
-            const messageQuestions: Record<number, string[]> = {};
-            if (questions.length > 0) {
-              const assistantMessageIndex = finalMessages.findIndex(
-                (msg, idx) => msg.role === 'assistant' && idx === finalMessages.length - 1
-              );
-              if (assistantMessageIndex >= 0) {
+            updateExplanationInMap(explanationId, (state) => {
+              // The message is already in chatMessages from onChunk, just update the last one with final content
+              const updatedMessages = [...state.chatMessages];
+              const lastMessage = updatedMessages[updatedMessages.length - 1];
+              
+              if (lastMessage && lastMessage.role === 'assistant') {
+                // Update the existing assistant message with final content
+                updatedMessages[updatedMessages.length - 1] = {
+                  ...lastMessage,
+                  content: assistantMessage.content,
+                };
+              } else {
+                // Fallback: add if somehow not present
+                updatedMessages.push(assistantMessage);
+              }
+              
+              // Store questions for the last assistant message (by index)
+              const messageQuestions = { ...(state.messageQuestions || {}) };
+              if (questions && questions.length > 0) {
+                const assistantMessageIndex = updatedMessages.length - 1;
                 messageQuestions[assistantMessageIndex] = questions;
               }
-            }
-            
-            updateExplanationInMap(explanationId, (state) => ({
-              ...state,
-              chatMessages: finalMessages,
-              messageQuestions: { ...state.messageQuestions, ...messageQuestions },
-              abortController: null,
-            }));
+              
+              return {
+                ...state,
+                chatMessages: updatedMessages,
+                messageQuestions,
+                abortController: null,
+              };
+            });
           }
           
           updateImageExplanationPanel();
@@ -6235,14 +6293,31 @@ async function handleImageSimplifyMore(explanationId: string): Promise<void> {
           updateImageExplanationPanel();
         },
         onComplete: (simplifiedText, shouldAllowSimplifyMore, possibleQuestions) => {
-          updateExplanationInMap(explanationId, (state) => ({
-            ...state,
-            streamingText: simplifiedText,
-            shouldAllowSimplifyMore,
-            possibleQuestions,
-            abortController: null,
-            isSimplifyRequest: false,
-          }));
+          updateExplanationInMap(explanationId, (state) => {
+            const existingMessages = state.chatMessages || [];
+            const chatMessages = [...existingMessages];
+            const explanationNumber = state.simplifiedExplanationCount || 1;
+
+            const messageWithHeading = `## Simplified explanation ${explanationNumber}\n\n${simplifiedText}`;
+            chatMessages.push({ role: 'assistant', content: messageWithHeading });
+
+            const messageIndex = chatMessages.length - 1;
+            const messageQuestions = { ...(state.messageQuestions || {}) };
+            if (possibleQuestions && possibleQuestions.length > 0) {
+              messageQuestions[messageIndex] = possibleQuestions;
+            }
+
+            return {
+              ...state,
+              streamingText: '', // Clear streamingText since we added it to chatMessages
+              shouldAllowSimplifyMore,
+              possibleQuestions: [],
+              abortController: null,
+              isSimplifyRequest: false,
+              chatMessages,
+              messageQuestions,
+            };
+          });
           updateImageExplanationPanel();
         },
         onError: (errorCode, errorMessage) => {
@@ -6328,6 +6403,13 @@ function updateImageExplanationPanel(): void {
   const messageQuestions = activeExplanation.messageQuestions || {};
   const isRequesting = activeExplanation.abortController !== null;
   const isSimplifying = activeExplanation.isSimplifyRequest === true;
+
+  // Determine header icon visibility and delete icon visibility
+  const hasContent =
+    (chatMessages && chatMessages.length > 0) ||
+    (typeof streamingText === 'string' && streamingText.trim().length > 0);
+  const showHeaderIcons = hasContent;
+  const showDeleteIcon = hasContent;
   
   const explanationId = activeExplanation.id;
   
@@ -6357,6 +6439,18 @@ function updateImageExplanationPanel(): void {
       await handleImageSimplifyMore(explanationId);
     };
   }
+
+  const handleImageRemoveCallback = () => {
+    removeImageExplanation(explanationId);
+  };
+
+  const handleImageViewOriginalCallback = () => {
+    if (!activeExplanation) {
+      console.log('[Content Script] No image explanation state available for view original');
+      return;
+    }
+    scrollToAndHighlightImage(activeExplanation.imageElement);
+  };
   
   try {
     imageExplanationPanelRoot.render(
@@ -6378,16 +6472,66 @@ function updateImageExplanationPanel(): void {
           messageQuestions,
           onStopRequest: () => {
             const exp = store.get(imageExplanationsAtom).get(explanationId);
-            if (exp?.abortController) {
+            if (!exp) return;
+            
+            // Abort the request
+            if (exp.abortController) {
               exp.abortController.abort();
             }
+            
+            // Update state to revert button states
+            const updateExplanationInMap = (id: string, updater: (state: ImageExplanationState) => ImageExplanationState) => {
+              const map = new Map(store.get(imageExplanationsAtom));
+              const current = map.get(id);
+              if (current) {
+                map.set(id, updater(current));
+                store.set(imageExplanationsAtom, map);
+              }
+            };
+            
+            updateExplanationInMap(explanationId, (state) => {
+              // If we have streaming text and it's a simplify request, save it to chat history
+              if (state.streamingText && state.streamingText.trim().length > 0 && state.isSimplifyRequest) {
+                const existingMessages = state.chatMessages || [];
+                const chatMessages = [...existingMessages];
+                const currentCount = state.simplifiedExplanationCount || 0;
+                const explanationNumber = currentCount > 0 ? currentCount : 1;
+                
+                const messageWithHeading = `## Simplified explanation ${explanationNumber}\n\n${state.streamingText}`;
+                chatMessages.push({ role: 'assistant', content: messageWithHeading });
+                
+                return {
+                  ...state,
+                  chatMessages,
+                  streamingText: '',
+                  abortController: null,
+                  isSimplifyRequest: false,
+                  firstChunkReceived: false,
+                };
+              }
+              
+              // For ask requests, the streaming text is already in chatMessages (updated in onChunk)
+              // Just clear the streaming state and reset flags
+              return {
+                ...state,
+                streamingText: '',
+                abortController: null,
+                isSimplifyRequest: false,
+                firstChunkReceived: false,
+              };
+            });
+            
+            updateImageExplanationPanel();
           },
           isRequesting,
           shouldAllowSimplifyMore,
           onSimplify: handleImageSimplifyCallback,
           isSimplifying,
-          showHeaderIcons: true,
-          showDeleteIcon: false,
+          showHeaderIcons,
+          showDeleteIcon,
+          onRemove: handleImageRemoveCallback,
+          onViewOriginal: handleImageViewOriginalCallback,
+          hideFooter: true,
           firstChunkReceived,
           onCloseHandlerReady: () => {
             // Handler registered for animated close if needed
@@ -6649,42 +6793,55 @@ async function handleWordBookmarkClick(wordId: string): Promise<void> {
       }
     );
   } else {
-    // Save the word
-    console.log('[Content Script] Saving word:', atomState.word);
+    // Show folder selection modal for saving word
+    console.log('[Content Script] Opening folder modal for word:', atomState.word);
     const contextualMeaning = atomState.meaning || atomState.streamedContent;
     console.log('[Content Script] Contextual meaning:', contextualMeaning ? contextualMeaning.substring(0, 100) : 'null');
     
-    newExplanations.set(wordId, { ...atomState, isSavingWord: true });
-    store.set(wordExplanationsAtom, newExplanations);
-    updateWordExplanationPopover();
+    // Store word data in modal state
+    folderModalWord = atomState.word;
+    folderModalWordContextualMeaning = contextualMeaning || null;
+    folderModalWordId = wordId;
+    folderModalMode = 'word';
     
-    SavedWordsService.saveWord(
+    // Get folders and show modal
+    FolderService.getAllFolders(
+      'WORD',
       {
-        word: atomState.word,
-        sourceUrl: window.location.href,
-        contextual_meaning: contextualMeaning || null,
-      },
-      {
-        onSuccess: (response) => {
-          console.log('[Content Script] Word saved successfully with id:', response.id);
-          const updated = new Map(store.get(wordExplanationsAtom));
-          const currentState = updated.get(wordId);
-          if (currentState) {
-            updated.set(wordId, { ...currentState, isSaved: true, savedWordId: response.id, isSavingWord: false });
-            store.set(wordExplanationsAtom, updated);
-            updateWordExplanationPopover();
-            
-            // Update bookmark icon on word span
-            const localState = wordExplanationsMap.get(wordId);
-            if (localState?.wordSpanElement) {
-              applyGreenWordSpanStyling(localState.wordSpanElement, wordId, true);
+        onSuccess: async (response) => {
+          console.log('[Content Script] Folders loaded successfully for word:', response.folders.length, 'folders');
+          folderModalFolders = response.folders;
+          
+          // Check for stored preference folder ID and auto-select/expand if found
+          const storedFolderId = await ChromeStorage.getWordBookmarkPreferenceFolderId();
+          console.log('[Content Script] Retrieved stored word folder ID from storage:', storedFolderId);
+          if (storedFolderId) {
+            const ancestorPath = findFolderAndGetAncestorPath(response.folders, storedFolderId);
+            if (ancestorPath !== null) {
+              folderModalSelectedFolderId = storedFolderId;
+              // Expand all ancestor folders to show the hierarchical path
+              folderModalExpandedFolders = new Set(ancestorPath);
+              console.log('[Content Script] Auto-selected preferred word folder:', storedFolderId, 'with ancestors:', ancestorPath);
+            } else {
+              folderModalSelectedFolderId = null;
+              folderModalExpandedFolders = new Set();
+              console.log('[Content Script] Stored word folder ID not found in tree, clearing selection. Stored ID:', storedFolderId, 'Available folders:', response.folders);
             }
+          } else {
+            folderModalSelectedFolderId = null;
+            folderModalExpandedFolders = new Set();
+            console.log('[Content Script] No stored word folder preference found');
           }
-          showToast('Word saved successfully!', 'success');
-          showBookmarkToast('word', '/user/saved-words');
+          
+          folderModalRememberCheckedInitialized = false; // Reset flag when modal opens
+          folderModalOpen = true;
+          injectFolderListModal();
+          updateFolderListModal();
         },
-        onError: (_code, message) => {
-          console.error('[Content Script] Failed to save word:', message);
+        onError: (errorCode, message) => {
+          console.error('[Content Script] Failed to load folders for word:', errorCode, message);
+          showToast(`Failed to load folders: ${message}`, 'error');
+          // Reset word state on error
           const updated = new Map(store.get(wordExplanationsAtom));
           const currentState = updated.get(wordId);
           if (currentState) {
@@ -6692,10 +6849,11 @@ async function handleWordBookmarkClick(wordId: string): Promise<void> {
             store.set(wordExplanationsAtom, updated);
             updateWordExplanationPopover();
           }
-          showToast(`Failed to save word: ${message}`, 'error');
         },
         onLoginRequired: () => {
-          console.log('[Content Script] Login required to save word');
+          console.log('[Content Script] Login required to load folders for word');
+          store.set(showLoginModalAtom, true);
+          // Reset word state
           const updated = new Map(store.get(wordExplanationsAtom));
           const currentState = updated.get(wordId);
           if (currentState) {
@@ -6703,10 +6861,11 @@ async function handleWordBookmarkClick(wordId: string): Promise<void> {
             store.set(wordExplanationsAtom, updated);
             updateWordExplanationPopover();
           }
-          store.set(showLoginModalAtom, true);
         },
         onSubscriptionRequired: () => {
-          console.log('[Content Script] Subscription required to save word');
+          console.log('[Content Script] Subscription required to load folders for word');
+          store.set(showSubscriptionModalAtom, true);
+          // Reset word state
           const updated = new Map(store.get(wordExplanationsAtom));
           const currentState = updated.get(wordId);
           if (currentState) {
@@ -6714,7 +6873,6 @@ async function handleWordBookmarkClick(wordId: string): Promise<void> {
             store.set(wordExplanationsAtom, updated);
             updateWordExplanationPopover();
           }
-          store.set(showSubscriptionModalAtom, true);
         },
       }
     );
@@ -7101,6 +7259,51 @@ function removeTextExplanation(explanationId: string): void {
 }
 
 /**
+ * Remove image explanation completely (icon, panel, and state)
+ */
+function removeImageExplanation(explanationId: string): void {
+  const explanations = store.get(imageExplanationsAtom);
+  const explanation = explanations.get(explanationId);
+
+  if (!explanation) {
+    console.log('[Content Script] No image explanation state to remove');
+    return;
+  }
+
+  // Clear hover and timeout state for this image
+  hoveredImages.delete(explanation.imageElement);
+  const timeoutId = imageHideTimeouts.get(explanation.imageElement);
+  if (timeoutId) {
+    clearTimeout(timeoutId);
+    imageHideTimeouts.delete(explanation.imageElement);
+  }
+  iconHoverStates.delete(explanationId);
+
+  // Remove from map
+  const newMap = new Map(explanations);
+  newMap.delete(explanationId);
+  store.set(imageExplanationsAtom, newMap);
+
+  // If this was the active explanation, clear active ID and close panel
+  const activeId = store.get(activeImageExplanationIdAtom);
+  if (explanationId === activeId) {
+    store.set(activeImageExplanationIdAtom, null);
+    store.set(imageExplanationPanelOpenAtom, false);
+    removeImageExplanationPanel();
+  }
+
+  // Update icon container (will hide if no explanations left)
+  updateImageExplanationIconContainer();
+
+  // If no explanations left, remove icon container
+  if (newMap.size === 0) {
+    removeImageExplanationIconContainer();
+  }
+
+  console.log('[Content Script] Image explanation removed completely');
+}
+
+/**
  * Scroll to selected text and pulse highlight 3 times
  */
 function scrollToAndHighlightText(range: Range | null, underlineState?: UnderlineState | null): void {
@@ -7203,6 +7406,35 @@ function scrollToAndHighlightText(range: Range | null, underlineState?: Underlin
 
   } catch (error) {
     console.error('[Content Script] Error in scrollToAndHighlightText:', error);
+  }
+}
+
+/**
+ * Scroll to image element and briefly highlight it
+ */
+function scrollToAndHighlightImage(imageElement: HTMLImageElement): void {
+  if (!imageElement || !document.contains(imageElement)) {
+    console.warn('[Content Script] Image element not found for scrollToAndHighlightImage');
+    return;
+  }
+
+  try {
+    const rect = imageElement.getBoundingClientRect();
+    const scrollY = window.scrollY + rect.top - 150; // Offset for better visibility
+
+    window.scrollTo({
+      top: scrollY,
+      behavior: 'smooth',
+    });
+
+    const originalBoxShadow = imageElement.style.boxShadow;
+    imageElement.style.boxShadow = '0 0 0 3px #22c55e'; // Tailwind green-500
+
+    setTimeout(() => {
+      imageElement.style.boxShadow = originalBoxShadow;
+    }, 1500);
+  } catch (error) {
+    console.error('[Content Script] Error in scrollToAndHighlightImage:', error);
   }
 }
 
@@ -7839,15 +8071,19 @@ async function updateFolderListModal(): Promise<void> {
     // Determine which save handler and create folder handler to use based on mode
     const saveHandler = folderModalMode === 'link' 
       ? handleFolderModalSaveForLink 
+      : folderModalMode === 'word'
+      ? handleFolderModalSaveForWord
       : handleFolderModalSave;
     const createFolderHandler = folderModalMode === 'link'
       ? handleCreateLinkFolder
-      : handleCreateParagraphFolder;
+      : handleCreateParagraphFolder; // Use paragraph folder handler for both paragraph and word modes
     
-    // Check if the selected folder matches the stored preference (different for link vs paragraph)
+    // Check if the selected folder matches the stored preference (different for link, paragraph, and word)
     let storedFolderId: string | null = null;
     if (folderModalMode === 'link') {
       storedFolderId = await ChromeStorage.getLinkBookmarkPreferenceFolderId();
+    } else if (folderModalMode === 'word') {
+      storedFolderId = await ChromeStorage.getWordBookmarkPreferenceFolderId();
     } else {
       storedFolderId = await ChromeStorage.getParagraphBookmarkPreferenceFolderId();
     }
@@ -8273,6 +8509,157 @@ async function handleFolderModalSaveForLink(folderId: string | null, name?: stri
 }
 
 /**
+ * Handle save button click in folder modal for words
+ */
+async function handleFolderModalSaveForWord(folderId: string | null): Promise<void> {
+  console.log('[Content Script] Saving word to folder:', folderId);
+  
+  if (!folderModalWord || !folderModalWordId) {
+    console.error('[Content Script] Missing word data for saving');
+    showToast('Error: Missing word data', 'error');
+    return;
+  }
+  
+  // Set saving state
+  folderModalSaving = true;
+  updateFolderListModal();
+  
+  // Get word state
+  const atomState = store.get(wordExplanationsAtom).get(folderModalWordId);
+  if (!atomState) {
+    console.error('[Content Script] Word state not found for wordId:', folderModalWordId);
+    folderModalSaving = false;
+    updateFolderListModal();
+    showToast('Error: Word state not found', 'error');
+    return;
+  }
+  
+  // Update word state to show saving
+  const newExplanations = new Map(store.get(wordExplanationsAtom));
+  newExplanations.set(folderModalWordId, { ...atomState, isSavingWord: true });
+  store.set(wordExplanationsAtom, newExplanations);
+  updateWordExplanationPopover();
+  
+  // Save word
+  SavedWordsService.saveWord(
+    {
+      word: folderModalWord,
+      sourceUrl: window.location.href,
+      contextualMeaning: folderModalWordContextualMeaning,
+      folderId: folderId || undefined,
+    },
+    {
+      onSuccess: async (response) => {
+        console.log('[Content Script] Word saved successfully with id:', response.id);
+        console.log('[Content Script] Checkbox state:', folderModalRememberChecked, 'Folder ID:', folderId);
+        
+        // If "Remember my folder" checkbox is checked, save the folder preference after successful save
+        if (folderModalRememberChecked && folderId) {
+          await ChromeStorage.setWordBookmarkPreferenceFolderId(folderId);
+          console.log('[Content Script] Saved word folder preference on save:', folderId);
+          // Verify it was saved
+          const verify = await ChromeStorage.getWordBookmarkPreferenceFolderId();
+          console.log('[Content Script] Verified saved word folder ID:', verify);
+        } else if (!folderModalRememberChecked) {
+          // If checkbox is unchecked, remove the preference after successful save
+          await ChromeStorage.removeWordBookmarkPreferenceFolderId();
+          console.log('[Content Script] Removed word folder preference on save');
+        }
+        
+        // Update word state
+        if (folderModalWordId) {
+          const updated = new Map(store.get(wordExplanationsAtom));
+          const currentState = updated.get(folderModalWordId);
+          if (currentState) {
+            updated.set(folderModalWordId, { ...currentState, isSaved: true, savedWordId: response.id, isSavingWord: false });
+            store.set(wordExplanationsAtom, updated);
+            updateWordExplanationPopover();
+            
+            // Update bookmark icon on word span
+            const localState = wordExplanationsMap.get(folderModalWordId);
+            if (localState?.wordSpanElement) {
+              applyGreenWordSpanStyling(localState.wordSpanElement, folderModalWordId, true);
+            }
+          }
+        }
+        
+        showToast('Word saved successfully!', 'success');
+        showBookmarkToast('word', '/user/saved-words');
+        
+        closeFolderListModal();
+      },
+      onError: (errorCode, message) => {
+        console.error('[Content Script] Failed to save word:', errorCode, message);
+        folderModalSaving = false;
+        updateFolderListModal();
+        
+        // Update word state to remove saving indicator
+        if (folderModalWordId) {
+          const updated = new Map(store.get(wordExplanationsAtom));
+          const currentState = updated.get(folderModalWordId);
+          if (currentState) {
+            updated.set(folderModalWordId, { ...currentState, isSavingWord: false });
+            store.set(wordExplanationsAtom, updated);
+            updateWordExplanationPopover();
+          }
+        }
+        
+        let displayMessage = 'Failed to save word';
+        
+        // Handle specific error codes
+        if (errorCode === 'NOT_FOUND') {
+          displayMessage = 'Folder not found';
+        } else if (errorCode === 'NETWORK_ERROR') {
+          displayMessage = 'Network error. Please check your connection.';
+        } else if (message) {
+          displayMessage = message;
+        }
+        
+        showToast(displayMessage, 'error');
+      },
+      onLoginRequired: () => {
+        console.log('[Content Script] Login required to save word');
+        folderModalSaving = false;
+        updateFolderListModal();
+        
+        // Update word state to remove saving indicator
+        if (folderModalWordId) {
+          const updated = new Map(store.get(wordExplanationsAtom));
+          const currentState = updated.get(folderModalWordId);
+          if (currentState) {
+            updated.set(folderModalWordId, { ...currentState, isSavingWord: false });
+            store.set(wordExplanationsAtom, updated);
+            updateWordExplanationPopover();
+          }
+        }
+        
+        closeFolderListModal();
+        store.set(showLoginModalAtom, true);
+      },
+      onSubscriptionRequired: () => {
+        console.log('[Content Script] Subscription required to save word');
+        folderModalSaving = false;
+        updateFolderListModal();
+        
+        // Update word state to remove saving indicator
+        if (folderModalWordId) {
+          const updated = new Map(store.get(wordExplanationsAtom));
+          const currentState = updated.get(folderModalWordId);
+          if (currentState) {
+            updated.set(folderModalWordId, { ...currentState, isSavingWord: false });
+            store.set(wordExplanationsAtom, updated);
+            updateWordExplanationPopover();
+          }
+        }
+        
+        closeFolderListModal();
+        store.set(showSubscriptionModalAtom, true);
+      },
+    }
+  );
+}
+
+/**
  * Handle create paragraph folder in folder modal
  */
 async function handleCreateParagraphFolder(folderName: string, parentFolderId: string | null): Promise<void> {
@@ -8463,6 +8850,10 @@ function closeFolderListModal(): void {
   folderModalLinkName = '';
   folderModalLinkSummary = null;
   folderModalLinkSource = null;
+  // Clear word-specific state
+  folderModalWord = null;
+  folderModalWordContextualMeaning = null;
+  folderModalWordId = null;
   // Don't clear folderModalRange here - it's used after modal closes
   // Note: folderModalUnderlineState is no longer used since underline is only added after successful save
   updateFolderListModal();

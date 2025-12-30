@@ -30,6 +30,7 @@ export class ChromeStorage {
     LINK_BOOKMARK_PREFERENCE_FOLDER_ID: 'link_bookmark_preference_folder_id',
     XPLAINO_PARAGRAPH_BOOKMARK_FOLDER_ID: 'XPLAINO_PARAGRAPH_BOOKMARK_FOLDER_ID',
     XPLAINO_LINK_BOOKMARK_FOLDER_ID: 'XPLAINO_LINK_BOOKMARK_FOLDER_ID',
+    XPLAINO_WORD_BOOKMARK_FOLDER_ID: 'XPLAINO_WORD_BOOKMARK_FOLDER_ID',
     DONT_SHOW_XPLAINO_TEXT_BOOKMARK_SAVED_LINK_TOAST: 'dont_show_xplaino_text_bookmark_saved_link_toast',
     DONT_SHOW_XPLAINO_LINK_BOOKMARK_SAVED_LINK_TOAST: 'dont_show_xplaino_link_bookmark_saved_link_toast',
     DONT_SHOW_XPLAINO_WORD_BOOKMARK_SAVED_LINK_TOAST: 'dont_show_xplaino_word_bookmark_saved_link_toast',
@@ -551,6 +552,27 @@ export class ChromeStorage {
    */
   static async removeLinkBookmarkPreferenceFolderId(): Promise<void> {
     return this.remove(this.KEYS.XPLAINO_LINK_BOOKMARK_FOLDER_ID);
+  }
+
+  /**
+   * Get the preferred folder ID for word bookmarks
+   */
+  static async getWordBookmarkPreferenceFolderId(): Promise<string | null> {
+    return this.get<string>(this.KEYS.XPLAINO_WORD_BOOKMARK_FOLDER_ID);
+  }
+
+  /**
+   * Set the preferred folder ID for word bookmarks
+   */
+  static async setWordBookmarkPreferenceFolderId(folderId: string): Promise<void> {
+    return this.set(this.KEYS.XPLAINO_WORD_BOOKMARK_FOLDER_ID, folderId);
+  }
+
+  /**
+   * Remove the preferred folder ID for word bookmarks
+   */
+  static async removeWordBookmarkPreferenceFolderId(): Promise<void> {
+    return this.remove(this.KEYS.XPLAINO_WORD_BOOKMARK_FOLDER_ID);
   }
 
   // --- Bookmark Toast Preferences ---

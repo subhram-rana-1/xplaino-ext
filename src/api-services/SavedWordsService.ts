@@ -12,7 +12,8 @@ import { TokenRefreshRetry } from './TokenRefreshRetry';
 export interface SaveWordRequest {
   word: string;
   sourceUrl: string;
-  contextual_meaning: string | null;
+  contextualMeaning: string | null;
+  folderId?: string;
 }
 
 export interface SavedWordResponse {
