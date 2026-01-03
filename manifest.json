@@ -42,8 +42,12 @@
   ],
   "web_accessible_resources": [
     {
-      "resources": ["src/assets/icons/*", "src/assets/photos/*"],
+      "resources": ["src/assets/icons/*", "src/assets/photos/*", "src/assets/svg/*"],
       "matches": ["<all_urls>"]
+    },
+    {
+      "resources": ["src/content/utils/youtubePageContext.js"],
+      "matches": ["https://www.youtube.com/*"]
     }
   ]
 }

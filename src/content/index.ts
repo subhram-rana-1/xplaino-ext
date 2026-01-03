@@ -20,6 +20,7 @@ import { WordAskAISidePanel } from './components/WordAskAISidePanel';
 import { FolderListModal } from './components/FolderListModal';
 import { SavedParagraphIcon } from './components/SavedParagraphIcon';
 import { WelcomeModal } from './components/WelcomeModal/WelcomeModal';
+import { YouTubeAskAIButton } from './components/YouTubeAskAIButton';
 
 // Import Shadow DOM utilities
 import {
@@ -44,6 +45,7 @@ import wordAskAISidePanelStyles from './styles/wordAskAISidePanel.shadow.css?inl
 import folderListModalStyles from './styles/folderListModal.shadow.css?inline';
 import savedParagraphIconStyles from './styles/savedParagraphIcon.shadow.css?inline';
 import welcomeModalStyles from './styles/welcomeModal.shadow.css?inline';
+import youtubeAskAIButtonStyles from './styles/youtubeAskAIButton.shadow.css?inline';
 
 // Import color CSS variables
 import { ALL_COLOR_VARIABLES, getAllColorVariables } from '../constants/colors.css.js';
@@ -93,6 +95,7 @@ import {
   imageExplanationPanelOpenAtom,
   type ImageExplanationState,
 } from '../store/imageExplanationAtoms';
+import { youtubeTranscriptSegmentsAtom } from '../store/youtubeTranscriptAtoms';
 import {
   wordExplanationsAtom,
   activeWordIdAtom,
@@ -126,6 +129,7 @@ const TOAST_HOST_ID = 'xplaino-toast-host';
 const BOOKMARK_TOAST_HOST_ID = 'xplaino-bookmark-toast-host';
 const FOLDER_LIST_MODAL_HOST_ID = 'xplaino-folder-list-modal-host';
 const WELCOME_MODAL_HOST_ID = 'xplaino-welcome-modal-host';
+const YOUTUBE_ASK_AI_BUTTON_HOST_ID = 'xplaino-youtube-ask-ai-button-host';
 
 /**
  * Domain status enum (must match src/types/domain.ts)
@@ -176,6 +180,7 @@ let bookmarkToastUrl: string | null = null;
 let bookmarkToastClosing: boolean = false;
 let bookmarkToastType: 'word' | 'paragraph' | 'link' | 'image' | null = null;
 let bookmarkToastRoot: ReactDOM.Root | null = null;
+let youtubeAskAIButtonRoot: ReactDOM.Root | null = null;
 
 // Folder List Modal state
 let folderListModalRoot: ReactDOM.Root | null = null;
@@ -388,10 +393,41 @@ function extractDomain(url: string): string {
 }
 
 /**
+ * Check if current page is a YouTube page
+ */
+function isYouTubePage(): boolean {
+  try {
+    const url = window.location.href;
+    return url.includes('youtube.com');
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Check if current page is a YouTube watch page
+ */
+function isYouTubeWatchPage(): boolean {
+  try {
+    const url = window.location.href;
+    return url.includes('youtube.com/watch');
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Check if extension is allowed to run on current page
  */
 async function isExtensionAllowed(): Promise<boolean> {
   try {
+    // For YouTube pages, don't allow standard features
+    // YouTube pages will be handled separately
+    if (isYouTubePage()) {
+      console.log('[Content Script] YouTube page detected - standard features disabled');
+      return false;
+    }
+    
     const currentDomain = extractDomain(window.location.href);
     
     if (!currentDomain) {
@@ -9704,6 +9740,247 @@ async function handleWelcomeModalDontShowAgain(): Promise<void> {
 }
 
 // =============================================================================
+// YOUTUBE WATCH PAGE INITIALIZATION
+// =============================================================================
+
+/**
+ * Wait for YouTube video title container to be available
+ */
+function waitForTitleContainer(): Promise<HTMLElement | null> {
+  return new Promise((resolve) => {
+    // Try multiple selectors for YouTube title container
+    const selectors = [
+      '#title h1',
+      'h1.ytd-watch-metadata',
+      'ytd-watch-metadata #title h1',
+      '#container h1',
+      'ytd-watch-metadata h1',
+    ];
+    
+    let attempts = 0;
+    const maxAttempts = 100; // 10 seconds max (100 * 100ms)
+    
+    const checkForTitle = () => {
+      attempts++;
+      
+      for (const selector of selectors) {
+        const element = document.querySelector(selector);
+        if (element) {
+          // Find the parent container that we can append to
+          // Look for ytd-watch-metadata or #title container
+          let container = element.parentElement;
+          while (container) {
+            const containerId = container.id;
+            const containerClass = container.className || '';
+            
+            // Check if this is a good container to append to
+            if (
+              containerId === 'title' ||
+              containerClass.includes('ytd-watch-metadata') ||
+              container.tagName === 'YTD-WATCH-METADATA'
+            ) {
+              // Check if it has a flex or grid layout (good for positioning)
+              const style = window.getComputedStyle(container);
+              if (style.display === 'flex' || style.display === 'grid' || containerId === 'title') {
+                resolve(container as HTMLElement);
+                return;
+              }
+            }
+            container = container.parentElement;
+          }
+          // Fallback: use the element's parent
+          if (element.parentElement) {
+            resolve(element.parentElement);
+            return;
+          }
+        }
+      }
+      
+      // If not found and haven't exceeded max attempts, wait a bit and try again
+      if (attempts < maxAttempts) {
+        setTimeout(checkForTitle, 100);
+      } else {
+        resolve(null);
+      }
+    };
+    
+    // Start checking
+    checkForTitle();
+  });
+}
+
+/**
+ * Inject YouTube Ask AI button into the page
+ */
+async function injectYouTubeAskAIButton(): Promise<void> {
+  // Check if already injected
+  if (shadowHostExists(YOUTUBE_ASK_AI_BUTTON_HOST_ID)) {
+    console.log('[Content Script] YouTube Ask AI button already injected');
+    return;
+  }
+  
+  // Check if globally disabled
+  const globalDisabled = await ChromeStorage.getGlobalDisabled();
+  if (globalDisabled) {
+    console.log('[Content Script] YouTube Ask AI button disabled - global disable is on');
+    return;
+  }
+  
+  // Check domain status - don't inject button if domain is BANNED
+  const currentDomain = extractDomain(window.location.href);
+  if (currentDomain) {
+    const domainStatus = await ChromeStorage.getDomainStatus(currentDomain);
+    if (domainStatus === DomainStatus.BANNED) {
+      console.log(`[Content Script] Domain "${currentDomain}" is BANNED - YouTube Ask AI button will not be shown`);
+      return;
+    }
+  }
+  
+  // Wait for title container
+  const titleContainer = await waitForTitleContainer();
+  if (!titleContainer) {
+    console.warn('[Content Script] Could not find YouTube title container');
+    return;
+  }
+  
+  // Create Shadow DOM host
+  // Note: We use a regular div instead of fixed positioning since we're inserting into the title container
+  const host = document.createElement('div');
+  host.id = YOUTUBE_ASK_AI_BUTTON_HOST_ID;
+  host.style.cssText = 'all: initial; display: inline-block;';
+  
+  // Attach Shadow DOM
+  const shadow = host.attachShadow({ mode: 'open' });
+  
+  // Create React mount point
+  const mountPoint = document.createElement('div');
+  mountPoint.id = `${YOUTUBE_ASK_AI_BUTTON_HOST_ID}-root`;
+  shadow.appendChild(mountPoint);
+  
+  // Inject styles
+  injectStyles(shadow, youtubeAskAIButtonStyles);
+  
+  // Position the button at the right end of the title container
+  // Use flexbox approach if container supports it, otherwise use absolute positioning
+  const containerStyle = window.getComputedStyle(titleContainer);
+  
+  if (containerStyle.display === 'flex') {
+    // If container is flex, just append and it will be positioned naturally
+    // Add margin-left auto to push it to the right
+    host.style.marginLeft = 'auto';
+    host.style.alignSelf = 'center';
+  } else {
+    // Use absolute positioning
+    host.style.position = 'absolute';
+    host.style.right = '0';
+    host.style.top = '50%';
+    host.style.transform = 'translateY(-50%)';
+    
+    // Make title container relative positioned if it isn't already
+    if (containerStyle.position === 'static') {
+      (titleContainer as HTMLElement).style.position = 'relative';
+    }
+  }
+  
+  // Append to title container
+  titleContainer.appendChild(host);
+  
+  // Handle button click
+  // Injects a page-context script to fetch transcript using YouTube's internal API
+  // WHY PAGE-CONTEXT: The script must run in YouTube's page context (not the extension's
+  // isolated world) to access window.ytcfg, document.cookie (SAPISID), and make
+  // authenticated requests to YouTube's internal API.
+  const handleButtonClick = async () => {
+    try {
+      // Remove any existing script to ensure fresh execution on each click
+      const existingScript = document.getElementById('xplaino-youtube-transcript-fetcher');
+      if (existingScript) {
+        existingScript.remove();
+      }
+      
+      // Inject page-context script that will:
+      // 1. Extract YouTube runtime config (API key, client version, context)
+      // 2. Get current video ID
+      // 3. Generate SAPISIDHASH from SAPISID cookie
+      // 4. Call youtubei/v1/get_transcript API
+      // 5. Log the transcript response to console
+      const script = document.createElement('script');
+      script.id = 'xplaino-youtube-transcript-fetcher';
+      script.src = chrome.runtime.getURL('src/content/utils/youtubePageContext.js');
+      script.type = 'module';
+      
+      // Log script load status
+      script.onload = () => console.log('[Xplaino] Transcript fetcher script loaded');
+      script.onerror = () => console.error('[Xplaino] Failed to load transcript fetcher script');
+      
+      // Inject into page
+      (document.head || document.documentElement).appendChild(script);
+      
+      console.log('[Content Script] YouTube transcript fetcher script injected');
+    } catch (error) {
+      console.error('[Content Script] Error injecting transcript fetcher:', error);
+    }
+  };
+  
+  // Render React component
+  youtubeAskAIButtonRoot = ReactDOM.createRoot(mountPoint);
+  youtubeAskAIButtonRoot.render(
+    React.createElement(YouTubeAskAIButton, {
+      onClick: handleButtonClick,
+      useShadowDom: true,
+      disabled: false,
+    })
+  );
+  
+  console.log('[Content Script] YouTube Ask AI button injected successfully');
+}
+
+/**
+ * Remove YouTube Ask AI button from the page
+ */
+function removeYouTubeAskAIButton(): void {
+  const host = document.getElementById(YOUTUBE_ASK_AI_BUTTON_HOST_ID);
+  if (host) {
+    host.remove();
+  }
+  if (youtubeAskAIButtonRoot) {
+    youtubeAskAIButtonRoot.unmount();
+    youtubeAskAIButtonRoot = null;
+  }
+  console.log('[Content Script] YouTube Ask AI button removed');
+}
+
+/**
+ * Initialize YouTube watch page
+ */
+async function initYouTubeWatchPage(): Promise<void> {
+  console.log('[Content Script] Initializing YouTube watch page...');
+  
+  // Check domain status - don't inject button if domain is BANNED
+  const currentDomain = extractDomain(window.location.href);
+  if (currentDomain) {
+    const domainStatus = await ChromeStorage.getDomainStatus(currentDomain);
+    if (domainStatus === DomainStatus.BANNED) {
+      console.log(`[Content Script] Domain "${currentDomain}" is BANNED - YouTube Ask AI button will not be shown`);
+      removeYouTubeAskAIButton();
+      return;
+    }
+  }
+  
+  // Wait a bit for page to fully load
+  if (document.readyState === 'loading') {
+    await new Promise((resolve) => {
+      document.addEventListener('DOMContentLoaded', resolve);
+    });
+  }
+  
+  // Additional wait for YouTube's dynamic content
+  await new Promise((resolve) => setTimeout(resolve, 1000));
+  
+  await injectYouTubeAskAIButton();
+}
+
+// =============================================================================
 // INITIALIZATION
 // =============================================================================
 
@@ -9713,6 +9990,31 @@ async function handleWelcomeModalDontShowAgain(): Promise<void> {
 async function initContentScript(): Promise<void> {
   // Initialize auth state before any component injection
   await initializeAuthState();
+  
+  // Handle YouTube pages separately
+  if (isYouTubePage()) {
+    console.log('[Content Script] YouTube page detected');
+    
+    // Remove any standard features that might have been injected
+    removeFAB();
+    removeSidePanel();
+    removeContentActions();
+    removeLoginModal();
+    removeSubscriptionModal();
+    removeTextExplanationPanel();
+    removeTextExplanationIconContainer();
+    removeImageExplanationPanel();
+    removeImageExplanationIconContainer();
+    removeToast();
+    removeWelcomeModal();
+    
+    // For watch pages, inject the Ask AI button
+    if (isYouTubeWatchPage()) {
+      await initYouTubeWatchPage();
+    }
+    
+    return;
+  }
   
   const allowed = await isExtensionAllowed();
   
@@ -9764,6 +10066,7 @@ async function initContentScript(): Promise<void> {
     removeImageExplanationIconContainer();
     removeToast();
     removeWelcomeModal();
+    removeYouTubeAskAIButton();
   }
 }
 
@@ -10267,11 +10570,84 @@ window.addEventListener('xplaino:login-required', () => {
   store.set(showLoginModalAtom, true);
 });
 
+// Listen for YouTube transcript segments from page context
+window.addEventListener('message', (event: MessageEvent) => {
+  try {
+    // Only accept messages from the same origin (YouTube page)
+    if (event.origin !== window.location.origin) {
+      return;
+    }
+    
+    // Check if this is a transcript message
+    if (event.data && event.data.type === 'XPLAINO_YOUTUBE_TRANSCRIPT') {
+      const segments = event.data.segments;
+      console.log('[Content Script] Received YouTube transcript segments:', segments);
+      console.log('[Content Script] Number of segments:', segments?.length || 0);
+      
+      // Update the atom with the segments
+      store.set(youtubeTranscriptSegmentsAtom, segments);
+      
+      // Console log the segments as requested
+      console.log('[Content Script] YouTube transcript segments saved to state:', segments);
+    }
+  } catch (error) {
+    console.error('[Content Script] Error handling transcript message:', error);
+  }
+});
+
 // Initialize content script when DOM is ready
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', initContentScript);
 } else {
   initContentScript();
+}
+
+// Handle YouTube SPA navigation (pushState/popState)
+if (isYouTubePage()) {
+  let lastUrl = window.location.href;
+  
+  // Listen for popstate (back/forward navigation)
+  window.addEventListener('popstate', () => {
+    if (window.location.href !== lastUrl) {
+      lastUrl = window.location.href;
+      initContentScript();
+    }
+  });
+  
+  // Intercept pushState and replaceState for YouTube SPA navigation
+  const originalPushState = history.pushState;
+  const originalReplaceState = history.replaceState;
+  
+  history.pushState = function(...args) {
+    originalPushState.apply(history, args);
+    setTimeout(() => {
+      if (window.location.href !== lastUrl) {
+        lastUrl = window.location.href;
+        initContentScript();
+      }
+    }, 100);
+  };
+  
+  history.replaceState = function(...args) {
+    originalReplaceState.apply(history, args);
+    setTimeout(() => {
+      if (window.location.href !== lastUrl) {
+        lastUrl = window.location.href;
+        initContentScript();
+      }
+    }, 100);
+  };
+  
+  // Also listen for YouTube's custom navigation events
+  document.addEventListener('yt-navigate-start', () => {
+    removeYouTubeAskAIButton();
+  });
+  
+  document.addEventListener('yt-navigate-finish', () => {
+    setTimeout(() => {
+      initContentScript();
+    }, 500);
+  });
 }
 
 export {};

@@ -1,0 +1,45 @@
+/* src/content/styles/youtubeAskAIButton.shadow.css */
+.youtubeAskAIButton {
+  all: initial;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  background-color: #9527F5;
+  color: #FFFFFF;
+  border: none;
+  border-radius: 9999px;
+  cursor: pointer;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.2s ease-in-out;
+  white-space: nowrap;
+  box-sizing: border-box;
+}
+
+.youtubeAskAIButton:hover:not(:disabled) {
+  box-shadow: 0 0 10px rgba(149, 39, 245, 0.5);
+}
+
+.youtubeAskAIButton:active:not(:disabled) {
+  transform: scale(0.95);
+}
+
+.youtubeAskAIButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.youtubeAskAIIcon {
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  display: block;
+  object-fit: contain;
+}
+
+.youtubeAskAIText {
+  font-weight: 500;
+}
+

@@ -20,6 +20,16 @@ export default defineConfig({
     rollupOptions: {
       input: {
         main: resolve(__dirname, 'index.html'),
+        youtubePageContext: resolve(__dirname, 'src/content/utils/youtubeTranscriptPageContext.ts'),
+      },
+      output: {
+        entryFileNames: (chunkInfo) => {
+          // Bundle the page-context script separately without hash for easier reference
+          if (chunkInfo.name === 'youtubePageContext') {
+            return 'src/content/utils/[name].js';
+          }
+          return 'assets/[name]-[hash].js';
+        },
       },
     },
   },
