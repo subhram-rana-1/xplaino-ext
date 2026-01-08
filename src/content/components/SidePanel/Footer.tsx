@@ -4,7 +4,7 @@ import { FileText, Settings, User } from 'lucide-react';
 import styles from './Footer.module.css';
 import { ButtonGroup, ButtonItem } from '@/components/ui/ButtonGroup';
 
-export type TabType = 'summary' | 'settings' | 'my';
+export type TabType = 'summary' | 'settings';
 
 export interface FooterProps {
   /** Active tab */
@@ -32,7 +32,7 @@ export const Footer: React.FC<FooterProps> = ({ activeTab, onTabChange, useShado
 
   const handleButtonChange = (buttonId: string) => {
     // Type guard to ensure buttonId is a valid TabType
-    if (buttonId === 'summary' || buttonId === 'settings' || buttonId === 'my') {
+    if (buttonId === 'summary' || buttonId === 'settings') {
       onTabChange(buttonId);
     }
   };

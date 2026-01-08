@@ -69,7 +69,7 @@ export interface HeaderProps {
   /** Whether the panel is vertically expanded */
   isExpanded?: boolean;
   /** Active tab type */
-  activeTab?: 'summary' | 'settings' | 'my';
+  activeTab?: 'summary' | 'settings';
   /** Bookmark handler */
   onBookmark?: () => void;
   /** Whether to show bookmark icon */
@@ -233,26 +233,32 @@ export const Header: React.FC<HeaderProps> = ({
         </button>
       </div>
 
-      {/* Center: Branding - Hide when summary tab is active */}
-      {activeTab !== 'summary' && (
-        <div className={getClassName('headerCenter')}>
-          {brandImageSrc ? (
-            <img
-              src={brandImageSrc}
-              alt="Xplaino"
-              className={getClassName('headerBrand')}
-              onClick={handleBrandClick}
-            />
-          ) : (
-            <div
-              className={getClassName('headerBrand')}
-              onClick={handleBrandClick}
-            >
-              Xplaino
-            </div>
-          )}
-        </div>
-      )}
+      {/* Center: Branding or Page Summary */}
+      <div className={getClassName('headerCenter')}>
+        {activeTab === 'summary' ? (
+          <div className={getClassName('headerTitle')}>
+            Page summary
+          </div>
+        ) : (
+          <>
+            {brandImageSrc ? (
+              <img
+                src={brandImageSrc}
+                alt="Xplaino"
+                className={getClassName('headerBrand')}
+                onClick={handleBrandClick}
+              />
+            ) : (
+              <div
+                className={getClassName('headerBrand')}
+                onClick={handleBrandClick}
+              >
+                Xplaino
+              </div>
+            )}
+          </>
+        )}
+      </div>
 
       {/* Right: Bookmark (summary tab) or Login/Profile (other tabs) */}
       <div className={getClassName('headerRight')}>

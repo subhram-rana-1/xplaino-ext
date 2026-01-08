@@ -349,7 +349,7 @@ function setupGlobalAuthListener(): void {
 /**
  * Toggle side panel open/closed state
  */
-async function setSidePanelOpen(open: boolean, initialTab?: 'summary' | 'settings' | 'my'): Promise<void> {
+async function setSidePanelOpen(open: boolean, initialTab?: 'summary' | 'settings'): Promise<void> {
   // If opening side panel and text explanation panel is open, close it first with shrink animation
   if (open && store.get(textExplanationPanelOpenAtom)) {
     console.log('[Content Script] Closing text explanation panel before opening side panel');
@@ -881,7 +881,7 @@ function updateFAB(): void {
 /**
  * Update side panel state
  */
-function updateSidePanel(initialTab?: 'summary' | 'settings' | 'my'): void {
+function updateSidePanel(initialTab?: 'summary' | 'settings'): void {
   if (sidePanelRoot) {
     // Handler for bookmark click from SidePanel
     const handleSidePanelBookmark = async () => {

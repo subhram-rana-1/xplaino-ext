@@ -6,7 +6,6 @@ import { Header } from './Header';
 import { Footer } from './Footer';
 import { SummaryView } from './SummaryView';
 import { SettingsView } from './SettingsView';
-import { MyView } from './MyView';
 import { SaveLinkModal } from '../SaveLinkModal/SaveLinkModal';
 import { ChromeStorage } from '@/storage/chrome-local/ChromeStorage';
 import { showLoginModalAtom } from '@/store/uiAtoms';
@@ -44,7 +43,7 @@ export interface SidePanelProps {
   initialSavedLinkId?: string | null;
 }
 
-type TabType = 'summary' | 'settings' | 'my';
+type TabType = 'summary' | 'settings';
 
 const MIN_WIDTH = 300;
 const MAX_WIDTH = 800;
@@ -375,17 +374,16 @@ export const SidePanel: React.FC<SidePanelProps> = ({
         {activeTab === 'settings' && (
           <SettingsView useShadowDom={useShadowDom} />
         )}
-        {activeTab === 'my' && (
-          <MyView useShadowDom={useShadowDom} />
-        )}
       </div>
 
-      {/* Footer */}
-      <Footer
-        activeTab={activeTab}
-        onTabChange={setActiveTab}
-        useShadowDom={useShadowDom}
-      />
+      {/* Footer - Hidden (component code kept intact) */}
+      {false && (
+        <Footer
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          useShadowDom={useShadowDom}
+        />
+      )}
 
       {/* Save Link Modal */}
       <SaveLinkModal

@@ -817,10 +817,9 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
           <LoadingDots dotCount={summaryLoadingDotCount} getClassName={getClassName} />
         )}
 
-        {/* Summary Content with Header */}
+        {/* Summary Content */}
         {(summary || streamingText) && (
           <div className={getClassName('summaryContent')}>
-            <h4 className={getClassName('summaryHeader')}>Page summary</h4>
             <div className={getClassName('summaryText')}>
               {renderSummaryContent(summary || streamingText)}
               {summariseState === 'summarising' && (

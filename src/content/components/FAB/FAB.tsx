@@ -221,8 +221,8 @@ export const FAB: React.FC<FABProps> = ({
   }, []);
 
   const handleGoToWebsite = useCallback(() => {
-    console.log('[FAB] Go to website clicked');
-    window.open(ENV.XPLAINO_WEBSITE_BASE_URL, '_blank');
+    console.log('[FAB] My dashboard clicked');
+    window.open(`${ENV.XPLAINO_WEBSITE_BASE_URL}/user/dashboard`, '_blank');
   }, []);
 
   const iconUrl = getIconUrl(useShadowDom);
@@ -295,8 +295,8 @@ export const FAB: React.FC<FABProps> = ({
           className={actionButtonClass}
         />
         <ActionButton
-          icon="globe"
-          tooltip="Go to website"
+          icon="dashboard"
+          tooltip="My dashboard"
           onClick={handleGoToWebsite}
           className={actionButtonClass}
         />

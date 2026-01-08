@@ -48,7 +48,6 @@
   color: var(--color-primary, #9527F5) !important;
   margin: 0 0 12px 0 !important;
   padding-bottom: 8px !important;
-  border-bottom: 1px solid var(--color-primary-light, #B66DFF) !important;
 }
 
 .summaryText {
