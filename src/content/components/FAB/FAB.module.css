@@ -60,9 +60,9 @@
 
 /* Main FAB button */
 .fabButton {
-  width: 36px !important;
-  height: 36px !important;
-  border-radius: 18px 0 0 18px !important;
+  width: 45px !important;
+  height: 45px !important;
+  border-radius: 22.5px 0 0 22.5px !important;
   background: var(--color-primary-very-light) !important;
   border: none !important;
   cursor: pointer !important;
@@ -70,16 +70,28 @@
   align-items: center !important;
   justify-content: center !important;
   box-shadow: none !important;
-  transition: all var(--fab-transition) !important;
+  transition: width var(--fab-transition), height var(--fab-transition) !important;
   padding: 0 !important;
   outline: none !important;
   position: relative !important;
   overflow: hidden !important;
 }
 
-.fabButton:hover {
+.fabButton:hover,
+.fabButton.actionsVisible {
   background: var(--color-primary-very-light) !important;
   box-shadow: none !important;
+  transform: none !important;
+  width: 57px !important;
+  border-radius: 28.5px 0 0 28.5px !important;
+  justify-content: center !important;
+  padding-left: 0px !important;
+}
+
+.fabButton:hover img,
+.fabButton.actionsVisible img,
+.fabButton:hover svg,
+.fabButton.actionsVisible svg {
   transform: none !important;
 }
 
@@ -89,12 +101,13 @@
 
 .fabButton img,
 .fabButton svg {
-  width: 28px !important;
-  height: 28px !important;
+  width: 42px !important;
+  height: 42px !important;
   object-fit: contain !important;
   display: block !important;
   pointer-events: none !important;
   flex-shrink: 0 !important;
+  transition: transform var(--fab-transition) !important;
 }
 
 /* Actions container - positioned absolutely to the left of FAB */

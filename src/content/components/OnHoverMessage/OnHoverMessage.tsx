@@ -40,10 +40,11 @@ export const OnHoverMessage: React.FC<OnHoverMessageProps> = ({
       return;
     }
 
-    // Inject CSS variables
+    // Inject CSS variables with :root selector (not :host) since OnHoverMessage renders outside Shadow DOM
     const colorStyle = document.createElement('style');
     colorStyle.id = 'onhovermessage-color-variables';
-    colorStyle.textContent = FAB_COLOR_VARIABLES;
+    // Replace :host with :root for document.body rendering
+    colorStyle.textContent = FAB_COLOR_VARIABLES.replace(/:host/g, ':root');
     document.head.appendChild(colorStyle);
 
     // Inject component styles

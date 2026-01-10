@@ -19,7 +19,7 @@
 }
 
 .youtubeAskAIButton:hover:not(:disabled) {
-  box-shadow: 0 0 10px var(--color-primary-opacity-50);
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.4);
 }
 
 .youtubeAskAIButton:active:not(:disabled) {

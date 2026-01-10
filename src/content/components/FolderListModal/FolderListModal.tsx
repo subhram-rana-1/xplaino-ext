@@ -249,6 +249,7 @@ export const FolderListModal: React.FC<FolderListModalProps> = ({
   const [editingFolderName, setEditingFolderName] = useState('Untitled');
   const [name, setName] = useState(initialName);
   const [internalRememberChecked, setInternalRememberChecked] = useState(rememberFolderChecked);
+  const [isClosing, setIsClosing] = useState(false);
   const editingInputRef = useRef<HTMLInputElement>(null);
   const nameInputRef = useRef<HTMLInputElement>(null);
 
@@ -312,11 +313,18 @@ export const FolderListModal: React.FC<FolderListModalProps> = ({
     onNameChange?.(newName);
   }, [onNameChange]);
 
+  const handleClose = useCallback(() => {
+    setIsClosing(true);
+    setTimeout(() => {
+      onClose();
+    }, 200); // Match animation duration
+  }, [onClose]);
+
   const handleBackdropClick = useCallback((e: React.MouseEvent) => {
     if (e.target === e.currentTarget) {
-      onClose();
+      handleClose();
     }
-  }, [onClose]);
+  }, [handleClose]);
 
   const handleAddRootFolder = useCallback(() => {
     setEditingFolderId('temp-root');
@@ -432,12 +440,12 @@ export const FolderListModal: React.FC<FolderListModalProps> = ({
 
   return (
     <div className={getClassName('modalBackdrop')} onClick={handleBackdropClick}>
-      <div className={getClassName('modalContainer')} onClick={(e) => e.stopPropagation()}>
+      <div className={`${getClassName('modalContainer')} ${isClosing ? getClassName('closing') : ''}`} onClick={(e) => e.stopPropagation()}>
         <div className={getClassName('modalHeader')}>
           <h2 className={getClassName('modalTitle')}>{modalTitle}</h2>
           <button
             className={getClassName('closeButton')}
-            onClick={onClose}
+            onClick={handleClose}
             disabled={isSaving || isCreatingFolder}
             aria-label="Close"
             title="Close"

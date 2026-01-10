@@ -239,8 +239,8 @@ export const FAB: React.FC<FABProps> = ({
   const actionButtonClass = getClassName('actionButton', styles.actionButton);
   const fabContainerClass = getClassName('fabContainer', styles.fabContainer);
   const fabButtonClass = getClassName(
-    `fabButton ${showPulse ? 'pulse' : ''}`,
-    `${styles.fabButton} ${showPulse ? styles.pulse : ''}`
+    `fabButton ${showPulse ? 'pulse' : ''} ${actionsVisible ? 'actionsVisible' : ''}`,
+    `${styles.fabButton} ${showPulse ? styles.pulse : ''} ${actionsVisible ? styles.actionsVisible : ''}`
   );
 
   return (
@@ -268,7 +268,7 @@ export const FAB: React.FC<FABProps> = ({
               'Translation Controls'
             }
             onClick={handleTranslate}
-            className={actionButtonClass}
+            className={`${actionButtonClass} ${translationState === 'translating' ? 'stopTranslating' : ''}`}
             disabled={false}
             hideTooltip={showTranslationPopover}
           />
@@ -328,8 +328,8 @@ export const FAB: React.FC<FABProps> = ({
             src={iconUrl}
             alt="Xplaino"
             style={{ 
-              width: '28px', 
-              height: '28px',
+              width: '27px', 
+              height: '27px',
               objectFit: 'contain'
             }}
           />

@@ -77,10 +77,10 @@ export const ContentActionButton: React.FC<ContentActionButtonProps> = ({
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
         aria-label={tooltip}
-        style={{ animationDelay: `${delay * 50}ms` }}
+        style={{ animationDelay: `${delay * 120}ms` }} // Fallback delay, will be overridden by JavaScript
       >
         <IconComponent
-          size={18}
+          size={27}
           strokeWidth={2.5}
         />
       </button>

@@ -62,7 +62,7 @@
 .loginModalContainer {
   background: var(--color-white) !important;
   border-radius: 30px !important;
-  box-shadow: 0 0 30px var(--color-primary-opacity-40) !important;
+  box-shadow: 0 0 30px rgba(0, 0, 0, 0.35) !important;
   padding: 40px !important;
   max-width: 400px !important;
   width: 90% !important;
@@ -149,7 +149,7 @@
 .googleSignInButton:hover:not(:disabled) {
   background: var(--color-bg-secondary) !important;
   border-color: var(--color-gray-400) !important;
-  box-shadow: 0 2px 8px var(--color-primary-opacity-15) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15) !important;
 }
 
 .googleSignInButton:active:not(:disabled) {

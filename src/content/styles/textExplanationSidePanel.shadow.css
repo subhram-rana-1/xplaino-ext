@@ -44,7 +44,7 @@
   max-width: 800px !important;
   background: var(--color-white) !important;
   border-radius: 30px 0 0 30px !important;
-  box-shadow: 0 0 20px var(--color-primary-opacity-30) !important;
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.25) !important;
   z-index: 2147483643 !important;
   display: flex !important;
   flex-direction: column !important;
@@ -255,7 +255,7 @@
   right: 0 !important;
   background: var(--color-white) !important;
   border-radius: 12px !important;
-  box-shadow: 0 4px 20px var(--color-primary-opacity-25) !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2) !important;
   padding: 12px !important;
   min-width: 180px !important;
   z-index: 1000 !important;
@@ -737,7 +737,7 @@
   font-family: var(--font-family-primary) !important;
   cursor: pointer !important;
   transition: all 0.2s ease !important;
-  box-shadow: 0 2px 8px var(--color-primary-opacity-30) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25) !important;
   flex-shrink: 0 !important;
   display: flex !important;
   align-items: center !important;
@@ -747,7 +747,7 @@
 
 .translateButton:hover:not(:disabled) {
   background: var(--color-primary-dark, #0a5f54) !important;
-  box-shadow: 0 4px 12px var(--color-primary-opacity-40) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35) !important;
 }
 
 .translateButton:active:not(:disabled) {
@@ -884,7 +884,7 @@
 
 .dropdownButton.open {
   border-color: var(--color-primary, #0d8070) !important;
-  box-shadow: 0 0 0 3px var(--color-primary-opacity-10) !important;
+  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.1) !important;
 }
 
 .dropdownValue {
@@ -918,7 +918,7 @@
   background: var(--color-white, #FFFFFF) !important;
   border: 1px solid var(--color-border, #E2E8F0) !important;
   border-radius: 10px !important;
-  box-shadow: 0 4px 12px var(--color-primary-opacity-25) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2) !important;
   z-index: 1000 !important;
   max-height: 200px !important;
   overflow-y: auto !important;
@@ -1073,7 +1073,7 @@
   color: #1A202C !important;
   align-self: flex-start !important;
   border-bottom-left-radius: 4px !important;
-  box-shadow: 0 1px 2px var(--color-primary-opacity-5) !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05) !important;
 }
 
 /* Blinking cursor for streaming */

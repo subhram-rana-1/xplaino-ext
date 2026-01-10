@@ -288,48 +288,61 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
         scrollLeft: window.scrollX,
       });
       
-      // Scroll to element
-      console.log('[SummaryView] Step 5: Calling scrollIntoView...');
-      try {
-        // Get element position before scroll
-        const rectBefore = element.getBoundingClientRect();
-        console.log('[SummaryView] Element position before scroll:', {
-          top: rectBefore.top,
-          left: rectBefore.left,
-          windowScrollY: window.scrollY,
-          windowScrollX: window.scrollX,
-        });
-        
-        // Scroll to element
-        element.scrollIntoView({ 
-          behavior: 'smooth', 
-          block: 'center',
-          inline: 'nearest'
-        });
-        
-        console.log('[SummaryView] Step 5: scrollIntoView called successfully');
-        
-        // Wait a bit and check if scroll happened
-        setTimeout(() => {
-          const rectAfter = element.getBoundingClientRect();
-          console.log('[SummaryView] After scroll - window.scrollY:', window.scrollY, 'element.getBoundingClientRect():', rectAfter);
-          console.log('[SummaryView] Scroll difference:', {
-            scrollY: window.scrollY - (rectBefore.top + window.scrollY - rectAfter.top),
-            elementMoved: Math.abs(rectBefore.top - rectAfter.top),
-          });
-        }, 500);
-      } catch (error) {
-        console.error('[SummaryView] Step 5: Error calling scrollIntoView:', error);
-        // Fallback: try manual scroll calculation
+      // Scroll to element - use requestAnimationFrame to ensure element is ready
+      console.log('[SummaryView] Step 5: Preparing to scroll to element...');
+      requestAnimationFrame(() => {
         try {
+          // Verify element is still connected
+          if (!element.isConnected) {
+            console.warn('[SummaryView] Element is not connected to DOM, cannot scroll');
+            return;
+          }
+
+          // Get element position
           const rect = element.getBoundingClientRect();
-          const scrollY = window.scrollY + rect.top - window.innerHeight / 2;
-          window.scrollTo({ top: scrollY, behavior: 'smooth' });
-          console.log('[SummaryView] Fallback scroll executed');
-        } catch (fallbackError) {
-          console.error('[SummaryView] Fallback scroll also failed:', fallbackError);
+          console.log('[SummaryView] Element position before scroll:', {
+            top: rect.top,
+            left: rect.left,
+            windowScrollY: window.scrollY,
+            windowScrollX: window.scrollX,
+            viewportHeight: window.innerHeight,
+          });
+          
+          // Try scrollIntoView first (most reliable)
+          try {
+            element.scrollIntoView({ 
+              behavior: 'smooth', 
+              block: 'center',
+              inline: 'nearest'
+            });
+            console.log('[SummaryView] Step 5: scrollIntoView called successfully');
+          } catch (scrollIntoViewError) {
+            console.warn('[SummaryView] scrollIntoView failed, trying manual scroll:', scrollIntoViewError);
+            // Fallback: manual scroll calculation
+            const scrollY = window.scrollY + rect.top - window.innerHeight / 2;
+            const scrollX = window.scrollX + rect.left - window.innerWidth / 2;
+            
+            // Scroll window
+            window.scrollTo({ 
+              top: Math.max(0, scrollY), 
+              left: Math.max(0, scrollX), 
+              behavior: 'smooth' 
+            });
+            console.log('[SummaryView] Manual window scroll executed');
+            
+            // Also try scrolling document.documentElement if available
+            if (document.documentElement) {
+              document.documentElement.scrollTo({
+                top: Math.max(0, scrollY),
+                left: Math.max(0, scrollX),
+                behavior: 'smooth'
+              });
+            }
+          }
+        } catch (error) {
+          console.error('[SummaryView] Step 5: Error in scroll operation:', error);
         }
-      }
+      });
 
       // Highlight element
       console.log('[SummaryView] Step 6: Applying highlight styles...');
@@ -340,8 +353,8 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
         };
         console.log('[SummaryView] Original element styles:', originalStyles);
         
-        element.style.backgroundColor = COLORS.SUCCESS_OPACITY_30;
-        element.style.borderRadius = '20px';
+        element.style.backgroundColor = COLORS.PRIMARY_OPACITY_30;
+        element.style.borderRadius = '5px';
         element.style.transition = 'background-color 0.3s ease, border-radius 0.3s ease';
         // Don't add padding or negative margin to avoid layout shifts
         

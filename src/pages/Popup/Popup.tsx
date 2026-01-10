@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { COLORS } from '@/constants/colors';
 import { SPACING } from '@/constants/styles';
-import { Toggle } from '@/components/ui';
+import { ReusableToggle } from '@/components/ui/Toggle/ReusableToggle';
 import { ChromeStorage } from '@/storage/chrome-local/ChromeStorage';
 import { extractDomain } from '@/utils/domain';
 import { DomainStatus } from '@/types/domain';
@@ -140,7 +140,7 @@ export const Popup: React.FC = () => {
 
       {/* Global Toggle */}
       <div style={{ display: 'flex', alignItems: 'center', gap: SPACING.MD }}>
-        <Toggle
+        <ReusableToggle
           checked={!globalDisabled}
           onChange={handleGlobalToggle}
         />
@@ -197,7 +197,7 @@ export const Popup: React.FC = () => {
                 gap: SPACING.MD,
               }}
             >
-              <Toggle
+              <ReusableToggle
                 checked={domainStatus === DomainStatus.ENABLED}
                 onChange={handleDomainToggle}
               />

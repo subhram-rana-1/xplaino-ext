@@ -70,9 +70,9 @@
 
 /* Main FAB button */
 .fabButton {
-  width: 28px !important;
-  height: 28px !important;
-  border-radius: 18px 0 0 18px !important;
+  width: 29px !important;
+  height: 29px !important;
+  border-radius: 14.5px 0 0 14.5px !important;
   background: var(--color-primary-very-light) !important;
   border: none !important;
   cursor: pointer !important;
@@ -80,16 +80,28 @@
   align-items: center !important;
   justify-content: center !important;
   box-shadow: none !important;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), height 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
   padding: 0 !important;
   outline: none !important;
   position: relative !important;
   overflow: hidden !important;
 }
 
-.fabButton:hover {
+.fabButton:hover,
+.fabButton.actionsVisible {
   background: var(--color-primary-very-light) !important;
   box-shadow: none !important;
+  transform: none !important;
+  width: 37px !important;
+  border-radius: 18.5px 0 0 18.5px !important;
+  justify-content: center !important;
+  padding-left: 0px !important;
+}
+
+.fabButton:hover img,
+.fabButton.actionsVisible img,
+.fabButton:hover svg,
+.fabButton.actionsVisible svg {
   transform: none !important;
 }
 
@@ -99,69 +111,95 @@
 
 .fabButton svg,
 .fabButton img {
-  width: 22px !important;
-  height: 22px !important;
+  width: 27px !important;
+  height: 27px !important;
   object-fit: contain !important;
   display: block !important;
   pointer-events: none !important;
   flex-shrink: 0 !important;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
 }
 
 /* Actions container - positioned absolutely to the left of FAB */
+/* Container expands progressively as buttons appear (0.5s = last button delay 0.3s + duration 0.2s) */
 .actionsContainer {
   position: absolute !important;
   right: calc(100% + 12px) !important;
   top: 50% !important;
-  transform: translateY(-50%) translateX(20px) !important;
+  transform: translateY(-50%) scaleY(0) !important;
+  transform-origin: center !important;
   display: flex !important;
   flex-direction: column !important;
-  gap: 6px !important;
-  opacity: 0 !important;
+  gap: 2px !important;
+  background: var(--color-white) !important;
+  border-radius: 999px !important;
+  padding: 4px !important;
+  opacity: 1 !important;
   visibility: hidden !important;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  overflow: hidden !important;
+  transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1),
+              visibility 0s linear 0.5s !important;
 }
 
 .actionsContainer.visible {
   opacity: 1 !important;
   visibility: visible !important;
-  transform: translateY(-50%) translateX(0) !important;
+  transform: translateY(-50%) scaleY(1) !important;
+  overflow: visible !important;
+  transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1),
+              visibility 0s linear 0s !important;
 }
 
-/* Action button styles - Square with 13px border radius, smaller size */
+/* Action button styles - Circular, smaller size, no border */
 .actionButton {
-  width: 30px !important;
-  height: 30px !important;
-  border-radius: 12px !important;
-  background: var(--color-white) !important;
-  border: 2.5px solid var(--color-primary-light) !important;
+  width: 24px !important;
+  height: 24px !important;
+  border-radius: 50% !important;
+  background: transparent !important;
+  border: none !important;
   cursor: pointer !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
   box-shadow: none !important;
   transform-origin: center !important;
-  transform: scale(1) !important;
-  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
   padding: 0 !important;
   outline: none !important;
   position: relative !important;
+  opacity: 1 !important;
+  transition: transform 0.15s cubic-bezier(0.4, 0, 0.2, 1) !important;
 }
 
-.actionButton:hover {
-  background: var(--color-white) !important;
-  border-color: var(--color-primary) !important;
-  transform: scale(1.05) !important;
+/* Initial state for buttons above FAB level - start slightly below (moves upward) */
+.actionsContainer > .actionButton:nth-child(1),
+.actionsContainer > div:nth-child(2) .actionButton,
+.actionsContainer > .actionButton:nth-child(3) {
+  transform: translateY(8px) scale(0.8) !important;
+}
+
+/* Initial state for buttons below FAB level - start slightly above (moves downward) */
+.actionsContainer > .actionButton:nth-child(4),
+.actionsContainer > .actionButton:nth-child(5),
+.actionsContainer > .actionButton:nth-child(6) {
+  transform: translateY(-8px) scale(0.8) !important;
+}
+
+/* Hover state - scale up while preserving position */
+.actionsContainer.visible .actionButton:hover {
+  background: var(--color-primary-very-light) !important;
+  transform: translateY(0) scale(1.05) !important;
   box-shadow: none !important;
 }
 
-.actionButton:active {
-  transform: scale(0.9) !important;
+/* Active state - scale down while preserving position */
+.actionsContainer.visible .actionButton:active {
+  transform: translateY(0) scale(0.9) !important;
 }
 
 /* Action button icons - Medium purple color, thick */
 .actionButton svg {
-  width: 18px !important;
-  height: 18px !important;
+  width: 14px !important;
+  height: 14px !important;
   color: var(--color-primary-light) !important;
   stroke: var(--color-primary-light) !important;
   fill: none !important;
@@ -195,56 +233,76 @@
   stroke: var(--color-primary-hover-dark) !important;
 }
 
-/* Staggered animation for action buttons */
-.actionsContainer.visible .actionButton:nth-child(1) {
-  animation: slideIn 0.3s ease forwards !important;
-  animation-delay: 0s !important;
+/* Staggered directional animation for action buttons - above FAB level (move upward) */
+/* Buttons appear progressively with more delay, each pushing the container to expand */
+.actionsContainer.visible > .actionButton:nth-child(1) {
+  transform: translateY(0) scale(1) !important;
+  transition-delay: 0s !important;
+  transition-duration: 0.15s !important;
 }
 
-.actionsContainer.visible .actionButton:nth-child(2) {
-  animation: slideIn 0.3s ease forwards !important;
-  animation-delay: 0.05s !important;
+.actionsContainer.visible > div:nth-child(2) .actionButton {
+  transform: translateY(0) scale(1) !important;
+  transition-delay: 0.06s !important;
+  transition-duration: 0.15s !important;
 }
 
-.actionsContainer.visible .actionButton:nth-child(3) {
-  animation: slideIn 0.3s ease forwards !important;
-  animation-delay: 0.1s !important;
+.actionsContainer.visible > .actionButton:nth-child(3) {
+  transform: translateY(0) scale(1) !important;
+  transition-delay: 0.12s !important;
+  transition-duration: 0.15s !important;
 }
 
-.actionsContainer.visible .actionButton:nth-child(4) {
-  animation: slideIn 0.3s ease forwards !important;
-  animation-delay: 0.15s !important;
+/* Staggered directional animation for action buttons - below FAB level (move downward) */
+.actionsContainer.visible > .actionButton:nth-child(4) {
+  transform: translateY(0) scale(1) !important;
+  transition-delay: 0.18s !important;
+  transition-duration: 0.15s !important;
+}
+
+.actionsContainer.visible > .actionButton:nth-child(5) {
+  transform: translateY(0) scale(1) !important;
+  transition-delay: 0.24s !important;
+  transition-duration: 0.15s !important;
+}
+
+.actionsContainer.visible > .actionButton:nth-child(6) {
+  transform: translateY(0) scale(1) !important;
+  transition-delay: 0.3s !important;
+  transition-duration: 0.15s !important;
+}
+
+/* Reverse animation when hiding - buttons above move back down */
+.actionsContainer:not(.visible) > .actionButton:nth-child(1),
+.actionsContainer:not(.visible) > div:nth-child(2) .actionButton,
+.actionsContainer:not(.visible) > .actionButton:nth-child(3) {
+  transform: translateY(8px) scale(0.8) !important;
+  opacity: 1 !important;
+  transition: transform 0.15s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  transition-delay: 0s !important;
+}
+
+/* Reverse animation when hiding - buttons below move back up */
+.actionsContainer:not(.visible) > .actionButton:nth-child(4),
+.actionsContainer:not(.visible) > .actionButton:nth-child(5),
+.actionsContainer:not(.visible) > .actionButton:nth-child(6) {
+  transform: translateY(-8px) scale(0.8) !important;
+  opacity: 1 !important;
+  transition: transform 0.15s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  transition-delay: 0s !important;
 }
 
 /* CRITICAL: Override button transform when loading to allow spinner to animate */
 .actionButton.isLoading {
-  transform: none !important;
-  animation: none !important;
-  animation-fill-mode: none !important;
+  transform: translateY(0) scale(1) !important;
+  transition: none !important;
 }
 
-/* Disable slideIn animation for loading buttons */
+/* Disable animation for loading buttons */
 .actionsContainer.visible .actionButton.isLoading {
-  animation: none !important;
-  transform: none !important;
+  transform: translateY(0) scale(1) !important;
   opacity: 1 !important;
-}
-
-
-@keyframes slideIn {
-  from {
-    opacity: 0 !important;
-    transform: translateX(10px) scale(0.8) !important;
-  }
-  to {
-    opacity: 1 !important;
-    transform: translateX(0) scale(1) !important;
-  }
-}
-
-/* Reset button transform after slideIn animation completes so spinner can animate */
-.actionsContainer.visible .actionButton {
-  animation-fill-mode: forwards !important;
+  transition: none !important;
 }
 
 /* Pulse animation for FAB when first loaded - using CSS variable */
@@ -299,7 +357,7 @@
   background: var(--color-white) !important;
   border-radius: 15px !important;
   padding: 4px !important;
-  box-shadow: 0 0 12px var(--color-primary-opacity-35) !important;
+  box-shadow: 0 0 12px rgba(0, 0, 0, 0.3) !important;
   /* Animation is handled by JavaScript useEmergeAnimation hook */
   z-index: 20 !important;
   width: fit-content !important;
@@ -363,8 +421,7 @@
 
 /* Appended translation styling (shown below original text) */
 .xplaino-translation-appended {
-  color: var(--color-primary-opacity-80) !important;
-  font-style: italic !important;
+  color: var(--color-primary) !important;
   margin-top: 4px !important;
   padding-left: 8px !important;
   border-left: 2px solid var(--color-primary-opacity-30) !important;
@@ -381,6 +438,32 @@
   justify-content: center !important;
 }
 
+/* Stop translation button - continuous pulsing animation */
+/* Override all transform states when in stop mode */
+.actionsContainer .actionButton.stopTranslating,
+.actionsContainer.visible .actionButton.stopTranslating,
+.actionsContainer:not(.visible) .actionButton.stopTranslating {
+  animation: stopButtonPulse 1s ease-in-out infinite !important;
+  transform: translateY(0) scale(1) !important;
+  transition: none !important;
+}
+
+/* Override hover state for stop button - keep pulsing, just change background */
+.actionsContainer.visible .actionButton.stopTranslating:hover {
+  background: var(--color-primary-very-light) !important;
+  animation: stopButtonPulse 1s ease-in-out infinite !important;
+  /* Transform is handled by animation */
+}
+
+@keyframes stopButtonPulse {
+  0%, 100% {
+    transform: translateY(0) scale(1) !important;
+  }
+  50% {
+    transform: translateY(0) scale(1.1) !important;
+  }
+}
+
 /* =============================================================================
  * TRANSLATION CONTROL POPOVER
  * Popover for translation controls (toggle view and clear)
@@ -390,7 +473,7 @@
   background: var(--color-white) !important;
   border-radius: 15px !important;
   padding: 12px !important;
-  box-shadow: 0 0 12px var(--color-primary-opacity-35) !important;
+  box-shadow: 0 0 12px rgba(0, 0, 0, 0.3) !important;
   min-width: 220px !important;
 }
 
@@ -483,4 +566,45 @@
   width: 20px !important;
   height: 20px !important;
   flex-shrink: 0 !important;
+}
+
+/* =============================================================================
+ * REUSABLE TOGGLE COMPONENT
+ * Same toggle component used in SidePanel SettingsView
+ * ============================================================================= */
+
+.toggleContainer {
+  display: flex !important;
+  align-items: center !important;
+  cursor: pointer !important;
+}
+
+.toggleTrack {
+  position: relative !important;
+  width: 44px !important;
+  height: 20px !important;
+  border-radius: 10px !important;
+  background: #E2E8F0 !important;
+  transition: background-color 0.2s ease !important;
+}
+
+.toggleTrack.checked {
+  background: #0d8070 !important;
+}
+
+.toggleThumb {
+  position: absolute !important;
+  top: 4px !important;
+  left: 4px !important;
+  width: 12px !important;
+  height: 12px !important;
+  border-radius: 50% !important;
+  background: var(--color-white) !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15) !important;
+  transition: transform 150ms ease !important;
+  transform: translateX(0) !important;
+}
+
+.toggleThumb.thumbChecked {
+  transform: translateX(24px) !important;
 }

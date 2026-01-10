@@ -62,7 +62,7 @@
 .subscriptionModalContainer {
   background: var(--color-white) !important;
   border-radius: 30px !important;
-  box-shadow: 0 0 30px var(--color-primary-opacity-40) !important;
+  box-shadow: 0 0 30px rgba(0, 0, 0, 0.35) !important;
   padding: 40px !important;
   max-width: 400px !important;
   width: 90% !important;
@@ -101,6 +101,14 @@
   margin-bottom: 24px !important;
 }
 
+.subscriptionModalTrialEnded {
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  color: var(--color-text-secondary) !important;
+  margin: 0 0 12px 0 !important;
+  line-height: 1.5 !important;
+}
+
 .subscriptionModalTitle {
   font-size: 24px !important;
   font-weight: 700 !important;
@@ -130,7 +138,7 @@
   object-fit: contain !important;
 }
 
-/* Pricing Button */
+/* Pricing Button - Matching "+ Add folder" button style */
 .pricingButton {
   width: 100% !important;
   display: flex !important;
@@ -140,17 +148,17 @@
   padding: 14px 24px !important;
   border: none !important;
   border-radius: 12px !important;
-  background: var(--color-primary) !important;
+  background-color: var(--color-bg-green-tint-3) !important;
   cursor: pointer !important;
-  transition: all 0.2s ease !important;
+  transition: all 0.15s ease !important;
   font-size: 16px !important;
   font-weight: 500 !important;
-  color: var(--color-white) !important;
+  color: var(--color-gray-600-alt) !important;
 }
 
 .pricingButton:hover:not(:disabled) {
-  background: var(--color-primary-dark) !important;
-  box-shadow: 0 2px 8px var(--color-primary-opacity-30) !important;
+  background-color: var(--color-primary) !important;
+  color: var(--color-white) !important;
 }
 
 .pricingButton:active:not(:disabled) {
@@ -165,7 +173,7 @@
 .pricingButtonText {
   font-size: 15px !important;
   font-weight: 500 !important;
-  color: var(--color-white) !important;
+  color: inherit !important;
 }
 
 /* Footer */

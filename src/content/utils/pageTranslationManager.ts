@@ -146,9 +146,13 @@ export class PageTranslationManager {
             const original = element.element.getAttribute('data-xplaino-original');
             if (original) {
               element.element.textContent = original;
+              // Restore original color by removing inline color style
+              element.element.style.color = '';
             }
           } else {
             element.element.textContent = element.translatedText;
+            // Apply teal color for translated text
+            element.element.style.color = COLORS.PRIMARY;
           }
         }
       }
@@ -175,6 +179,8 @@ export class PageTranslationManager {
         const original = element.element.getAttribute('data-xplaino-original');
         if (original) {
           element.element.textContent = original;
+          // Restore original color by removing inline color style
+          element.element.style.color = '';
         }
       }
 
@@ -351,17 +357,24 @@ export class PageTranslationManager {
       return; // Already appended
     }
 
+    // Get computed styles from the original element to preserve font properties
+    const computedStyle = window.getComputedStyle(element.element);
+    const fontStyle = computedStyle.fontStyle;
+    const fontWeight = computedStyle.fontWeight;
+    const fontSize = computedStyle.fontSize;
+
     // Create translation div
     const translationDiv = document.createElement('div');
     translationDiv.className = 'xplaino-translation-appended';
     translationDiv.textContent = element.translatedText;
     translationDiv.style.cssText = `
-      color: ${colorWithOpacity(COLORS.PRIMARY, 0.8)};
-      font-style: italic;
+      color: ${COLORS.PRIMARY};
+      font-style: ${fontStyle};
+      font-weight: ${fontWeight};
+      font-size: ${fontSize};
       margin-top: 4px;
       padding-left: 8px;
       border-left: 2px solid ${colorWithOpacity(COLORS.PRIMARY, 0.3)};
-      font-size: inherit;
       line-height: inherit;
     `;
 
@@ -385,6 +398,10 @@ export class PageTranslationManager {
 
     // Replace text content
     element.element.textContent = element.translatedText;
+    
+    // Apply teal color while preserving existing font properties
+    element.element.style.color = COLORS.PRIMARY;
+    
     element.element.setAttribute('data-xplaino-translated', 'true');
   }
 

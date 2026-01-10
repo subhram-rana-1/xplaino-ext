@@ -22,7 +22,7 @@
   max-width: 500px !important;
   display: flex !important;
   flex-direction: column !important;
-  box-shadow: 0 10px 40px var(--color-primary-opacity-20) !important;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15) !important;
   animation: modalSlideIn 0.25s ease-out !important;
 }
 
@@ -156,12 +156,12 @@
 .saveButton {
   background-color: var(--color-primary) !important;
   color: var(--color-white) !important;
-  box-shadow: 0 2px 8px var(--color-primary-opacity-25) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2) !important;
 }
 
 .saveButton:hover:not(:disabled) {
   background-color: var(--color-primary-hover-dark) !important;
-  box-shadow: 0 4px 12px var(--color-primary-opacity-35) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
 }
 
 .saveButton:disabled {

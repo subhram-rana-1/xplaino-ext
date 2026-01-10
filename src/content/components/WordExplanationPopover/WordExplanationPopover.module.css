@@ -15,7 +15,7 @@
   max-width: 400px;
   background: var(--color-white, #FFFFFF);
   border-radius: 30px;
-  box-shadow: 0 2px 8px 2px rgba(13, 128, 112, 0.15);
+  box-shadow: 0 2px 8px 2px rgba(0, 0, 0, 0.15);
   border: none;
   padding: 15px;
   z-index: 2147483646; /* One less than spinners/icons */
@@ -253,7 +253,7 @@
   font-size: 12px;
   font-weight: 500;
   white-space: nowrap;
-  box-shadow: 0 2px 8px rgba(13, 128, 112, 0.15);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
   pointer-events: none;
   z-index: 10;
   animation: tooltipFadeIn 0.15s ease forwards;
@@ -351,18 +351,18 @@
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   cursor: pointer;
   transition: all 0.2s ease;
-  box-shadow: 0 2px 8px rgba(13, 128, 112, 0.25);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
 
 .getContextualMeaningButton:hover:not(:disabled) {
   background: var(--color-primary-hover, #14a08a);
-  box-shadow: 0 4px 12px rgba(13, 128, 112, 0.35);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
   transform: translateY(-1px);
 }
 
 .getContextualMeaningButton:active:not(:disabled) {
   transform: translateY(0);
-  box-shadow: 0 2px 6px rgba(13, 128, 112, 0.3);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
 }
 
 .getContextualMeaningButton:disabled {

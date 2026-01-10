@@ -91,11 +91,6 @@ export const SidePanel: React.FC<SidePanelProps> = ({
   // Determine if bookmark is filled (saved)
   const isBookmarked = savedLinkId !== null;
 
-  // Handle login button click - show login modal
-  const handleLoginClick = useCallback(() => {
-    setShowLoginModal(true);
-  }, [setShowLoginModal]);
-
   // Handle login required callback (from API errors)
   const handleLoginRequired = useCallback(() => {
     setShowLoginModal(true);
@@ -354,7 +349,6 @@ export const SidePanel: React.FC<SidePanelProps> = ({
       <Header
         onSlideOut={handleSlideOut}
         onVerticalExpand={handleVerticalExpand}
-        onLogin={handleLoginClick}
         brandImageSrc={chrome.runtime.getURL('src/assets/photos/brand-name.png')}
         useShadowDom={useShadowDom}
         isExpanded={isVerticallyExpanded}
@@ -380,14 +374,10 @@ export const SidePanel: React.FC<SidePanelProps> = ({
         )}
       </div>
 
-      {/* Footer - Hidden (component code kept intact) */}
-      {false && (
-        <Footer
-          activeTab={activeTab}
-          onTabChange={setActiveTab}
-          useShadowDom={useShadowDom}
-        />
-      )}
+      {/* Footer */}
+      <Footer
+        useShadowDom={useShadowDom}
+      />
 
       {/* Save Link Modal */}
       <SaveLinkModal

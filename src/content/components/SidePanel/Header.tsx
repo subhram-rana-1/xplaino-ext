@@ -1,14 +1,9 @@
 // src/content/components/SidePanel/Header.tsx
-import React, { useState, useEffect, useRef } from 'react';
-import { useAtomValue, useSetAtom } from 'jotai';
+import React from 'react';
 import { ChevronRight, Bookmark } from 'lucide-react';
 import styles from './Header.module.css';
-import { UserProfilePopover } from './UserProfilePopover';
-import { userAuthInfoAtom } from '@/store/uiAtoms';
-import { ChromeStorage } from '@/storage/chrome-local/ChromeStorage';
 import { ENV } from '@/config/env';
 import { COLORS } from '@/constants/colors';
-import { MinimalCouponButton } from '../HighlightedCoupon';
 
 // Custom expand icon - arrows pointing away from center (up and down)
 const ExpandVerticalIcon: React.FC<{ size?: number }> = ({ size = 18 }) => (
@@ -63,8 +58,6 @@ export interface HeaderProps {
   onSlideOut?: () => void;
   /** Vertical expand handler */
   onVerticalExpand?: () => void;
-  /** Login handler */
-  onLogin?: () => void;
   /** Whether component is rendered in Shadow DOM (uses plain class names) */
   useShadowDom?: boolean;
   /** Whether the panel is vertically expanded */
@@ -84,7 +77,6 @@ export const Header: React.FC<HeaderProps> = ({
   onBrandClick,
   onSlideOut,
   onVerticalExpand,
-  onLogin,
   useShadowDom = false,
   isExpanded = false,
   activeTab,
@@ -92,54 +84,6 @@ export const Header: React.FC<HeaderProps> = ({
   showBookmark = false,
   isBookmarked = false,
 }) => {
-  const userAuthInfo = useAtomValue(userAuthInfoAtom);
-  const setUserAuthInfo = useSetAtom(userAuthInfoAtom);
-  const [showPopover, setShowPopover] = useState(false);
-  const profileRef = useRef<HTMLDivElement>(null);
-  const profileButtonRef = useRef<HTMLButtonElement>(null);
-  const popoverCloseRef = useRef<(() => Promise<void>) | null>(null);
-
-  // Load auth info on mount
-  useEffect(() => {
-    const loadAuthInfo = async () => {
-      console.log('[Header] Loading auth info from Chrome storage...');
-      const authInfo = await ChromeStorage.getAuthInfo();
-      console.log('[Header] Auth info loaded:', {
-        hasAuthInfo: !!authInfo,
-        hasAccessToken: !!authInfo?.accessToken,
-        hasRefreshToken: !!authInfo?.refreshToken,
-        hasUser: !!authInfo?.user,
-        userId: authInfo?.user?.id,
-        userEmail: authInfo?.user?.email,
-        userName: authInfo?.user?.name,
-        userPicture: authInfo?.user?.picture,
-        accessTokenExpiresAt: authInfo?.accessTokenExpiresAt,
-      });
-      setUserAuthInfo(authInfo);
-    };
-    loadAuthInfo();
-  }, [setUserAuthInfo]);
-
-  // Listen for storage changes
-  useEffect(() => {
-    const handleStorageChange = (changes: { [key: string]: chrome.storage.StorageChange }) => {
-      if (changes[ChromeStorage.KEYS.XPLAINO_AUTH_INFO]) {
-        const newValue = changes[ChromeStorage.KEYS.XPLAINO_AUTH_INFO].newValue;
-        console.log('[Header] Auth info changed in storage:', {
-          hasNewValue: !!newValue,
-          hasAccessToken: !!newValue?.accessToken,
-          hasUser: !!newValue?.user,
-          userPicture: newValue?.user?.picture,
-        });
-        setUserAuthInfo(newValue || null);
-      }
-    };
-
-    chrome.storage.onChanged.addListener(handleStorageChange);
-    return () => {
-      chrome.storage.onChanged.removeListener(handleStorageChange);
-    };
-  }, [setUserAuthInfo]);
 
   const getClassName = (baseClass: string) => {
     if (useShadowDom) {
@@ -165,52 +109,6 @@ export const Header: React.FC<HeaderProps> = ({
   const handleVerticalExpand = () => {
     onVerticalExpand?.();
   };
-
-  const handleLogin = () => {
-    if (onLogin) {
-      onLogin();
-    } else {
-      // Default: open xplaino.com login page
-      chrome.tabs.create({ url: `${ENV.XPLAINO_WEBSITE_BASE_URL}/login` });
-    }
-  };
-
-  const handleProfileClick = async () => {
-    if (showPopover && popoverCloseRef.current) {
-      // If popover is already open, close it with animation
-      await popoverCloseRef.current();
-    } else {
-      // If popover is closed, open it
-      setShowPopover(true);
-    }
-  };
-
-  const handleClosePopover = () => {
-    setShowPopover(false);
-  };
-
-  const handlePopoverCloseRequest = (closeFn: () => Promise<void>) => {
-    popoverCloseRef.current = closeFn;
-  };
-
-  // Check isLoggedIn from Chrome storage first, then fall back to checking user and accessToken
-  const isLoggedIn = userAuthInfo && (
-    userAuthInfo.isLoggedIn !== undefined 
-      ? userAuthInfo.isLoggedIn 
-      : (userAuthInfo.user && userAuthInfo.accessToken)
-  );
-
-  // Log login state decision
-  console.log('[Header] Rendering with login state:', {
-    isLoggedIn,
-    hasUserAuthInfo: !!userAuthInfo,
-    isLoggedInProperty: userAuthInfo?.isLoggedIn,
-    hasAccessToken: !!userAuthInfo?.accessToken,
-    hasUser: !!userAuthInfo?.user,
-    userPicture: userAuthInfo?.user?.picture,
-    willShowProfileIcon: isLoggedIn,
-    willShowLoginButton: !isLoggedIn,
-  });
 
   return (
     <div className={getClassName('header')}>
@@ -259,13 +157,11 @@ export const Header: React.FC<HeaderProps> = ({
             )}
           </>
         )}
-        {/* Minimal Coupon Button */}
-        <MinimalCouponButton useShadowDom={useShadowDom} />
       </div>
 
-      {/* Right: Bookmark (summary tab) or Login/Profile (other tabs) */}
+      {/* Right: Bookmark (summary tab only) */}
       <div className={getClassName('headerRight')}>
-        {activeTab === 'summary' && showBookmark ? (
+        {activeTab === 'summary' && showBookmark && (
           <button
             className={`${getClassName('headerIconButton')} ${isBookmarked ? getClassName('bookmarked') : ''}`}
             onClick={onBookmark}
@@ -279,44 +175,6 @@ export const Header: React.FC<HeaderProps> = ({
               color={isBookmarked ? COLORS.PRIMARY : "currentColor"} 
             />
           </button>
-        ) : activeTab !== 'summary' && (
-          <>
-            {isLoggedIn && userAuthInfo ? (
-              <div className={getClassName('profileContainer')} ref={profileRef}>
-                <button
-                  ref={profileButtonRef}
-                  className={getClassName('profilePictureButton')}
-                  onClick={handleProfileClick}
-                  aria-label="User profile"
-                  type="button"
-                >
-                  <img
-                    src={userAuthInfo.user?.picture || ''}
-                    alt={userAuthInfo.user?.name || 'User'}
-                    className={getClassName('profilePicture')}
-                  />
-                </button>
-                {showPopover && (
-                  <UserProfilePopover
-                    userName={userAuthInfo.user?.name || ''}
-                    useShadowDom={useShadowDom}
-                    onClose={handleClosePopover}
-                    sourceRef={profileButtonRef}
-                    onCloseRequest={handlePopoverCloseRequest}
-                  />
-                )}
-              </div>
-            ) : (
-              <button
-                className={getClassName('loginButton')}
-                onClick={handleLogin}
-                aria-label="Login"
-                type="button"
-              >
-                LOGIN
-              </button>
-            )}
-          </>
         )}
       </div>
     </div>

@@ -1,12 +1,15 @@
 // src/content/components/SidePanel/SettingsView.tsx
 import React, { useEffect, useState, useCallback } from 'react';
-import { Settings, LayoutDashboard } from 'lucide-react';
+import { Settings, LayoutDashboard, Crown, LogOut } from 'lucide-react';
+import { useAtomValue, useSetAtom } from 'jotai';
+import { userAuthInfoAtom, showLoginModalAtom } from '@/store/uiAtoms';
 import { ChromeStorage } from '@/storage/chrome-local/ChromeStorage';
 import { DomainStatus } from '@/types/domain';
 import { extractDomain } from '@/utils/domain';
 import { Dropdown } from './Dropdown';
 import { showDisableModal } from '@/content/index';
 import { ENV } from '@/config/env';
+import { AuthService } from '@/api-services/AuthService';
 import styles from './SettingsView.module.css';
 
 export interface SettingsViewProps {
@@ -15,6 +18,11 @@ export interface SettingsViewProps {
 }
 
 export const SettingsView: React.FC<SettingsViewProps> = ({ useShadowDom = false }) => {
+  const userAuthInfo = useAtomValue(userAuthInfoAtom);
+  const setUserAuthInfo = useSetAtom(userAuthInfoAtom);
+  const setShowLoginModal = useSetAtom(showLoginModalAtom);
+  const isLoggedIn = userAuthInfo?.isLoggedIn ?? false;
+
   const getClassName = useCallback((baseClass: string) => {
     if (useShadowDom) {
       return baseClass;
@@ -47,7 +55,14 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ useShadowDom = false
 
   useEffect(() => {
     loadSettings();
-  }, []);
+  }, [isLoggedIn]);
+
+  // If user is not logged in and themeSelection is 'account', change it to 'LIGHT'
+  useEffect(() => {
+    if (!isLoggedIn && themeSelection === 'account') {
+      setThemeSelection('LIGHT');
+    }
+  }, [isLoggedIn, themeSelection]);
 
   const loadSettings = async () => {
     try {
@@ -66,7 +81,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ useShadowDom = false
       if (extDomainTheme) {
         setThemeSelection(extDomainTheme); // 'LIGHT' or 'DARK'
       } else {
-        setThemeSelection('account'); // 'As per account settings'
+        // If logged in, use 'account', otherwise default to 'LIGHT'
+        setThemeSelection(isLoggedIn ? 'account' : 'LIGHT');
       }
 
       setGlobalDisabled(gDisabled);
@@ -136,12 +152,46 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ useShadowDom = false
     window.open(dashboardUrl, '_blank');
   };
 
-  // Theme dropdown options
-  const themeOptions = [
-    { value: 'account', label: 'As per account settings' },
-    { value: 'LIGHT', label: 'Light' },
-    { value: 'DARK', label: 'Dark' },
-  ];
+  const handleUpgradeClick = () => {
+    const pricingUrl = `${ENV.XPLAINO_WEBSITE_BASE_URL}/pricing`;
+    window.open(pricingUrl, '_blank');
+  };
+
+  const handleLogoutClick = async () => {
+    console.log('[SettingsView] Logout button clicked, calling AuthService.logout()');
+    try {
+      await AuthService.logout();
+      console.log('[SettingsView] Logout successful, updating auth info atom');
+      
+      // Get the updated auth info from storage
+      const updatedAuthInfo = await ChromeStorage.getAuthInfo();
+      console.log('[SettingsView] Retrieved updated auth info from storage:', {
+        isLoggedIn: updatedAuthInfo?.isLoggedIn,
+        hasAccessToken: !!updatedAuthInfo?.accessToken,
+      });
+      
+      // Update atom with the merged auth info
+      setUserAuthInfo(updatedAuthInfo);
+    } catch (error) {
+      console.error('[SettingsView] Logout error:', error);
+    }
+  };
+
+  const handleLoginClick = () => {
+    setShowLoginModal(true);
+  };
+
+  // Theme dropdown options - only show "As per account settings" when logged in
+  const themeOptions = isLoggedIn
+    ? [
+        { value: 'account', label: 'As per account settings' },
+        { value: 'LIGHT', label: 'Light' },
+        { value: 'DARK', label: 'Dark' },
+      ]
+    : [
+        { value: 'LIGHT', label: 'Light' },
+        { value: 'DARK', label: 'Dark' },
+      ];
 
   if (loading) {
     return (
@@ -153,63 +203,94 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ useShadowDom = false
 
   return (
     <div className={getClassName('settingsView')}>
-      {/* Account Settings Section */}
+      {/* Account Section */}
       <div className={getClassName('section')}>
-        <div className={getClassName('sectionHeader')}>
-          <div className={getClassName('sectionAccent')} />
-          <h3 className={getClassName('sectionTitle')}>Account settings</h3>
-          <div className={getClassName('sectionHeaderLine')} />
-        </div>
-        <div className={getClassName('sectionContent')}>
-          <div className={getClassName('settingItem')}>
-            <div className={getClassName('languageSettingRow')}>
-              <span className={getClassName('settingLabel')}>Manage your account level settings</span>
-              <button
-                onClick={handleAccountSettingsClick}
-                type="button"
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  padding: '8px 12px',
-                  backgroundColor: 'transparent',
-                  border: 'none',
-                  cursor: 'pointer',
-                  color: 'inherit',
-                  fontSize: '14px',
-                  fontWeight: 500,
-                }}
-              >
-                <Settings size={16} />
-                <span>Open settings</span>
-              </button>
+        {isLoggedIn && userAuthInfo?.user ? (
+          <>
+            <div className={getClassName('sectionHeader')}>
+              <div className={getClassName('sectionAccent')} />
+              <h3 className={getClassName('sectionTitle')}>Account</h3>
+              <div className={getClassName('sectionHeaderLine')} />
             </div>
-          </div>
-          <div className={getClassName('settingItem')}>
-            <div className={getClassName('languageSettingRow')}>
-              <span className={getClassName('settingLabel')}>My Dashboard</span>
-              <button
-                onClick={handleDashboardClick}
-                type="button"
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  padding: '8px 12px',
-                  backgroundColor: 'transparent',
-                  border: 'none',
-                  cursor: 'pointer',
-                  color: 'inherit',
-                  fontSize: '14px',
-                  fontWeight: 500,
-                }}
-              >
-                <LayoutDashboard size={16} />
-                <span>My Dashboard</span>
-              </button>
+            
+            <div className={getClassName('accountContent')}>
+              {/* Left: Profile Picture + Badge + Upgrade */}
+              <div className={getClassName('accountLeft')}>
+                <div className={getClassName('accountPictureContainer')}>
+                  <img 
+                    src={userAuthInfo.user.picture || ''} 
+                    alt={userAuthInfo.user.name || 'User'}
+                    className={getClassName('accountPicture')}
+                  />
+                </div>
+                <span className={getClassName('accountFreeTrialBadge')}>
+                  Free trial
+                </span>
+                <button
+                  onClick={handleUpgradeClick}
+                  className={getClassName('accountUpgradeButton')}
+                  type="button"
+                >
+                  <Crown size={16} strokeWidth={2.5} />
+                  <span>Upgrade</span>
+                </button>
+              </div>
+              
+              {/* Middle: Name + Email + Account Buttons */}
+              <div className={getClassName('accountMiddle')}>
+                <div className={getClassName('accountName')}>
+                  {userAuthInfo.user.name || 'Name'}
+                </div>
+                <div className={getClassName('accountEmail')}>
+                  {userAuthInfo.user.email || 'Email'}
+                </div>
+                <div className={getClassName('accountButtonsRow')}>
+                  <button
+                    onClick={handleAccountSettingsClick}
+                    type="button"
+                    className={getClassName('accountButton')}
+                  >
+                    <Settings size={16} />
+                    <span>Open settings</span>
+                  </button>
+                  <button
+                    onClick={handleDashboardClick}
+                    type="button"
+                    className={getClassName('accountButton')}
+                  >
+                    <LayoutDashboard size={16} />
+                    <span>My Dashboard</span>
+                  </button>
+                </div>
+              </div>
+              
+              {/* Right: Logout */}
+              <div className={getClassName('accountRight')}>
+                <button
+                  onClick={handleLogoutClick}
+                  className={getClassName('accountLogoutButton')}
+                  type="button"
+                >
+                  <LogOut size={16} strokeWidth={2.5} />
+                  <span>Logout</span>
+                </button>
+              </div>
             </div>
+          </>
+        ) : (
+          <div className={getClassName('accountLoginSection')}>
+            <div className={getClassName('accountLoginText')}>
+              Login to explore more features
+            </div>
+            <button
+              onClick={handleLoginClick}
+              className={getClassName('accountLoginButton')}
+              type="button"
+            >
+              LOGIN
+            </button>
           </div>
-        </div>
+        )}
       </div>
 
       {/* Extension Settings Section */}

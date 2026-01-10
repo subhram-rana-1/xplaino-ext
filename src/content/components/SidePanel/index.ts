@@ -4,7 +4,7 @@ export type { SidePanelProps } from './SidePanel';
 export { Header } from './Header';
 export type { HeaderProps } from './Header';
 export { Footer } from './Footer';
-export type { FooterProps, TabType } from './Footer';
+export type { FooterProps } from './Footer';
 export { SummaryView } from './SummaryView';
 export type { SummaryViewProps } from './SummaryView';
 export { SettingsView } from './SettingsView';

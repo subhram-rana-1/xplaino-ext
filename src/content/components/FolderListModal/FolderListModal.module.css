@@ -44,7 +44,7 @@
   max-height: 80vh;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 10px 40px var(--color-primary-opacity-20);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
   animation: modalSlideIn 0.25s ease-out;
   overflow-x: hidden;
 }
@@ -485,12 +485,12 @@
 .saveButton {
   background-color: #9527f5;
   color: var(--color-white);
-  box-shadow: 0 2px 8px var(--color-primary-opacity-25);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
 
 .saveButton:hover:not(:disabled) {
   background-color: var(--color-primary-hover-dark);
-  box-shadow: 0 4px 12px var(--color-primary-opacity-35);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
 .saveButton:disabled {

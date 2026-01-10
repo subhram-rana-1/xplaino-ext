@@ -9,9 +9,9 @@
 
 /* Color variable fallbacks */
 :host {
-  --color-primary: #9527F5 !important;
-  --color-primary-light: #BF7EFA !important;
-  --color-primary-dark: #8607f5 !important;
+  --color-primary: #0d8070 !important;
+  --color-primary-light: #14a08a !important;
+  --color-primary-dark: #0a5f54 !important;
   --color-white: #FFFFFF !important;
   --color-error: #EF4444 !important;
 }
@@ -45,7 +45,7 @@
 
 .sidePanel.open {
   transform: translateX(0) !important;
-  box-shadow: 0 0 20px var(--color-primary-opacity-30) !important;
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.25) !important;
 }
 
 .sidePanel.slidingOut {
@@ -194,60 +194,6 @@
   flex-shrink: 0 !important;
 }
 
-.loginButton {
-  padding: 8px 16px !important;
-  border: none !important;
-  background: var(--color-primary) !important;
-  color: var(--color-white) !important;
-  font-size: 13px !important;
-  font-weight: 600 !important;
-  cursor: pointer !important;
-  border-radius: 6px !important;
-  transition: all 0.2s ease !important;
-  min-height: 32px !important;
-}
-
-.loginButton:hover {
-  background: var(--color-primary-dark) !important;
-}
-
-.loginButton:active {
-  transform: scale(0.95) !important;
-}
-
-/* Profile Picture Container */
-.profileContainer {
-  position: relative !important;
-  display: flex !important;
-  align-items: center !important;
-}
-
-.profilePictureButton {
-  width: 32px !important;
-  height: 32px !important;
-  border: none !important;
-  background: transparent !important;
-  padding: 0 !important;
-  cursor: pointer !important;
-  border-radius: 50% !important;
-  overflow: hidden !important;
-  transition: transform 0.2s ease !important;
-}
-
-.profilePictureButton:hover {
-  transform: scale(1.05) !important;
-}
-
-.profilePictureButton:active {
-  transform: scale(0.95) !important;
-}
-
-.profilePicture {
-  width: 100% !important;
-  height: 100% !important;
-  object-fit: cover !important;
-  border-radius: 50% !important;
-}
 
 /* User Profile Popover */
 .userProfilePopover {
@@ -256,7 +202,7 @@
   right: 0 !important;
   background: var(--color-white) !important;
   border-radius: 12px !important;
-  box-shadow: 0 4px 20px var(--color-primary-opacity-25) !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2) !important;
   padding: 12px !important;
   min-width: 180px !important;
   z-index: 1000 !important;
@@ -324,15 +270,146 @@
 
 /* Footer */
 .footer {
-  background: var(--color-primary-opacity-5) !important;
-  padding: 0 !important;
-  padding-top: 20px !important;
-  padding-bottom: 20px !important;
+  background: rgba(13, 128, 112, 0.05) !important;
+  padding: 8px 12px !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
   flex-shrink: 0 !important;
-  height: 50px !important;
+  position: relative !important;
+}
+
+.footerContent {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  width: 100% !important;
+  gap: 12px !important;
+}
+
+/* Coupon Button - Flashy Animated */
+.couponButton {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  padding: 10px 20px !important;
+  background: linear-gradient(135deg, #FF6B9D 0%, #FFC107 50%, #9D4EDD 100%) !important;
+  background-size: 300% 300% !important;
+  animation: gradientShift 4s linear infinite !important;
+  border: 2px solid rgba(255, 255, 255, 0.3) !important;
+  border-radius: 12px !important;
+  cursor: pointer !important;
+  transition: all 0.2s ease !important;
+  font-weight: 700 !important;
+  box-shadow: none !important;
+  white-space: nowrap !important;
+  position: relative !important;
+  overflow: hidden !important;
+}
+
+.couponButton:hover {
+  opacity: 0.9 !important;
+}
+
+.couponButton:active {
+  opacity: 0.8 !important;
+}
+
+/* Animated gradient background */
+@keyframes gradientShift {
+  0% {
+    background-position: 0% 50% !important;
+  }
+  25% {
+    background-position: 100% 0% !important;
+  }
+  50% {
+    background-position: 100% 100% !important;
+  }
+  75% {
+    background-position: 0% 100% !important;
+  }
+  100% {
+    background-position: 0% 50% !important;
+  }
+}
+
+.couponText {
+  color: #FFFFFF !important;
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2) !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+}
+
+.copyIcon {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+  cursor: pointer !important;
+  padding: 2px 4px !important;
+  border-radius: 4px !important;
+  transition: background-color 0.2s ease !important;
+  margin-left: 4px !important;
+}
+
+.copyIcon:hover {
+  background-color: rgba(255, 255, 255, 0.2) !important;
+}
+
+.copyIcon:active {
+  background-color: rgba(255, 255, 255, 0.3) !important;
+}
+
+.copyIcon svg {
+  color: #FFFFFF !important;
+  stroke: #FFFFFF !important;
+  flex-shrink: 0 !important;
+}
+
+.copiedText {
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  color: #FFFFFF !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2) !important;
+}
+
+/* Upgrade Button */
+.upgradeButton {
+  display: flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  padding: 8px 16px !important;
+  background: #0d8070 !important;
+  color: #FFFFFF !important;
+  border: none !important;
+  border-radius: 8px !important;
+  cursor: pointer !important;
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  transition: all 0.2s ease !important;
+  white-space: nowrap !important;
+  flex-shrink: 0 !important;
+}
+
+.upgradeButton:hover {
+  background: #0a5f54 !important;
+}
+
+.upgradeButton:active {
+  background: #085048 !important;
+}
+
+.upgradeButton svg {
+  color: #FFFFFF !important;
+  stroke: #FFFFFF !important;
+  flex-shrink: 0 !important;
+}
+
+.upgradeButtonCentered {
+  margin: 0 auto !important;
 }
 
 /* ButtonGroup - Button Group Container */
@@ -546,7 +623,7 @@
   font-size: 12px !important;
   font-weight: 500 !important;
   white-space: nowrap !important;
-  box-shadow: 0 2px 8px var(--color-primary-opacity-25) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2) !important;
   pointer-events: none !important;
   z-index: 1000 !important;
 }
@@ -909,7 +986,7 @@
   color: var(--color-text-primary) !important;
   align-self: flex-start !important;
   border-bottom-left-radius: 4px !important;
-  box-shadow: 0 1px 2px var(--color-primary-opacity-5) !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05) !important;
 }
 
 /* Loading Dots Animation */
@@ -923,7 +1000,7 @@
 
 .loadingDots {
   font-size: 24px !important;
-  color: var(--color-primary, #9527F5) !important;
+  color: var(--color-primary, #0d8070) !important;
   font-weight: 600 !important;
   letter-spacing: 4px !important;
   font-family: var(--font-family-primary) !important;
@@ -1218,7 +1295,7 @@
   background: var(--color-white) !important;
   padding: 24px !important;
   border-radius: 16px !important;
-  box-shadow: 0 4px 20px var(--color-primary-opacity-25) !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2) !important;
   max-width: 300px !important;
   text-align: center !important;
 }
@@ -1287,14 +1364,14 @@
 }
 
 .linkItem:hover {
-  border-color: #9527F5 !important;
+  border-color: #0d8070 !important;
   background: var(--color-primary-opacity-5) !important;
 }
 
 .linkIcon {
   width: 20px !important;
   height: 20px !important;
-  color: #9527F5 !important;
+  color: #0d8070 !important;
   flex-shrink: 0 !important;
   display: flex !important;
   align-items: center !important;
@@ -1329,7 +1406,7 @@
 }
 
 .linkItem:hover .linkRefIcon {
-  color: #9527F5 !important;
+  color: #0d8070 !important;
 }
 
 /* ============================================ */
@@ -1368,7 +1445,7 @@
 .sectionAccent {
   width: 4px !important;
   height: 20px !important;
-  background: #9527F5 !important;
+  background: #0d8070 !important;
   border-radius: 2px !important;
   flex-shrink: 0 !important;
 }
@@ -1386,7 +1463,7 @@
   height: 2px !important;
   min-height: 2px !important;
   max-height: 2px !important;
-  background: #9527F5 !important;
+  background: #0d8070 !important;
   margin-left: 8px !important;
   margin-right: 16px !important;
   border-radius: 2px !important;
@@ -1457,8 +1534,9 @@
 }
 
 .domainName {
-  color: #9527F5 !important;
+  color: #0d8070 !important;
   font-style: italic !important;
+  font-weight: 700 !important;
 }
 
 .translationViewRow {
@@ -1490,30 +1568,31 @@
 .toggleTrack {
   position: relative !important;
   width: 44px !important;
-  height: 24px !important;
-  border-radius: 12px !important;
+  height: 20px !important;
+  border-radius: 10px !important;
   background: #E2E8F0 !important;
   transition: background-color 0.2s ease !important;
 }
 
 .toggleTrack.checked {
-  background: #9527F5 !important;
+  background: #0d8070 !important;
 }
 
 .toggleThumb {
   position: absolute !important;
-  top: 3px !important;
-  left: 3px !important;
-  width: 18px !important;
-  height: 18px !important;
+  top: 4px !important;
+  left: 4px !important;
+  width: 12px !important;
+  height: 12px !important;
   border-radius: 50% !important;
   background: var(--color-white) !important;
-  box-shadow: 0 2px 4px rgba(149, 39, 245, 0.2) !important;
-  transition: left 0.2s ease !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15) !important;
+  transition: transform 150ms ease !important;
+  transform: translateX(0) !important;
 }
 
 .toggleThumb.thumbChecked {
-  left: 23px !important;
+  transform: translateX(24px) !important;
 }
 
 .toggleSetting {
@@ -1529,6 +1608,238 @@
   font-weight: 400 !important;
   color: var(--color-gray-700) !important;
   user-select: none !important;
+}
+
+/* Button Styles */
+.settingsButton {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  padding: 8px 12px !important;
+  background-color: transparent !important;
+  border: none !important;
+  cursor: pointer !important;
+  color: #0d8070 !important;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  transition: all 0.2s ease !important;
+  border-radius: 6px !important;
+}
+
+.settingsButton:hover {
+  background-color: rgba(13, 128, 112, 0.1) !important;
+}
+
+/* =============================================================================
+ * ACCOUNT SECTION STYLES
+ * ============================================================================= */
+
+.accountContent {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: flex-start !important;
+  gap: 20px !important;
+  padding: 16px 0 !important;
+}
+
+.accountLeft {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  gap: 12px !important;
+  flex-shrink: 0 !important;
+}
+
+.accountPictureContainer {
+  width: 64px !important;
+  height: 64px !important;
+  border-radius: 50% !important;
+  overflow: hidden !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  background: #E2E8F0 !important;
+}
+
+.accountPicture {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+  border-radius: 50% !important;
+}
+
+.accountFreeTrialBadge {
+  padding: 4px 10px !important;
+  background: #0d8070 !important;
+  color: #FFFFFF !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  text-transform: uppercase !important;
+  border-radius: 12px !important;
+  white-space: nowrap !important;
+}
+
+.accountMiddle {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 12px !important;
+  flex: 1 !important;
+  min-width: 0 !important;
+}
+
+.accountName {
+  font-size: 16px !important;
+  font-weight: 700 !important;
+  color: #2D3748 !important;
+  line-height: 1.5 !important;
+}
+
+.accountEmail {
+  font-size: 14px !important;
+  font-weight: 400 !important;
+  color: #2D3748 !important;
+  line-height: 1.5 !important;
+}
+
+.accountButtonsRow {
+  display: flex !important;
+  flex-direction: row !important;
+  gap: 12px !important;
+  margin-top: 4px !important;
+}
+
+.accountButton {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  padding: 8px 12px !important;
+  background-color: transparent !important;
+  border: none !important;
+  cursor: pointer !important;
+  color: #0d8070 !important;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  transition: all 0.2s ease !important;
+  border-radius: 6px !important;
+  text-align: left !important;
+}
+
+.accountButton:hover {
+  background-color: rgba(13, 128, 112, 0.1) !important;
+}
+
+.accountButton svg {
+  color: #0d8070 !important;
+}
+
+.accountRight {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 12px !important;
+  flex-shrink: 0 !important;
+  align-items: flex-start !important;
+  justify-content: flex-start !important;
+}
+
+.accountUpgradeButton {
+  display: flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  padding: 8px 16px !important;
+  background: #0d8070 !important;
+  color: #FFFFFF !important;
+  border: none !important;
+  border-radius: 8px !important;
+  cursor: pointer !important;
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  transition: all 0.2s ease !important;
+  white-space: nowrap !important;
+  width: 100% !important;
+  justify-content: center !important;
+}
+
+.accountUpgradeButton:hover {
+  background: #0a5f54 !important;
+}
+
+.accountUpgradeButton:active {
+  transform: scale(0.98) !important;
+}
+
+.accountUpgradeButton svg {
+  color: #FFFFFF !important;
+}
+
+.accountLogoutButton {
+  display: flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  padding: 8px 16px !important;
+  background: transparent !important;
+  color: #ff4444 !important;
+  border: 1px solid #ff4444 !important;
+  border-radius: 8px !important;
+  cursor: pointer !important;
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  transition: all 0.2s ease !important;
+  white-space: nowrap !important;
+}
+
+.accountLogoutButton:hover {
+  background: rgba(255, 68, 68, 0.1) !important;
+}
+
+.accountLogoutButton:active {
+  transform: scale(0.98) !important;
+}
+
+.accountLogoutButton svg {
+  color: #ff4444 !important;
+}
+
+.accountLoginSection {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 40px 0 !important;
+  gap: 16px !important;
+}
+
+.accountLoginText {
+  font-size: 16px !important;
+  font-weight: 600 !important;
+  color: #4A5568 !important;
+  text-align: center !important;
+  line-height: 1.5 !important;
+}
+
+.accountLoginButton {
+  padding: 12px 32px !important;
+  border: none !important;
+  background: #0d8070 !important;
+  color: #FFFFFF !important;
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  cursor: pointer !important;
+  border-radius: 8px !important;
+  transition: all 0.2s ease !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.5px !important;
+}
+
+.accountLoginButton:hover {
+  background: #0a5f54 !important;
+}
+
+.accountLoginButton:active {
+  transform: scale(0.98) !important;
+}
+
+.settingsButton svg {
+  color: #0d8070 !important;
 }
 
 /* ============================================ */
@@ -1568,12 +1879,12 @@
 }
 
 .dropdownButton:hover {
-  border-color: #9527F5 !important;
+  border-color: #0d8070 !important;
 }
 
 .dropdownButton.open {
-  border-color: #9527F5 !important;
-  box-shadow: 0 0 0 3px rgba(149, 39, 245, 0.1) !important;
+  border-color: #0d8070 !important;
+  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.1) !important;
 }
 
 .dropdownValue {
@@ -1607,11 +1918,24 @@
   background: var(--color-white) !important;
   border: 1px solid var(--color-border-default) !important;
   border-radius: 10px !important;
-  box-shadow: 0 4px 12px rgba(149, 39, 245, 0.25) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2) !important;
   z-index: 1000 !important;
-  max-height: 200px !important;
-  overflow-y: auto !important;
+  overflow: hidden !important;
   margin-top: 4px !important;
+  transition: max-height 0.3s ease, opacity 0.2s ease !important;
+  max-height: 0 !important;
+  opacity: 0 !important;
+}
+
+.dropdownMenu.menuOpen {
+  max-height: 200px !important;
+  opacity: 1 !important;
+  overflow-y: auto !important;
+}
+
+.dropdownMenu.menuClosed {
+  max-height: 0 !important;
+  opacity: 0 !important;
 }
 
 .dropdownItem {
@@ -1627,8 +1951,8 @@
 }
 
 .dropdownItem.selected {
-  background: rgba(149, 39, 245, 0.15) !important;
-  color: #9527F5 !important;
+  background: rgba(13, 128, 112, 0.15) !important;
+  color: #0d8070 !important;
   font-weight: 500 !important;
 }
 

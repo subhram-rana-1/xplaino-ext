@@ -35,40 +35,38 @@
 
 /* Xplaino Icon Button */
 .xplainoIconButton {
-  width: 24px !important;
-  height: 24px !important;
+  width: 22px !important;
+  height: 22px !important;
   border-radius: 50% !important;
-  background: var(--color-primary-very-light) !important;
+  background: var(--color-white) !important;
   border: none !important;
   cursor: pointer !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
-  box-shadow: 0 0 10px var(--color-primary-opacity-35) !important;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
   padding: 0 !important;
   outline: none !important;
   position: absolute !important;
   left: 0 !important;
   top: 0 !important;
-  transform: translateX(-50%) !important;
+  transform: translateX(-50%) scale(0) !important;
+  opacity: 0 !important;
 }
 
 .xplainoIconButton.visible {
   opacity: 1 !important;
   visibility: visible !important;
   transform: translateX(-50%) scale(1) !important;
+  animation: iconButtonEmerge 0.25s cubic-bezier(0.4, 0, 0.2, 1) forwards !important;
 }
 
 .xplainoIconButton.hidden {
   opacity: 0 !important;
   visibility: hidden !important;
-  transform: translateX(-50%) scale(0.8) !important;
+  transform: translateX(-50%) scale(0) !important;
   pointer-events: none !important;
-}
-
-.xplainoIconButton:hover {
-  box-shadow: 0 0 14px var(--color-primary-opacity-45) !important;
+  animation: iconButtonShrink 0.25s cubic-bezier(0.4, 0, 0.2, 1) forwards !important;
 }
 
 .xplainoIcon {
@@ -90,21 +88,30 @@
   background: var(--color-white) !important;
   border-radius: 999px !important;
   padding: 5px !important;
-  box-shadow: 0 0 12px var(--color-primary-opacity-35) !important;
+  box-shadow: 0 0 12px rgba(0, 0, 0, 0.3) !important;
   opacity: 0 !important;
   visibility: hidden !important;
-  transform: translateX(-12px) scale(0.95) !important;
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  transform: translateX(-12px) !important;
+  width: var(--button-group-width, 0px) !important;
+  max-width: 500px !important;
+  overflow: visible !important;
+  transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1) !important;
   position: absolute !important;
   left: 0 !important;
   top: 0 !important;
   transform-origin: left center !important;
+  white-space: nowrap !important;
 }
 
 .contentActionsButtonGroup.visible {
   opacity: 1 !important;
   visibility: visible !important;
-  transform: translateX(-12px) scale(1) !important;
+  transform: translateX(-12px) !important;
+  /* Width will be set via CSS variable by JavaScript */
+  max-width: 500px !important;
+  overflow: visible !important;
+  will-change: width !important;
+  transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1) !important;
 }
 
 /* Action Button Wrapper (for tooltip positioning) */
@@ -113,12 +120,14 @@
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
+  visibility: visible !important;
+  opacity: 1 !important;
 }
 
 /* Individual Action Button - Compact with circular shape for pill effect */
 .contentActionButton {
-  width: 26px !important;
-  height: 26px !important;
+  width: 27px !important;
+  height: 27px !important;
   border-radius: 50% !important;
   background: transparent !important;
   border: none !important;
@@ -126,15 +135,23 @@
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  transition: none !important; /* Remove transition to avoid conflicts with animation */
   padding: 0 !important;
   outline: none !important;
-  animation: buttonSlideIn 0.25s cubic-bezier(0.4, 0, 0.2, 1) forwards !important;
   opacity: 0 !important;
+  transform: scale(0) !important; /* Start at 0px dimension */
+  pointer-events: none !important;
+  visibility: hidden !important;
 }
 
 .contentActionsButtonGroup.visible .contentActionButton {
-  opacity: 1 !important;
+  pointer-events: auto !important;
+  visibility: visible !important;
+  display: flex !important;
+  min-width: 26px !important;
+  min-height: 26px !important;
+  /* Remove opacity and transform - let animation handle it */
+  /* Animation will be applied via inline styles in JavaScript */
 }
 
 .contentActionButton:hover {
@@ -147,14 +164,25 @@
 
 /* Action Button Icons */
 .contentActionButton svg {
-  width: 18px !important;
-  height: 18px !important;
+  width: 27px !important;
+  height: 27px !important;
   color: var(--color-primary-light) !important;
   stroke: var(--color-primary-light) !important;
   stroke-width: 2.5 !important;
   fill: none !important;
   pointer-events: none !important;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  display: block !important;
+  visibility: visible !important;
+  opacity: 0 !important;
+  flex-shrink: 0 !important;
+  transform: scale(0) !important; /* Start at 0px dimension */
+}
+
+.contentActionsButtonGroup.visible .contentActionButton svg {
+  visibility: visible !important;
+  display: block !important;
+  /* Remove opacity and transform - let animation handle it */
+  /* Animation will be applied via inline styles in JavaScript */
 }
 
 .contentActionButton:hover svg {
@@ -176,7 +204,7 @@
   font-size: 12px !important;
   font-weight: 500 !important;
   white-space: nowrap !important;
-  box-shadow: 0 2px 8px var(--color-primary-opacity-15) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15) !important;
   pointer-events: none !important;
   animation: tooltipFadeIn 0.15s ease forwards !important;
   z-index: 10 !important;
@@ -193,14 +221,25 @@
 }
 
 /* Animations */
-@keyframes buttonSlideIn {
+@keyframes buttonScaleIn {
   from {
     opacity: 0 !important;
-    transform: translateX(-8px) scale(0.8) !important;
+    transform: scale(0) !important; /* Start at 0px dimension */
   }
   to {
     opacity: 1 !important;
-    transform: translateX(0) scale(1) !important;
+    transform: scale(1) !important; /* Grow to final radius size (26px) */
+  }
+}
+
+@keyframes iconScaleIn {
+  from {
+    opacity: 0 !important;
+    transform: scale(0) !important; /* Start at 0px dimension */
+  }
+  to {
+    opacity: 1 !important;
+    transform: scale(1) !important; /* Grow to full size */
   }
 }
 
@@ -215,11 +254,11 @@
   }
 }
 
-/* Icon button appear animation */
-@keyframes iconButtonAppear {
+/* Icon button emerge animation */
+@keyframes iconButtonEmerge {
   from {
     opacity: 0 !important;
-    transform: translateX(-50%) scale(0.5) !important;
+    transform: translateX(-50%) scale(0) !important;
   }
   to {
     opacity: 1 !important;
@@ -227,8 +266,16 @@
   }
 }
 
-.xplainoIconButton.visible {
-  animation: iconButtonAppear 0.2s cubic-bezier(0.4, 0, 0.2, 1) forwards !important;
+/* Icon button shrink animation */
+@keyframes iconButtonShrink {
+  from {
+    opacity: 1 !important;
+    transform: translateX(-50%) scale(1) !important;
+  }
+  to {
+    opacity: 0 !important;
+    transform: translateX(-50%) scale(0) !important;
+  }
 }
 
 /* Power Button Wrapper */
@@ -291,7 +338,7 @@
   background: var(--color-white) !important;
   border-radius: 15px !important;
   padding: 4px !important;
-  box-shadow: 0 0 12px var(--color-primary-opacity-35) !important;
+  box-shadow: 0 0 12px rgba(0, 0, 0, 0.3) !important;
   /* Animation is handled by JavaScript useEmergeAnimation hook */
   z-index: 20 !important;
   width: fit-content !important;
@@ -362,7 +409,7 @@
   background: var(--color-white) !important;
   border-radius: 15px !important;
   padding: 4px !important;
-  box-shadow: 0 0 12px var(--color-primary-opacity-35) !important;
+  box-shadow: 0 0 12px rgba(0, 0, 0, 0.3) !important;
   /* Animation is handled by JavaScript useEmergeAnimation hook */
   z-index: 20 !important;
   width: fit-content !important;

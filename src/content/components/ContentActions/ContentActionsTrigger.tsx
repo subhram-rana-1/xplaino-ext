@@ -543,7 +543,6 @@ export const ContentActionsTrigger: React.FC<ContentActionsTriggerProps> = ({
       ref={containerRef}
       className="contentActionsContainer"
       style={positionStyle}
-      onMouseEnter={handleContainerMouseEnter}
       onMouseLeave={handleContainerMouseLeave}
     >
       {/* Xplaino Icon Button */}

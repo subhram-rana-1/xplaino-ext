@@ -34,12 +34,12 @@
 }
 
 .dropdownButton:hover {
-  border-color: #9527F5 !important;
+  border-color: #0d8070 !important;
 }
 
 .dropdownButton.open {
-  border-color: #9527F5 !important;
-  box-shadow: 0 0 0 3px rgba(149, 39, 245, 0.1) !important;
+  border-color: #0d8070 !important;
+  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.1) !important;
 }
 
 .dropdownValue {
@@ -75,9 +75,22 @@
   border-radius: 10px !important;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important;
   z-index: 1000 !important;
-  max-height: 200px !important;
-  overflow-y: auto !important;
+  overflow: hidden !important;
   margin-top: 4px !important;
+  transition: max-height 0.3s ease, opacity 0.2s ease !important;
+  max-height: 0 !important;
+  opacity: 0 !important;
+}
+
+.dropdownMenu.menuOpen {
+  max-height: 200px !important;
+  opacity: 1 !important;
+  overflow-y: auto !important;
+}
+
+.dropdownMenu.menuClosed {
+  max-height: 0 !important;
+  opacity: 0 !important;
 }
 
 .dropdownItem {
@@ -89,12 +102,12 @@
 }
 
 .dropdownItem:hover {
-  background: rgba(149, 39, 245, 0.1) !important;
+  background: rgba(13, 128, 112, 0.1) !important;
 }
 
 .dropdownItem.selected {
-  background: rgba(149, 39, 245, 0.15) !important;
-  color: #9527F5 !important;
+  background: rgba(13, 128, 112, 0.15) !important;
+  color: #0d8070 !important;
   font-weight: 500 !important;
 }
 

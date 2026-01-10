@@ -33,7 +33,7 @@
 .sectionAccent {
   width: 4px !important;
   height: 20px !important;
-  background: #9527F5 !important;
+  background: #0d8070 !important;
   border-radius: 2px !important;
   flex-shrink: 0 !important;
 }
@@ -51,7 +51,7 @@
   height: 2px !important;
   min-height: 2px !important;
   max-height: 2px !important;
-  background: #9527F5 !important;
+  background: #0d8070 !important;
   margin-left: 8px !important;
   margin-right: 16px !important;
   border-radius: 2px !important;
@@ -122,8 +122,9 @@
 }
 
 .domainName {
-  color: #9527F5 !important;
+  color: #0d8070 !important;
   font-style: italic !important;
+  font-weight: 700 !important;
 }
 
 .translationViewRow {
@@ -155,30 +156,31 @@
 .toggleTrack {
   position: relative !important;
   width: 44px !important;
-  height: 24px !important;
-  border-radius: 12px !important;
+  height: 20px !important;
+  border-radius: 10px !important;
   background: #E2E8F0 !important;
   transition: background-color 0.2s ease !important;
 }
 
 .toggleTrack.checked {
-  background: #9527F5 !important;
+  background: #0d8070 !important;
 }
 
 .toggleThumb {
   position: absolute !important;
-  top: 3px !important;
-  left: 3px !important;
-  width: 18px !important;
-  height: 18px !important;
+  top: 4px !important;
+  left: 4px !important;
+  width: 12px !important;
+  height: 12px !important;
   border-radius: 50% !important;
   background: #FFFFFF !important;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2) !important;
-  transition: left 0.2s ease !important;
+  transition: transform 150ms ease !important;
+  transform: translateX(0) !important;
 }
 
 .toggleThumb.thumbChecked {
-  left: 23px !important;
+  transform: translateX(24px) !important;
 }
 
 .toggleSetting {
@@ -194,4 +196,236 @@
   font-weight: 400 !important;
   color: #4A5568 !important;
   user-select: none !important;
+}
+
+/* Button Styles */
+.settingsButton {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  padding: 8px 12px !important;
+  background-color: transparent !important;
+  border: none !important;
+  cursor: pointer !important;
+  color: #0d8070 !important;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  transition: all 0.2s ease !important;
+  border-radius: 6px !important;
+}
+
+.settingsButton:hover {
+  background-color: rgba(13, 128, 112, 0.1) !important;
+}
+
+.settingsButton svg {
+  color: #0d8070 !important;
+}
+
+/* =============================================================================
+ * ACCOUNT SECTION STYLES
+ * ============================================================================= */
+
+.accountContent {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: flex-start !important;
+  gap: 20px !important;
+  padding: 16px 0 !important;
+}
+
+.accountLeft {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  gap: 12px !important;
+  flex-shrink: 0 !important;
+}
+
+.accountPictureContainer {
+  width: 64px !important;
+  height: 64px !important;
+  border-radius: 50% !important;
+  overflow: hidden !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  background: #E2E8F0 !important;
+}
+
+.accountPicture {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+  border-radius: 50% !important;
+}
+
+.accountFreeTrialBadge {
+  padding: 4px 10px !important;
+  background: #0d8070 !important;
+  color: #FFFFFF !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  text-transform: uppercase !important;
+  border-radius: 12px !important;
+  white-space: nowrap !important;
+}
+
+.accountMiddle {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 12px !important;
+  flex: 1 !important;
+  min-width: 0 !important;
+}
+
+.accountName {
+  font-size: 16px !important;
+  font-weight: 700 !important;
+  color: #2D3748 !important;
+  line-height: 1.5 !important;
+}
+
+.accountEmail {
+  font-size: 14px !important;
+  font-weight: 400 !important;
+  color: #2D3748 !important;
+  line-height: 1.5 !important;
+}
+
+.accountButtonsRow {
+  display: flex !important;
+  flex-direction: row !important;
+  gap: 12px !important;
+  margin-top: 4px !important;
+}
+
+.accountButton {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  padding: 8px 12px !important;
+  background-color: transparent !important;
+  border: none !important;
+  cursor: pointer !important;
+  color: #0d8070 !important;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  transition: all 0.2s ease !important;
+  border-radius: 6px !important;
+  text-align: left !important;
+}
+
+.accountButton:hover {
+  background-color: rgba(13, 128, 112, 0.1) !important;
+}
+
+.accountButton svg {
+  color: #0d8070 !important;
+}
+
+.accountRight {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 12px !important;
+  flex-shrink: 0 !important;
+  align-items: flex-start !important;
+  justify-content: flex-start !important;
+}
+
+.accountUpgradeButton {
+  display: flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  padding: 8px 16px !important;
+  background: #0d8070 !important;
+  color: #FFFFFF !important;
+  border: none !important;
+  border-radius: 8px !important;
+  cursor: pointer !important;
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  transition: all 0.2s ease !important;
+  white-space: nowrap !important;
+  width: 100% !important;
+  justify-content: center !important;
+}
+
+.accountUpgradeButton:hover {
+  background: #0a5f54 !important;
+}
+
+.accountUpgradeButton:active {
+  transform: scale(0.98) !important;
+}
+
+.accountUpgradeButton svg {
+  color: #FFFFFF !important;
+}
+
+.accountLogoutButton {
+  display: flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  padding: 8px 16px !important;
+  background: transparent !important;
+  color: #ff4444 !important;
+  border: 1px solid #ff4444 !important;
+  border-radius: 8px !important;
+  cursor: pointer !important;
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  transition: all 0.2s ease !important;
+  white-space: nowrap !important;
+}
+
+.accountLogoutButton:hover {
+  background: rgba(255, 68, 68, 0.1) !important;
+}
+
+.accountLogoutButton:active {
+  transform: scale(0.98) !important;
+}
+
+.accountLogoutButton svg {
+  color: #ff4444 !important;
+}
+
+.accountLoginSection {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 40px 0 !important;
+  gap: 16px !important;
+}
+
+.accountLoginText {
+  font-size: 16px !important;
+  font-weight: 600 !important;
+  color: #4A5568 !important;
+  text-align: center !important;
+  line-height: 1.5 !important;
+}
+
+.accountLoginButton {
+  padding: 12px 32px !important;
+  border: none !important;
+  background: #0d8070 !important;
+  color: #FFFFFF !important;
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  cursor: pointer !important;
+  border-radius: 8px !important;
+  transition: all 0.2s ease !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.5px !important;
+}
+
+.accountLoginButton:hover {
+  background: #0a5f54 !important;
+}
+
+.accountLoginButton:active {
+  transform: scale(0.98) !important;
 }

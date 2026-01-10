@@ -4,62 +4,71 @@
 
 .onHoverMessage {
   position: fixed !important;
-  background: var(--color-white, #FFFFFF) !important;
-  border: 2px solid var(--color-primary-light, #B66DFF) !important;
-  border-radius: 20px !important;
-  color: var(--color-primary-light, #B66DFF) !important;
-  font-family: var(--font-family-primary, 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif) !important;
-  font-size: 14px !important;
-  font-weight: 500 !important;
-  padding: 8px 12px !important;
+  background: var(--color-primary-very-light, #e0f2ef) !important;
+  border: none !important;
+  border-radius: 6px !important;
+  color: var(--color-primary-light, #14a08a) !important;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
+  font-size: 12px !important;
+  font-weight: 400 !important;
+  padding: 4px 12px !important;
   white-space: nowrap !important;
   z-index: 2147483647 !important;
   pointer-events: none !important;
   opacity: 0 !important;
   visibility: hidden !important;
-  transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important, 
-              visibility 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important,
-              transform 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
-  box-shadow: 0 2px 8px var(--color-primary-opacity-18) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15) !important;
+  transition: opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+              visibility 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+              transform 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
 }
 
 .onHoverMessage.visible {
   opacity: 1 !important;
   visibility: visible !important;
-  transform: scale(1) translateZ(0) !important;
 }
 
 /* Position variants - these classes are applied but positioning is handled via inline styles */
-/* Note: Transform is combined with scale for smooth animation */
 .onHoverMessage.top {
-  transform: translateX(-50%) scale(0.95) !important;
+  transform: translateX(-50%) translateY(4px) !important;
 }
 
 .onHoverMessage.top.visible {
-  transform: translateX(-50%) scale(1) !important;
+  transform: translateX(-50%) translateY(0) !important;
 }
 
 .onHoverMessage.bottom {
-  transform: translateX(-50%) scale(0.95) !important;
+  transform: translateX(-50%) translateY(-4px) !important;
 }
 
 .onHoverMessage.bottom.visible {
-  transform: translateX(-50%) scale(1) !important;
+  transform: translateX(-50%) translateY(0) !important;
 }
 
 .onHoverMessage.left {
-  transform: translateY(-50%) scale(0.95) !important;
+  transform: translateY(-50%) translateX(4px) !important;
 }
 
 .onHoverMessage.left.visible {
-  transform: translateY(-50%) scale(1) !important;
+  transform: translateY(-50%) translateX(0) !important;
 }
 
 .onHoverMessage.right {
-  transform: translateY(-50%) scale(0.95) !important;
+  transform: translateY(-50%) translateX(-4px) !important;
 }
 
 .onHoverMessage.right.visible {
-  transform: translateY(-50%) scale(1) !important;
+  transform: translateY(-50%) translateX(0) !important;
+}
+
+/* Arrow pointing down for tooltips positioned above (top) */
+.onHoverMessage.top::after {
+  content: '' !important;
+  position: absolute !important;
+  top: 100% !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  border: 5px solid transparent !important;
+  border-top-color: var(--color-primary-very-light, #e0f2ef) !important;
 }
 

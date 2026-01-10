@@ -81,11 +81,6 @@ export const TranslationControlPopover: React.FC<TranslationControlPopoverProps>
   // Don't render if animation is complete and not visible
   if (!shouldRender && !visible) return null;
 
-  const handleToggleClick = () => {
-    const newMode = viewMode === 'original' ? 'translated' : 'original';
-    onToggleView(newMode);
-  };
-
   const handleClearClick = () => {
     onClear();
   };
@@ -93,6 +88,28 @@ export const TranslationControlPopover: React.FC<TranslationControlPopoverProps>
   // Get class names based on context
   const getClassName = (shadowClass: string, moduleClass: string) => {
     return useShadowDom ? shadowClass : moduleClass;
+  };
+
+  // Reusable Toggle component (same as in SettingsView)
+  const Toggle: React.FC<{
+    checked: boolean;
+    onChange: (checked: boolean) => void;
+  }> = ({ checked, onChange }) => {
+    const toggleContainerClass = getClassName('toggleContainer', styles.toggleComponentContainer);
+    // Combine classes - CSS modules will scope both classes and the selector .toggleTrack.checked will match
+    const toggleTrackClass = `${getClassName('toggleTrack', styles.toggleTrack)} ${checked ? getClassName('checked', styles.checked) : ''}`.trim();
+    const toggleThumbClass = `${getClassName('toggleThumb', styles.toggleThumb)} ${checked ? getClassName('thumbChecked', styles.thumbChecked) : ''}`.trim();
+    
+    return (
+      <div
+        className={toggleContainerClass}
+        onClick={() => onChange(!checked)}
+      >
+        <div className={toggleTrackClass}>
+          <div className={toggleThumbClass} />
+        </div>
+      </div>
+    );
   };
 
   const popoverClass = getClassName('translationControlPopover', styles.popover);
@@ -103,14 +120,6 @@ export const TranslationControlPopover: React.FC<TranslationControlPopoverProps>
   const toggleLabelClass = getClassName(
     'translationControlPopoverToggleLabel',
     styles.toggleLabel
-  );
-  const toggleSwitchClass = getClassName(
-    `translationControlPopoverToggleSwitch ${viewMode === 'translated' ? 'active' : ''}`,
-    `${styles.toggleSwitch} ${viewMode === 'translated' ? styles.active : ''}`
-  );
-  const toggleKnobClass = getClassName(
-    'translationControlPopoverToggleKnob',
-    styles.toggleKnob
   );
   const clearButtonClass = getClassName(
     'translationControlPopoverClearButton',
@@ -139,13 +148,17 @@ export const TranslationControlPopover: React.FC<TranslationControlPopoverProps>
         style={animationStyle}
       >
       {/* Toggle View Control */}
-      <div ref={toggleRef} className={toggleContainerClass} onClick={handleToggleClick}>
+      <div ref={toggleRef} className={toggleContainerClass}>
         <span className={toggleLabelClass}>
           {viewMode === 'translated' ? 'View Original' : 'View Translated'}
         </span>
-        <div className={toggleSwitchClass}>
-          <div className={toggleKnobClass} />
-        </div>
+        <Toggle
+          checked={viewMode === 'translated'}
+          onChange={(checked) => {
+            const newMode = checked ? 'translated' : 'original';
+            onToggleView(newMode);
+          }}
+        />
       </div>
       {!useShadowDom && (
         <OnHoverMessage 

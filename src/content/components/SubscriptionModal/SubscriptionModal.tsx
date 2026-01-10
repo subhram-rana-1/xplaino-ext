@@ -75,6 +75,7 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ useShadowD
       >
         {/* Header */}
         <div className={getClassName('subscriptionModalHeader')}>
+          <p className={getClassName('subscriptionModalTrialEnded')}>Your free trial has ended</p>
           <h2 className={getClassName('subscriptionModalTitle')}>It's time for your upgrade !</h2>
           <p className={getClassName('subscriptionModalSubtitle')}>
             Unlock all premium features with a subscription

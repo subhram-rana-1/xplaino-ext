@@ -37,9 +37,30 @@ export const Dropdown: React.FC<DropdownProps> = ({
     return styles[baseClass as keyof typeof styles] || baseClass;
   }, [useShadowDom]);
   const [isOpen, setIsOpen] = useState(false);
+  const [isAnimating, setIsAnimating] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   const selectedOption = options.find((opt) => opt.value === value);
+
+  // Handle animation state
+  useEffect(() => {
+    if (isOpen) {
+      setIsAnimating(true);
+      // Small delay to trigger opening animation
+      const timeoutId = setTimeout(() => {
+        setIsAnimating(false);
+      }, 10);
+      return () => clearTimeout(timeoutId);
+    } else {
+      setIsAnimating(true);
+      // Delay for closing animation
+      const timeoutId = setTimeout(() => {
+        setIsAnimating(false);
+      }, 300); // Match CSS transition duration
+      return () => clearTimeout(timeoutId);
+    }
+  }, [isOpen]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -109,8 +130,11 @@ export const Dropdown: React.FC<DropdownProps> = ({
             <polyline points="6 9 12 15 18 9" />
           </svg>
         </button>
-        {isOpen && (
-          <div className={getClassName('dropdownMenu')}>
+        {(isOpen || isAnimating) && (
+          <div 
+            ref={menuRef}
+            className={`${getClassName('dropdownMenu')} ${isOpen ? getClassName('menuOpen') : getClassName('menuClosed')}`}
+          >
             {options.map((option) => {
               const isSelected = value === option.value;
               return (
