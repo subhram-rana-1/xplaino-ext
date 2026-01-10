@@ -3,6 +3,7 @@
 
 import { TranslatableElement, extractTranslatableElements } from './pageContentExtractor';
 import { TranslateService, TranslateTextItem } from '@/api-services/TranslateService';
+import { COLORS, colorWithOpacity } from '@/constants/colors';
 
 /**
  * Manages page translation state, batching, and DOM manipulation
@@ -355,11 +356,11 @@ export class PageTranslationManager {
     translationDiv.className = 'xplaino-translation-appended';
     translationDiv.textContent = element.translatedText;
     translationDiv.style.cssText = `
-      color: rgba(149, 39, 245, 0.8);
+      color: ${colorWithOpacity(COLORS.PRIMARY, 0.8)};
       font-style: italic;
       margin-top: 4px;
       padding-left: 8px;
-      border-left: 2px solid rgba(149, 39, 245, 0.3);
+      border-left: 2px solid ${colorWithOpacity(COLORS.PRIMARY, 0.3)};
       font-size: inherit;
       line-height: inherit;
     `;

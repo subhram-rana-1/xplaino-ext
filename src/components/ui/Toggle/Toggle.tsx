@@ -1,6 +1,6 @@
 // src/components/ui/Toggle/Toggle.tsx
 import React from 'react';
-import { COLORS } from '@/constants/colors';
+import { COLORS, colorWithOpacity } from '@/constants/colors';
 import { TRANSITION } from '@/constants/styles';
 
 export interface ToggleProps {
@@ -61,7 +61,7 @@ export const Toggle: React.FC<ToggleProps> = ({
             height: '18px',
             borderRadius: '50%',
             backgroundColor: COLORS.WHITE,
-            boxShadow: '0 2px 4px rgba(0, 0, 0, 0.2)',
+            boxShadow: `0 2px 4px ${colorWithOpacity(COLORS.BLACK, 0.2)}`,
             transition: `left ${TRANSITION.FAST}`,
             display: 'flex',
             alignItems: 'center',

@@ -3,11 +3,12 @@
 
 .buttonGroup {
   /* CSS Variables */
-  --color-primary: #9527F5;
-  --color-primary-light: #BF7EFA;
-  --color-primary-medium: #8607f5;
-  --color-white: #FFFFFF;
-  --color-primary-hover-bg: rgba(149, 39, 245, 0.1);
+  --color-primary: var(--color-primary, #9527F5);
+  --color-primary-light: var(--color-primary-light, #BF7EFA);
+  --color-primary-medium: var(--color-primary-dark, #8607f5);
+  --color-white: var(--color-white, #FFFFFF);
+  --color-primary-hover-bg: var(--color-primary-opacity-10, rgba(149, 39, 245, 0.1));
+  --color-gray-600: var(--color-gray-600, #718096);
 
   display: flex;
   align-items: center;
@@ -54,8 +55,8 @@
   margin: 0;
   padding: 0;
   display: block;
-  color: #718096;
-  stroke: #718096;
+  color: var(--color-gray-600);
+  stroke: var(--color-gray-600);
   fill: none;
   pointer-events: none;
   transition: color 0.2s ease, stroke 0.2s ease;
@@ -77,7 +78,7 @@
 }
 
 .buttonLabel {
-  color: #718096;
+  color: var(--color-gray-600);
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   font-size: 14px;
   font-weight: 500;

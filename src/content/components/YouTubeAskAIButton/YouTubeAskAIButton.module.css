@@ -4,8 +4,8 @@
   align-items: center;
   gap: 6px;
   padding: 8px 12px;
-  background-color: #9527F5;
-  color: #FFFFFF;
+  background-color: var(--color-primary, #9527F5);
+  color: var(--color-white, #FFFFFF);
   border: none;
   border-radius: 9999px;
   cursor: pointer;
@@ -17,7 +17,7 @@
 }
 
 .button:hover:not(:disabled) {
-  box-shadow: 0 0 10px rgba(149, 39, 245, 0.5);
+  box-shadow: 0 0 10px var(--color-primary-opacity-50, rgba(149, 39, 245, 0.5));
 }
 
 .button:active:not(:disabled) {

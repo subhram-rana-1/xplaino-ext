@@ -22,6 +22,7 @@ import {
   hasContentAtom,
 } from '@/store/summaryAtoms';
 import { findMatchingElement } from '@/content/utils/referenceMatcher';
+import { COLORS } from '@/constants/colors';
 
 export interface SummaryViewProps {
   /** Whether to use Shadow DOM styling */
@@ -339,7 +340,7 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
         };
         console.log('[SummaryView] Original element styles:', originalStyles);
         
-        element.style.backgroundColor = 'rgba(144, 238, 144, 0.3)';
+        element.style.backgroundColor = COLORS.SUCCESS_OPACITY_30;
         element.style.borderRadius = '20px';
         element.style.transition = 'background-color 0.3s ease, border-radius 0.3s ease';
         // Don't add padding or negative margin to avoid layout shifts

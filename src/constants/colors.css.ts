@@ -50,6 +50,7 @@ export async function getAllColorVariables(theme?: 'light' | 'dark', useHost: bo
       --color-secondary-medium: ${COLORS.SECONDARY_MEDIUM} !important;
       --color-secondary-success: ${COLORS.SECONDARY_SUCCESS} !important;
       --color-secondary-success-dark: ${COLORS.SECONDARY_SUCCESS_DARK} !important;
+      --color-success-green: ${COLORS.SUCCESS_GREEN} !important;
       
       /* ============================================
          NEUTRAL COLORS
@@ -86,6 +87,7 @@ export async function getAllColorVariables(theme?: 'light' | 'dark', useHost: bo
       --color-success: ${COLORS.SUCCESS} !important;
       --color-success-light: ${COLORS.SUCCESS_LIGHT} !important;
       --color-success-medium: ${COLORS.SUCCESS_MEDIUM} !important;
+      --color-success-green: ${COLORS.SUCCESS_GREEN} !important;
       
       --color-error: ${COLORS.ERROR} !important;
       --color-error-light: ${COLORS.ERROR_LIGHT} !important;
@@ -180,9 +182,24 @@ export async function getAllColorVariables(theme?: 'light' | 'dark', useHost: bo
       --color-white-opacity-30: ${COLORS.WHITE_OPACITY_30} !important;
       
       /* ============================================
+         GRADIENT COLORS
+         ============================================ */
+      --color-gradient-pink: ${COLORS.GRADIENT_PINK} !important;
+      --color-gradient-yellow: ${COLORS.GRADIENT_YELLOW} !important;
+      
+      /* ============================================
+         GOOGLE COLORS
+         ============================================ */
+      --color-google-text: ${COLORS.GOOGLE_TEXT} !important;
+      --color-google-bg: ${COLORS.GOOGLE_BG} !important;
+      
+      /* ============================================
          SHADOW COLORS
          ============================================ */
+      --color-shadow-black-10: ${COLORS.SHADOW_BLACK_10} !important;
+      --color-shadow-black-15: ${COLORS.SHADOW_BLACK_15} !important;
       --color-shadow-black-20: ${COLORS.SHADOW_BLACK_20} !important;
+      --color-shadow-black-30: ${COLORS.SHADOW_BLACK_30} !important;
       
       /* ============================================
          THEME-AWARE SEMANTIC COLORS
@@ -233,6 +250,7 @@ function getAllColorVariablesSync(theme: 'light' | 'dark', useHost: boolean = tr
       --color-secondary-medium: ${COLORS.SECONDARY_MEDIUM} !important;
       --color-secondary-success: ${COLORS.SECONDARY_SUCCESS} !important;
       --color-secondary-success-dark: ${COLORS.SECONDARY_SUCCESS_DARK} !important;
+      --color-success-green: ${COLORS.SUCCESS_GREEN} !important;
       
       /* ============================================
          NEUTRAL COLORS
@@ -269,6 +287,7 @@ function getAllColorVariablesSync(theme: 'light' | 'dark', useHost: boolean = tr
       --color-success: ${COLORS.SUCCESS} !important;
       --color-success-light: ${COLORS.SUCCESS_LIGHT} !important;
       --color-success-medium: ${COLORS.SUCCESS_MEDIUM} !important;
+      --color-success-green: ${COLORS.SUCCESS_GREEN} !important;
       
       --color-error: ${COLORS.ERROR} !important;
       --color-error-light: ${COLORS.ERROR_LIGHT} !important;
@@ -363,9 +382,24 @@ function getAllColorVariablesSync(theme: 'light' | 'dark', useHost: boolean = tr
       --color-white-opacity-30: ${COLORS.WHITE_OPACITY_30} !important;
       
       /* ============================================
+         GRADIENT COLORS
+         ============================================ */
+      --color-gradient-pink: ${COLORS.GRADIENT_PINK} !important;
+      --color-gradient-yellow: ${COLORS.GRADIENT_YELLOW} !important;
+      
+      /* ============================================
+         GOOGLE COLORS
+         ============================================ */
+      --color-google-text: ${COLORS.GOOGLE_TEXT} !important;
+      --color-google-bg: ${COLORS.GOOGLE_BG} !important;
+      
+      /* ============================================
          SHADOW COLORS
          ============================================ */
+      --color-shadow-black-10: ${COLORS.SHADOW_BLACK_10} !important;
+      --color-shadow-black-15: ${COLORS.SHADOW_BLACK_15} !important;
       --color-shadow-black-20: ${COLORS.SHADOW_BLACK_20} !important;
+      --color-shadow-black-30: ${COLORS.SHADOW_BLACK_30} !important;
       
       /* ============================================
          THEME-AWARE SEMANTIC COLORS

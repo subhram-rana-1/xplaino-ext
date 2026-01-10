@@ -3,6 +3,8 @@
  * Utility functions for adding/removing dashed green underline to text selections
  */
 
+import { COLORS, colorWithOpacity } from '../../constants/colors';
+
 export interface UnderlineState {
   wrapperElement: HTMLElement;
   originalRange: Range;
@@ -31,10 +33,10 @@ export function addTextUnderline(range: Range, color: 'green' | 'purple' = 'gree
     // Set color based on parameter
     if (color === 'purple') {
       // Medium purple color: rgba(149, 39, 245, 0.6) -> rgba(149, 39, 245, 0.8)
-      wrapper.style.textDecorationColor = 'rgba(149, 39, 245, 0.6)';
+      wrapper.style.textDecorationColor = colorWithOpacity(COLORS.PRIMARY, 0.6);
     } else {
       // Green color for text explanations
-      wrapper.style.textDecorationColor = 'rgba(0, 200, 0, 0.6)';
+      wrapper.style.textDecorationColor = colorWithOpacity(COLORS.SUCCESS_GREEN, 0.6);
     }
     
     wrapper.style.textDecorationThickness = '2px';
@@ -56,9 +58,9 @@ export function addTextUnderline(range: Range, color: 'green' | 'purple' = 'gree
     // Animate the underline appearance
     requestAnimationFrame(() => {
       if (color === 'purple') {
-        wrapper.style.textDecorationColor = 'rgba(149, 39, 245, 0.8)';
+        wrapper.style.textDecorationColor = colorWithOpacity(COLORS.PRIMARY, 0.8);
       } else {
-        wrapper.style.textDecorationColor = 'rgba(0, 200, 0, 0.8)';
+        wrapper.style.textDecorationColor = colorWithOpacity(COLORS.SUCCESS_GREEN, 0.8);
       }
     });
     
@@ -114,6 +116,7 @@ export function findAllUnderlinedElements(): HTMLElement[] {
     if (
       style.textDecoration.includes('underline') &&
       style.textDecorationStyle === 'dashed' &&
+      span.style.textDecorationColor.includes(COLORS.SUCCESS_GREEN.replace('#', 'rgb(').slice(0, -1) + ')') ||
       span.style.textDecorationColor.includes('rgb(0, 200, 0)')
     ) {
       elements.push(span);
@@ -137,9 +140,9 @@ export function changeUnderlineColor(underlineState: UnderlineState | null, colo
   
   // Update the text decoration color
   if (color === 'purple') {
-    wrapper.style.textDecorationColor = 'rgba(149, 39, 245, 0.8)';
+    wrapper.style.textDecorationColor = colorWithOpacity(COLORS.PRIMARY, 0.8);
   } else {
-    wrapper.style.textDecorationColor = 'rgba(0, 200, 0, 0.8)';
+    wrapper.style.textDecorationColor = colorWithOpacity(COLORS.SUCCESS_GREEN, 0.8);
   }
 }
 
@@ -174,10 +177,10 @@ export function isRangeOverlappingUnderlinedText(range: Range): boolean {
       const textDecorationColor = inlineStyle.textDecorationColor || style.textDecorationColor;
       const isPurple = textDecorationColor.includes('149, 39, 245') || 
                        textDecorationColor.includes('9527F5') ||
-                       textDecorationColor.includes('rgb(149, 39, 245)');
+                       textDecorationColor.includes(COLORS.PRIMARY.replace('#', ''));
       const isGreen = textDecorationColor.includes('0, 200, 0') || 
                      textDecorationColor.includes('00C800') ||
-                     textDecorationColor.includes('rgb(0, 200, 0)');
+                     textDecorationColor.includes(COLORS.SUCCESS_GREEN.replace('#', ''));
       
       if (!isPurple && !isGreen) {
         continue;
@@ -270,7 +273,7 @@ export function pulseTextBackground(underlineState: UnderlineState | null): void
     }
     
     // Pulse to green with higher opacity for better visibility
-    wrapper.style.backgroundColor = 'rgba(0, 200, 0, 0.5)';
+    wrapper.style.backgroundColor = colorWithOpacity(COLORS.SUCCESS_GREEN, 0.5);
     
     setTimeout(() => {
       // Fade back to transparent

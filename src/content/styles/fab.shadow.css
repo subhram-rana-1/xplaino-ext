@@ -18,10 +18,19 @@
 /* Color variables will be injected via JavaScript from src/constants/colors.css.ts */
 /* These fallback values should match the constants but are overridden by injection */
 :host {
-  --color-primary: #9527F5 !important;
-  --color-primary-light: #BF7EFA !important;
-  --color-primary-dark: #8607f5 !important;
-  --color-white: #FFFFFF !important;
+  --color-primary: var(--color-primary, #9527F5) !important;
+  --color-primary-light: var(--color-primary-light, #BF7EFA) !important;
+  --color-primary-dark: var(--color-primary-dark, #8607f5) !important;
+  --color-primary-hover-dark: var(--color-primary-hover-dark, #7c1ed9) !important;
+  --color-primary-opacity-5: var(--color-primary-opacity-5, rgba(149, 39, 245, 0.05)) !important;
+  --color-primary-opacity-15: var(--color-primary-opacity-15, rgba(149, 39, 245, 0.15)) !important;
+  --color-primary-opacity-30: var(--color-primary-opacity-30, rgba(149, 39, 245, 0.3)) !important;
+  --color-primary-opacity-35: var(--color-primary-opacity-35, rgba(149, 39, 245, 0.35)) !important;
+  --color-primary-opacity-80: var(--color-primary-opacity-80, rgba(149, 39, 245, 0.8)) !important;
+  --color-white: var(--color-white, #FFFFFF) !important;
+  --color-error-alt: var(--color-error-alt, #ff4444) !important;
+  --color-error-opacity-10: var(--color-error-opacity-10, rgba(255, 68, 68, 0.1)) !important;
+  --color-shadow-black-20: var(--color-shadow-black-20, rgba(0, 0, 0, 0.2)) !important;
 }
 
 /* Parent container - positioned at top-right */
@@ -180,9 +189,9 @@
 }
 
 .actionButton.bookmarked:hover svg {
-  fill: #7c1ed9 !important;
-  color: #7c1ed9 !important;
-  stroke: #7c1ed9 !important;
+  fill: var(--color-primary-hover-dark) !important;
+  color: var(--color-primary-hover-dark) !important;
+  stroke: var(--color-primary-hover-dark) !important;
 }
 
 /* Staggered animation for action buttons */
@@ -289,7 +298,7 @@
   background: var(--color-white) !important;
   border-radius: 15px !important;
   padding: 4px !important;
-  box-shadow: 0 0 12px rgba(149, 39, 245, 0.35) !important;
+  box-shadow: 0 0 12px var(--color-primary-opacity-35) !important;
   /* Animation is handled by JavaScript useEmergeAnimation hook */
   z-index: 20 !important;
   width: fit-content !important;
@@ -353,11 +362,11 @@
 
 /* Appended translation styling (shown below original text) */
 .xplaino-translation-appended {
-  color: rgba(149, 39, 245, 0.8) !important;
+  color: var(--color-primary-opacity-80) !important;
   font-style: italic !important;
   margin-top: 4px !important;
   padding-left: 8px !important;
-  border-left: 2px solid rgba(149, 39, 245, 0.3) !important;
+  border-left: 2px solid var(--color-primary-opacity-30) !important;
   font-size: inherit !important;
   line-height: inherit !important;
   display: block !important;
@@ -380,7 +389,7 @@
   background: var(--color-white) !important;
   border-radius: 15px !important;
   padding: 12px !important;
-  box-shadow: 0 0 12px rgba(149, 39, 245, 0.35) !important;
+  box-shadow: 0 0 12px var(--color-primary-opacity-35) !important;
   min-width: 220px !important;
 }
 
@@ -393,7 +402,7 @@
   transform: translateY(-50%) !important;
   border: 8px solid transparent !important;
   border-left-color: var(--color-white) !important;
-  filter: drop-shadow(2px 0 2px rgba(149, 39, 245, 0.15)) !important;
+  filter: drop-shadow(2px 0 2px var(--color-primary-opacity-15)) !important;
 }
 
 .translationControlPopoverToggleContainer {
@@ -410,7 +419,7 @@
 }
 
 .translationControlPopoverToggleContainer:hover {
-  background-color: rgba(149, 39, 245, 0.05) !important;
+  background-color: var(--color-primary-opacity-5) !important;
 }
 
 .translationControlPopoverToggleLabel {
@@ -444,7 +453,7 @@
   top: 2px !important;
   left: 2px !important;
   transition: transform 0.3s !important;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2) !important;
+  box-shadow: 0 1px 3px var(--color-shadow-black-20) !important;
 }
 
 .translationControlPopoverToggleSwitch.active .translationControlPopoverToggleKnob {
@@ -459,14 +468,14 @@
   border-radius: 8px !important;
   cursor: pointer !important;
   transition: background-color 0.2s !important;
-  color: #ff4444 !important;
+  color: var(--color-error-alt) !important;
   font-size: 14px !important;
   font-weight: 500 !important;
   user-select: none !important;
 }
 
 .translationControlPopoverClearButton:hover {
-  background-color: rgba(255, 68, 68, 0.1) !important;
+  background-color: var(--color-error-opacity-10) !important;
 }
 
 .translationControlPopoverClearIcon {

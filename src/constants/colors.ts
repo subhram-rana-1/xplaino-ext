@@ -22,6 +22,7 @@ export const COLORS = {
   SECONDARY_MEDIUM: '#34D399', // Medium green
   SECONDARY_SUCCESS: '#4CAF50', // Success green
   SECONDARY_SUCCESS_DARK: '#45a049', // Dark success green
+  SUCCESS_GREEN: '#00C800',     // Success green for text underlines (rgb(0, 200, 0))
 
   // ============================================
   // NEUTRAL COLORS
@@ -150,9 +151,24 @@ export const COLORS = {
   WHITE_OPACITY_30: 'rgba(255, 255, 255, 0.3)',
 
   // ============================================
+  // GRADIENT COLORS
+  // ============================================
+  GRADIENT_PINK: '#FF6B9D',     // Pink gradient color
+  GRADIENT_YELLOW: '#FFC107',   // Yellow gradient color
+
+  // ============================================
+  // GOOGLE COLORS
+  // ============================================
+  GOOGLE_TEXT: '#3c4043',       // Google text color
+  GOOGLE_BG: '#f8f9fa',         // Google background color
+
+  // ============================================
   // SHADOW COLORS
   // ============================================
+  SHADOW_BLACK_10: 'rgba(0, 0, 0, 0.1)',
+  SHADOW_BLACK_15: 'rgba(0, 0, 0, 0.15)',
   SHADOW_BLACK_20: 'rgba(0, 0, 0, 0.2)',
+  SHADOW_BLACK_30: 'rgba(0, 0, 0, 0.3)',
 } as const;
 
 // Type for color keys
@@ -160,4 +176,59 @@ export type ColorKey = keyof typeof COLORS;
 
 // Type for color values
 export type ColorValue = (typeof COLORS)[ColorKey];
+
+/**
+ * Convert hex color to rgba with opacity
+ * @param hex - Hex color (e.g., '#9527F5' or '9527F5')
+ * @param opacity - Opacity value (0-1)
+ * @returns rgba string
+ */
+export function rgba(hex: string, opacity: number): string {
+  // Remove # if present
+  const cleanHex = hex.replace('#', '');
+  
+  // Parse hex to RGB
+  const r = parseInt(cleanHex.substring(0, 2), 16);
+  const g = parseInt(cleanHex.substring(2, 4), 16);
+  const b = cleanHex.length === 6 
+    ? parseInt(cleanHex.substring(4, 6), 16)
+    : parseInt(cleanHex.substring(2, 3) + cleanHex.substring(2, 3), 16);
+  
+  // Handle 3-digit hex colors
+  if (cleanHex.length === 3) {
+    const r3 = parseInt(cleanHex[0] + cleanHex[0], 16);
+    const g3 = parseInt(cleanHex[1] + cleanHex[1], 16);
+    const b3 = parseInt(cleanHex[2] + cleanHex[2], 16);
+    return `rgba(${r3}, ${g3}, ${b3}, ${opacity})`;
+  }
+  
+  return `rgba(${r}, ${g}, ${b}, ${opacity})`;
+}
+
+/**
+ * Generate rgba from color constant with opacity
+ * @param color - Color value from COLORS constant
+ * @param opacity - Opacity value (0-1)
+ * @returns rgba string
+ */
+export function colorWithOpacity(color: ColorValue, opacity: number): string {
+  // If color is already rgba, extract RGB values
+  if (color.startsWith('rgba(')) {
+    const match = color.match(/rgba\((\d+),\s*(\d+),\s*(\d+),/);
+    if (match) {
+      return `rgba(${match[1]}, ${match[2]}, ${match[3]}, ${opacity})`;
+    }
+  }
+  
+  // If color is rgb, convert to rgba
+  if (color.startsWith('rgb(')) {
+    const match = color.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
+    if (match) {
+      return `rgba(${match[1]}, ${match[2]}, ${match[3]}, ${opacity})`;
+    }
+  }
+  
+  // Otherwise treat as hex
+  return rgba(color, opacity);
+}
 
