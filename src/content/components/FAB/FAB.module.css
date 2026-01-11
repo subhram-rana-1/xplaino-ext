@@ -60,18 +60,19 @@
 
 /* Main FAB button */
 .fabButton {
-  width: 45px !important;
-  height: 45px !important;
-  border-radius: 22.5px 0 0 22.5px !important;
-  background: var(--color-primary-very-light) !important;
-  border: none !important;
+  width: 24px !important;
+  height: 24px !important;
+  border-radius: 12px 0 0 12px !important;
+  background: var(--color-white, #FFFFFF) !important;
+  border: 1px solid var(--color-primary-opacity-25) !important;
+  border-right: none !important;
   cursor: pointer !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
-  box-shadow: none !important;
-  transition: width var(--fab-transition), height var(--fab-transition) !important;
-  padding: 0 !important;
+  box-shadow: 0 2px 8px rgba(20, 184, 166, 0.4) !important;
+  transition: transform 0.15s ease, box-shadow 0.15s ease !important;
+  padding: 4px !important;
   outline: none !important;
   position: relative !important;
   overflow: hidden !important;
@@ -79,41 +80,29 @@
 
 .fabButton:hover,
 .fabButton.actionsVisible {
-  background: var(--color-primary-very-light) !important;
+  background: var(--color-white, #FFFFFF) !important;
   box-shadow: none !important;
-  transform: none !important;
-  width: 57px !important;
-  border-radius: 28.5px 0 0 28.5px !important;
-  justify-content: center !important;
-  padding-left: 0px !important;
-}
-
-.fabButton:hover img,
-.fabButton.actionsVisible img,
-.fabButton:hover svg,
-.fabButton.actionsVisible svg {
-  transform: none !important;
+  transform: translateX(25px) !important;
 }
 
 .fabButton:active {
-  transform: scale(0.98) !important;
+  transform: translateX(25px) scale(0.98) !important;
 }
 
 .fabButton img,
 .fabButton svg {
-  width: 42px !important;
-  height: 42px !important;
+  width: 14px !important;
+  height: 14px !important;
   object-fit: contain !important;
   display: block !important;
   pointer-events: none !important;
   flex-shrink: 0 !important;
-  transition: transform var(--fab-transition) !important;
 }
 
 /* Actions container - positioned absolutely to the left of FAB */
 .actionsContainer {
   position: absolute !important;
-  right: calc(100% + 12px) !important;
+  right: calc(100% - 12px) !important;
   top: 50% !important;
   transform: translateY(-50%) translateX(20px) !important;
   display: flex !important;
@@ -228,18 +217,18 @@
 
 /* Staggered animation for action buttons */
 .actionsContainer.visible .actionButton:nth-child(1) {
-  animation: slideIn 0.3s ease forwards !important;
+  animation: slideIn 0.15s ease forwards !important;
   animation-delay: 0s !important;
 }
 
 .actionsContainer.visible .actionButton:nth-child(2) {
-  animation: slideIn 0.3s ease forwards !important;
-  animation-delay: 0.05s !important;
+  animation: slideIn 0.15s ease forwards !important;
+  animation-delay: 0.025s !important;
 }
 
 .actionsContainer.visible .actionButton:nth-child(3) {
-  animation: slideIn 0.3s ease forwards !important;
-  animation-delay: 0.1s !important;
+  animation: slideIn 0.15s ease forwards !important;
+  animation-delay: 0.05s !important;
 }
 
 /* Override button animations when loading */

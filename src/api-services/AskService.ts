@@ -133,56 +133,74 @@ export class AskService {
             const decoder = new TextDecoder();
             let buffer = '';
 
-            while (true) {
-              const { done, value } = await reader.read();
-              
-              if (done) {
-                break;
-              }
+            try {
+              while (true) {
+                // Check if aborted before reading
+                if (abortController?.signal.aborted) {
+                  console.log('[AskService] Abort detected in retry, cancelling reader');
+                  await reader.cancel();
+                  return;
+                }
 
-              buffer += decoder.decode(value, { stream: true });
-              
-              // Process complete SSE events
-              const lines = buffer.split('\n');
-              buffer = lines.pop() || ''; // Keep incomplete line in buffer
+                const { done, value } = await reader.read();
+                
+                if (done) {
+                  break;
+                }
 
-              for (const line of lines) {
-                if (line.startsWith('data: ')) {
-                  const data = line.slice(6).trim();
-                  
-                  // Check for done signal
-                  if (data === '[DONE]') {
-                    continue;
-                  }
+                // Check if aborted after reading
+                if (abortController?.signal.aborted) {
+                  console.log('[AskService] Abort detected after retry read, cancelling reader');
+                  await reader.cancel();
+                  return;
+                }
 
-                  try {
-                    const event = JSON.parse(data) as AskEvent;
+                buffer += decoder.decode(value, { stream: true });
+                
+                // Process complete SSE events
+                const lines = buffer.split('\n');
+                buffer = lines.pop() || ''; // Keep incomplete line in buffer
+
+                for (const line of lines) {
+                  if (line.startsWith('data: ')) {
+                    const data = line.slice(6).trim();
                     
-                    // Handle different event types
-                    if ('type' in event) {
-                      if (event.type === 'complete') {
-                        // Convert chat_history to proper format
-                        const chatHistory: ChatMessage[] = event.chat_history.map(msg => ({
-                          role: msg.role as 'user' | 'assistant',
-                          content: msg.content,
-                        }));
-                        callbacks.onComplete(chatHistory, event.possibleQuestions);
-                      } else if (event.type === 'error') {
-                        if (ApiResponseHandler.checkLoginRequired({ error_code: event.error_code }, 401)) {
-                          ApiResponseHandler.handleLoginRequired(callbacks.onLoginRequired, 'AskService');
-                        } else {
-                          callbacks.onError(event.error_code, event.error_message);
-                        }
-                      }
-                    } else if ('chunk' in event) {
-                      // Chunk event
-                      callbacks.onChunk(event.chunk, event.accumulated);
+                    // Check for done signal
+                    if (data === '[DONE]') {
+                      continue;
                     }
-                  } catch (parseError) {
-                    console.error('[AskService] Failed to parse SSE event:', data, parseError);
+
+                    try {
+                      const event = JSON.parse(data) as AskEvent;
+                      
+                      // Handle different event types
+                      if ('type' in event) {
+                        if (event.type === 'complete') {
+                          // Convert chat_history to proper format
+                          const chatHistory: ChatMessage[] = event.chat_history.map(msg => ({
+                            role: msg.role as 'user' | 'assistant',
+                            content: msg.content,
+                          }));
+                          callbacks.onComplete(chatHistory, event.possibleQuestions);
+                        } else if (event.type === 'error') {
+                          if (ApiResponseHandler.checkLoginRequired({ error_code: event.error_code }, 401)) {
+                            ApiResponseHandler.handleLoginRequired(callbacks.onLoginRequired, 'AskService');
+                          } else {
+                            callbacks.onError(event.error_code, event.error_message);
+                          }
+                        }
+                      } else if ('chunk' in event) {
+                        // Chunk event
+                        callbacks.onChunk(event.chunk, event.accumulated);
+                      }
+                    } catch (parseError) {
+                      console.error('[AskService] Failed to parse SSE event:', data, parseError);
+                    }
                   }
                 }
               }
+            } finally {
+              reader.releaseLock();
             }
             return; // Successfully processed retry response
           } catch (refreshError) {
@@ -233,59 +251,78 @@ export class AskService {
       const decoder = new TextDecoder();
       let buffer = '';
 
-      while (true) {
-        const { done, value } = await reader.read();
-        
-        if (done) {
-          break;
-        }
+      try {
+        while (true) {
+          // Check if aborted before reading
+          if (abortController?.signal.aborted) {
+            console.log('[AskService] Abort detected, cancelling reader');
+            await reader.cancel();
+            return;
+          }
 
-        buffer += decoder.decode(value, { stream: true });
-        
-        // Process complete SSE events
-        const lines = buffer.split('\n');
-        buffer = lines.pop() || ''; // Keep incomplete line in buffer
+          const { done, value } = await reader.read();
+          
+          if (done) {
+            break;
+          }
 
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            const data = line.slice(6).trim();
-            
-            // Check for done signal
-            if (data === '[DONE]') {
-              continue;
-            }
+          // Check if aborted after reading
+          if (abortController?.signal.aborted) {
+            console.log('[AskService] Abort detected after read, cancelling reader');
+            await reader.cancel();
+            return;
+          }
 
-            try {
-              const event = JSON.parse(data) as AskEvent;
+          buffer += decoder.decode(value, { stream: true });
+          
+          // Process complete SSE events
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || ''; // Keep incomplete line in buffer
+
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              const data = line.slice(6).trim();
               
-              // Handle different event types
-              if ('type' in event) {
-                if (event.type === 'complete') {
-                  // Convert chat_history to proper format
-                  const chatHistory: ChatMessage[] = event.chat_history.map(msg => ({
-                    role: msg.role as 'user' | 'assistant',
-                    content: msg.content,
-                  }));
-                  callbacks.onComplete(chatHistory, event.possibleQuestions);
-                } else if (event.type === 'error') {
-                  const errorData = { error_code: event.error_code };
-                  if (ApiResponseHandler.checkLoginRequired(errorData, 0)) {
-                    ApiResponseHandler.handleLoginRequired(callbacks.onLoginRequired, 'AskService');
-                  } else if (ApiResponseHandler.checkSubscriptionRequired(errorData, 0)) {
-                    ApiResponseHandler.handleSubscriptionRequired(callbacks.onSubscriptionRequired, 'AskService');
-                  } else {
-                    callbacks.onError(event.error_code, event.error_message);
-                  }
-                }
-              } else if ('chunk' in event) {
-                // Chunk event
-                callbacks.onChunk(event.chunk, event.accumulated);
+              // Check for done signal
+              if (data === '[DONE]') {
+                continue;
               }
-            } catch (parseError) {
-              console.error('[AskService] Failed to parse SSE event:', data, parseError);
+
+              try {
+                const event = JSON.parse(data) as AskEvent;
+                
+                // Handle different event types
+                if ('type' in event) {
+                  if (event.type === 'complete') {
+                    // Convert chat_history to proper format
+                    const chatHistory: ChatMessage[] = event.chat_history.map(msg => ({
+                      role: msg.role as 'user' | 'assistant',
+                      content: msg.content,
+                    }));
+                    callbacks.onComplete(chatHistory, event.possibleQuestions);
+                  } else if (event.type === 'error') {
+                    const errorData = { error_code: event.error_code };
+                    if (ApiResponseHandler.checkLoginRequired(errorData, 0)) {
+                      ApiResponseHandler.handleLoginRequired(callbacks.onLoginRequired, 'AskService');
+                    } else if (ApiResponseHandler.checkSubscriptionRequired(errorData, 0)) {
+                      ApiResponseHandler.handleSubscriptionRequired(callbacks.onSubscriptionRequired, 'AskService');
+                    } else {
+                      callbacks.onError(event.error_code, event.error_message);
+                    }
+                  }
+                } else if ('chunk' in event) {
+                  // Chunk event
+                  callbacks.onChunk(event.chunk, event.accumulated);
+                }
+              } catch (parseError) {
+                console.error('[AskService] Failed to parse SSE event:', data, parseError);
+              }
             }
           }
         }
+      } finally {
+        // Ensure reader is released
+        reader.releaseLock();
       }
     } catch (error) {
       if (error instanceof Error) {

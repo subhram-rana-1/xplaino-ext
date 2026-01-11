@@ -22,11 +22,21 @@ export interface TextExplanationIconProps {
 }
 
 /**
- * Get the icon URL for the green xplaino icon
+ * Teal Book Open icon (Lucide) for successful explanation
  */
-function getGreenIconUrl(): string {
-  return chrome.runtime.getURL('src/assets/icons/xplaino-green-icon.ico');
-}
+const TealBookIcon: React.FC<{ className?: string }> = ({ className }) => (
+  <svg
+    className={className}
+    width="18"
+    height="18"
+    viewBox="0 0 24 24"
+    fill="#14B8A6"
+    stroke="none"
+  >
+    <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
+    <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
+  </svg>
+);
 
 /**
  * Find all scrollable parent elements
@@ -240,11 +250,7 @@ export const TextExplanationIcon: React.FC<TextExplanationIconProps> = ({
           className={getClassName('loadingSpinner')}
         />
       ) : (
-        <img
-          src={getGreenIconUrl()}
-          alt="Xplaino"
-          className={getClassName('iconImage')}
-        />
+        <TealBookIcon className={getClassName('iconImage')} />
       )}
     </button>
   );

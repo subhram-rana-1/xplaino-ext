@@ -1,60 +1,63 @@
 /* src/content/components/ImageExplanationIcon/ImageExplanationIcon.module.css */
 
 .imageExplanationIcon {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
+  width: 22px;
+  height: 22px;
+  border-radius: 10px;
   background: var(--color-white, #FFFFFF);
   border: none;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 2px 8px rgba(149, 39, 245, 0.3);
-  transition: box-shadow 0.2s ease, transform 0.2s ease, border 0.2s ease;
-  padding: 2px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  padding: 0;
   margin: 0;
-  border: 2px solid transparent;
+  animation: imageIconEmerge 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
 }
 
 .imageExplanationIcon:hover {
-  box-shadow: 0 4px 12px rgba(149, 39, 245, 0.5);
-  transform: scale(1.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
 }
 
 .imageExplanationIcon.panelOpen {
-  border: 3px solid rgba(149, 39, 245, 0.8);
+  border: 2px solid rgba(149, 39, 245, 0.8);
 }
 
 .imageExplanationIcon.greenIcon {
-  box-shadow: 0 2px 8px rgba(0, 200, 0, 0.3);
+  box-shadow: 0 2px 8px rgba(20, 184, 166, 0.3);
 }
 
 .imageExplanationIcon.greenIcon:hover {
-  box-shadow: 0 4px 12px rgba(0, 200, 0, 0.5);
+  box-shadow: 0 4px 12px rgba(20, 184, 166, 0.5);
 }
 
 .imageExplanationIcon.greenIcon.panelOpen {
-  border: 3px solid rgba(0, 200, 0, 0.8);
+  border: 2px solid rgba(20, 184, 166, 0.8);
 }
 
 .imageExplanationIcon:active {
   transform: scale(0.95);
 }
 
+/* Hiding state for disappear animation */
+.imageExplanationIcon.hiding {
+  animation: imageIconShrink 0.25s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
 .iconImage {
-  width: 24px;
-  height: 24px;
+  width: 18px;
+  height: 18px;
   object-fit: contain;
   display: block;
 }
 
 .loadingSpinner {
   display: block;
-  width: 18px;
-  height: 18px;
-  min-width: 18px;
-  min-height: 18px;
+  width: 12px;
+  height: 12px;
+  min-width: 12px;
+  min-height: 12px;
   border: 2px solid rgba(149, 39, 245, 0.2);
   border-top-color: #9527F5;
   border-radius: 50%;
@@ -70,6 +73,30 @@
   }
   to {
     transform: rotate(360deg);
+  }
+}
+
+/* Icon appear animation */
+@keyframes imageIconEmerge {
+  0% {
+    opacity: 0;
+    transform: scale(0);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Icon disappear animation */
+@keyframes imageIconShrink {
+  0% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0);
   }
 }
 

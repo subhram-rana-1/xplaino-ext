@@ -22,6 +22,7 @@ export interface ImageExplanationState {
   chatMessages: Array<{ role: 'user' | 'assistant'; content: string }>;
   messageQuestions: Record<number, string[]>;
   savedImageId: string | null; // ID of saved image if bookmarked
+  isHiding?: boolean; // Whether icon is in hiding animation
 }
 
 // ============================================

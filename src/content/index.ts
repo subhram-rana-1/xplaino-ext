@@ -5773,6 +5773,7 @@ function updateImageExplanationIconContainer(): void {
     firstChunkReceived: explanation.firstChunkReceived,
       isBookmarked: !!explanation.savedImageId,
       onBookmarkClick: explanation.savedImageId ? handleBookmarkClick : undefined,
+      isHiding: explanation.isHiding || false,
     };
   });
   
@@ -5811,6 +5812,7 @@ function updateImageExplanationIconContainer(): void {
             firstChunkReceived: icon.firstChunkReceived,
             isBookmarked: icon.isBookmarked,
             onBookmarkClick: icon.onBookmarkClick,
+            isHiding: icon.isHiding,
           })
         )
       )
@@ -5914,8 +5916,8 @@ function handleImageHover(imageElement: HTMLImageElement): void {
   explanations.set(explanationId, newExplanation);
   store.set(imageExplanationsAtom, explanations);
   
-  // Update icon container
-  updateImageExplanationIconContainer();
+  // Inject icon container (will update if already exists, or create if removed)
+  injectImageExplanationIconContainer();
 }
 
 /**
@@ -5972,16 +5974,28 @@ function handleImageHoverLeave(imageElement: HTMLImageElement): void {
       return; // Don't hide if explanation is processing
     }
     
-    hoveredImages.delete(imageElement);
-    imageHideTimeouts.delete(imageElement);
+    // Start hiding animation
+    const animatingExplanations = new Map(currentExplanations);
+    const animatingExplanation = animatingExplanations.get(explanation.id);
+    if (animatingExplanation) {
+      animatingExplanations.set(explanation.id, { ...animatingExplanation, isHiding: true });
+      store.set(imageExplanationsAtom, animatingExplanations);
+      updateImageExplanationIconContainer();
+    }
     
-    // Remove from explanations
-    const newExplanations = new Map(currentExplanations);
-    newExplanations.delete(explanation.id);
-    store.set(imageExplanationsAtom, newExplanations);
-    
-    updateImageExplanationIconContainer();
-  }, 500); // 500ms delay
+    // After animation completes (250ms), actually remove the explanation
+    setTimeout(() => {
+      hoveredImages.delete(imageElement);
+      imageHideTimeouts.delete(imageElement);
+      
+      // Remove from explanations
+      const finalExplanations = new Map(store.get(imageExplanationsAtom));
+      finalExplanations.delete(explanation.id);
+      store.set(imageExplanationsAtom, finalExplanations);
+      
+      updateImageExplanationIconContainer();
+    }, 250); // Animation duration
+  }, 500); // 500ms delay before starting hide
   
   imageHideTimeouts.set(imageElement, timeoutId);
 }
@@ -6041,14 +6055,26 @@ function handleIconMouseLeave(explanationId: string): void {
       return; // Don't hide if explanation is processing
     }
     
-    hoveredImages.delete(explanation.imageElement);
-    imageHideTimeouts.delete(explanation.imageElement);
+    // Start hiding animation
+    const animatingExplanations = new Map(currentExplanations);
+    const animatingExplanation = animatingExplanations.get(explanationId);
+    if (animatingExplanation) {
+      animatingExplanations.set(explanationId, { ...animatingExplanation, isHiding: true });
+      store.set(imageExplanationsAtom, animatingExplanations);
+      updateImageExplanationIconContainer();
+    }
     
-    const newExplanations = new Map(currentExplanations);
-    newExplanations.delete(explanationId);
-    store.set(imageExplanationsAtom, newExplanations);
-    
-    updateImageExplanationIconContainer();
+    // After animation completes (250ms), actually remove the explanation
+    setTimeout(() => {
+      hoveredImages.delete(explanation.imageElement);
+      imageHideTimeouts.delete(explanation.imageElement);
+      
+      const finalExplanations = new Map(store.get(imageExplanationsAtom));
+      finalExplanations.delete(explanationId);
+      store.set(imageExplanationsAtom, finalExplanations);
+      
+      updateImageExplanationIconContainer();
+    }, 250); // Animation duration
   }, 500);
   
   imageHideTimeouts.set(explanation.imageElement, timeoutId);
@@ -6900,6 +6926,8 @@ function updateImageExplanationPanel(): void {
           onBookmark: handleImageBookmarkCallback,
           isBookmarked: !!activeExplanation.savedImageId,
           hideFooter: true,
+          showUpgradeFooter: true,
+          hideHighlightedCoupon: true,
           firstChunkReceived,
           onCloseHandlerReady: () => {
             // Handler registered for animated close if needed
@@ -6940,6 +6968,8 @@ function injectImageExplanationPanel(): void {
   // Inject highlighted coupon styles
   injectStyles(shadow, highlightedCouponStyles);
   injectStyles(shadow, minimalCouponButtonStyles);
+  // Inject side panel styles for footer (coupon and upgrade buttons)
+  injectStyles(shadow, sidePanelStyles);
   
   document.body.appendChild(host);
   console.log('[Content Script] Image explanation panel host appended to body');

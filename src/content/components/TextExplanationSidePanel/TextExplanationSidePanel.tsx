@@ -7,6 +7,7 @@ import { TextExplanationHeader } from './TextExplanationHeader';
 import { TextExplanationFooter } from './TextExplanationFooter';
 import { TextExplanationView } from './TextExplanationView';
 import { HighlightedCoupon } from '../HighlightedCoupon';
+import { Footer } from '../SidePanel/Footer';
 import { ChromeStorage } from '@/storage/chrome-local/ChromeStorage';
 import { showLoginModalAtom } from '@/store/uiAtoms';
 import { useEmergeAnimation } from '@/hooks/useEmergeAnimation';
@@ -76,6 +77,10 @@ export interface TextExplanationSidePanelProps {
   isBookmarked?: boolean;
   /** Whether to hide the footer (used for image explanations) */
   hideFooter?: boolean;
+  /** Whether to show the upgrade footer with coupon and upgrade buttons (used for image explanations) */
+  showUpgradeFooter?: boolean;
+  /** Whether to hide the highlighted coupon in the header area */
+  hideHighlightedCoupon?: boolean;
 }
 
 const MIN_WIDTH = 300;
@@ -115,6 +120,8 @@ export const TextExplanationSidePanel: React.FC<TextExplanationSidePanelProps> =
   onCloseHandlerReady,
   isBookmarked = false,
   hideFooter = false,
+  showUpgradeFooter = false,
+  hideHighlightedCoupon = false,
 }) => {
   const [width, setWidth] = useState(DEFAULT_WIDTH);
   const [isVerticallyExpanded, setIsVerticallyExpanded] = useState(false);
@@ -407,8 +414,8 @@ export const TextExplanationSidePanel: React.FC<TextExplanationSidePanelProps> =
         showDeleteIcon={showDeleteIcon}
       />
 
-      {/* Highlighted Coupon */}
-      <HighlightedCoupon useShadowDom={useShadowDom} />
+      {/* Highlighted Coupon (hidden for image explanations) */}
+      {!hideHighlightedCoupon && <HighlightedCoupon useShadowDom={useShadowDom} />}
 
       {/* Content */}
       <div className={contentClass}>
@@ -443,6 +450,11 @@ export const TextExplanationSidePanel: React.FC<TextExplanationSidePanelProps> =
           activeView={viewMode}
           onViewChange={onViewModeChange}
         />
+      )}
+
+      {/* Upgrade Footer with coupon and upgrade buttons (shown for image explanations) */}
+      {showUpgradeFooter && (
+        <Footer useShadowDom={useShadowDom} />
       )}
     </div>
   );

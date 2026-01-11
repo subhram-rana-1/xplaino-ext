@@ -28,6 +28,8 @@ export interface ImageExplanationIconProps {
   isBookmarked?: boolean;
   /** Click handler for bookmark icon */
   onBookmarkClick?: () => void;
+  /** Whether the icon is hiding (for disappear animation) */
+  isHiding?: boolean;
 }
 
 /**
@@ -38,11 +40,21 @@ function getPurpleIconUrl(): string {
 }
 
 /**
- * Get the icon URL for the green xplaino icon
+ * Teal Book Open icon (Lucide) for successful explanation
  */
-function getGreenIconUrl(): string {
-  return chrome.runtime.getURL('src/assets/icons/xplaino-green-icon.ico');
-}
+const TealBookIcon: React.FC<{ className?: string }> = ({ className }) => (
+  <svg
+    className={className}
+    width="18"
+    height="18"
+    viewBox="0 0 24 24"
+    fill="#14B8A6"
+    stroke="none"
+  >
+    <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
+    <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
+  </svg>
+);
 
 /**
  * Find all scrollable parent elements
@@ -80,6 +92,7 @@ export const ImageExplanationIcon: React.FC<ImageExplanationIconProps> = ({
   firstChunkReceived = false,
   isBookmarked = false,
   onBookmarkClick,
+  isHiding = false,
 }) => {
   const iconElementRef = useRef<HTMLButtonElement | null>(null);
   const bookmarkElementRef = useRef<HTMLButtonElement | null>(null);
@@ -222,7 +235,7 @@ export const ImageExplanationIcon: React.FC<ImageExplanationIconProps> = ({
     zIndex: 2147483647,
   };
 
-  const buttonClassName = `${getClassName('imageExplanationIcon')} ${isPanelOpen ? getClassName('panelOpen') : ''} ${firstChunkReceived ? getClassName('greenIcon') : ''}`;
+  const buttonClassName = `${getClassName('imageExplanationIcon')} ${isPanelOpen ? getClassName('panelOpen') : ''} ${firstChunkReceived ? getClassName('greenIcon') : ''} ${isHiding ? getClassName('hiding') : ''}`;
 
   // Bookmark icon position (below the main icon) - will be updated dynamically
   const bookmarkStyle: React.CSSProperties = {
@@ -266,9 +279,11 @@ export const ImageExplanationIcon: React.FC<ImageExplanationIconProps> = ({
           <span 
             className={getClassName('loadingSpinner')}
           />
+        ) : firstChunkReceived ? (
+          <TealBookIcon className={getClassName('iconImage')} />
         ) : (
           <img
-            src={firstChunkReceived ? getGreenIconUrl() : getPurpleIconUrl()}
+            src={getPurpleIconUrl()}
             alt="Xplaino"
             className={getClassName('iconImage')}
           />

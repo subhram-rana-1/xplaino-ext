@@ -1,29 +1,28 @@
 /* src/content/components/TextExplanationIcon/TextExplanationIcon.module.css */
 
 .textExplanationIcon {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
+  width: 22px;
+  height: 22px;
+  border-radius: 10px;
   background: var(--color-white, #FFFFFF);
   border: none;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 2px 8px rgba(0, 200, 0, 0.3);
-  transition: box-shadow 0.2s ease, transform 0.2s ease, border 0.2s ease;
-  padding: 2px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+  padding: 0;
   margin: 0;
-  border: 2px solid transparent;
 }
 
 .textExplanationIcon:hover {
-  box-shadow: 0 4px 12px rgba(0, 200, 0, 0.5);
+  box-shadow: 0 4px 12px rgba(20, 184, 166, 0.5);
   transform: scale(1.1);
 }
 
 .textExplanationIcon.panelOpen {
-  border: 3px solid rgba(0, 200, 0, 0.8);
+  box-shadow: 0 4px 12px rgba(20, 184, 166, 0.8);
 }
 
 .textExplanationIcon:active {
@@ -31,8 +30,8 @@
 }
 
 .iconImage {
-  width: 24px;
-  height: 24px;
+  width: 18px;
+  height: 18px;
   object-fit: contain;
   display: block;
 }
