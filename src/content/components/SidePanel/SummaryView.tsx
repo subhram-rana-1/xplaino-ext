@@ -40,6 +40,7 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
 }) => {
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const [inputValue, setInputValue] = useState('');
+  const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
   
   // Jotai atoms for persistent state
   const [pageReadingState, setPageReadingState] = useAtom(pageReadingStateAtom);
@@ -177,12 +178,65 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
     initPageContent();
   }, [pageReadingState, setPageReadingState, setErrorMessage]);
 
-  // Auto-scroll to bottom when content changes
+  // Scroll detection logic
+  const SCROLL_THRESHOLD = 5; // pixels from bottom to consider "at bottom"
+  
+  const checkIfAtBottom = useCallback((element: HTMLDivElement): boolean => {
+    const { scrollTop, scrollHeight, clientHeight } = element;
+    return scrollTop >= scrollHeight - clientHeight - SCROLL_THRESHOLD;
+  }, []);
+
+  // Handle scroll events to detect user scrolling
   useEffect(() => {
-    if (chatContainerRef.current) {
+    const container = chatContainerRef.current;
+    if (!container) return;
+
+    const handleScroll = () => {
+      if (checkIfAtBottom(container)) {
+        // User scrolled to bottom - re-enable auto-scroll
+        setShouldAutoScroll(true);
+      } else {
+        // User scrolled up - disable auto-scroll
+        setShouldAutoScroll(false);
+      }
+    };
+
+    container.addEventListener('scroll', handleScroll, { passive: true });
+    
+    return () => {
+      container.removeEventListener('scroll', handleScroll);
+    };
+  }, [checkIfAtBottom]);
+
+  // Auto-scroll to bottom when content changes (only if shouldAutoScroll is true)
+  useEffect(() => {
+    if (chatContainerRef.current && shouldAutoScroll) {
       chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
     }
-  }, [summary, streamingText, askStreamingText, chatMessages]);
+  }, [summary, streamingText, askStreamingText, chatMessages, shouldAutoScroll]);
+
+  // Helper function to smoothly remove highlight
+  const clearHighlightSmoothly = useCallback((element: HTMLElement) => {
+    // Ensure transition is set for smooth fade out
+    element.style.transition = 'background-color 0.3s ease, border-radius 0.3s ease, padding 0.3s ease';
+    
+    // Fade out background color smoothly to transparent
+    element.style.backgroundColor = 'transparent';
+    element.style.borderRadius = '';
+    element.style.paddingLeft = '';
+    element.style.paddingRight = '';
+    
+    // After transition completes, clear all styles
+    setTimeout(() => {
+      if (element && element.style) {
+        element.style.backgroundColor = '';
+        element.style.borderRadius = '';
+        element.style.paddingLeft = '';
+        element.style.paddingRight = '';
+        element.style.transition = '';
+      }
+    }, 300); // Match transition duration (0.3s = 300ms)
+  }, []);
 
   // Handle reference link click - scroll and highlight
   const handleReferenceClick = useCallback((refText: string) => {
@@ -204,10 +258,9 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
     // Check if clicking the same ref (toggle off)
     if (activeRefText === refText && highlightedElementRef.current) {
       console.log('[SummaryView] Toggling off - same ref clicked');
-      // Clear highlight
-      highlightedElementRef.current.style.backgroundColor = '';
-      highlightedElementRef.current.style.borderRadius = '';
-      highlightedElementRef.current.style.transition = '';
+      // Clear highlight smoothly
+      const elementToClear = highlightedElementRef.current;
+      clearHighlightSmoothly(elementToClear);
       highlightedElementRef.current = undefined;
       setActiveRefText(null);
       if (highlightTimeoutRef.current) {
@@ -221,9 +274,8 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
     // Clear previous highlight (different ref clicked)
     if (highlightedElementRef.current) {
       console.log('[SummaryView] Step 1: Clearing previous highlight on element:', highlightedElementRef.current.tagName);
-      highlightedElementRef.current.style.backgroundColor = '';
-      highlightedElementRef.current.style.borderRadius = '';
-      highlightedElementRef.current.style.transition = '';
+      const elementToClear = highlightedElementRef.current;
+      clearHighlightSmoothly(elementToClear);
       highlightedElementRef.current = undefined;
     } else {
       console.log('[SummaryView] Step 1: No previous highlight to clear');
@@ -350,13 +402,16 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
         const originalStyles = {
           backgroundColor: element.style.backgroundColor,
           borderRadius: element.style.borderRadius,
+          paddingLeft: element.style.paddingLeft,
+          paddingRight: element.style.paddingRight,
         };
         console.log('[SummaryView] Original element styles:', originalStyles);
         
-        element.style.backgroundColor = COLORS.PRIMARY_OPACITY_30;
+        element.style.backgroundColor = COLORS.PRIMARY_OPACITY_15;
         element.style.borderRadius = '5px';
-        element.style.transition = 'background-color 0.3s ease, border-radius 0.3s ease';
-        // Don't add padding or negative margin to avoid layout shifts
+        element.style.paddingLeft = '4px';
+        element.style.paddingRight = '4px';
+        element.style.transition = 'background-color 0.3s ease, border-radius 0.3s ease, padding 0.3s ease';
         
         console.log('[SummaryView] Step 6: Highlight styles applied');
         console.log('[SummaryView] Element computed styles after highlight:', {
@@ -384,7 +439,7 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
       console.error('[SummaryView] ===== END ERROR =====');
     }
     console.log('========================================');
-  }, [activeRefText]);
+  }, [activeRefText, clearHighlightSmoothly]);
 
   // Parse summary text and replace reference links with numbered buttons
   // Also stores reference mappings for later use
@@ -713,11 +768,10 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
     setErrorMessage('');
     // Clear reference mappings
     referenceMappingsRef.current.clear();
-    // Clear active ref and highlight
+    // Clear active ref and highlight smoothly
     if (highlightedElementRef.current) {
-      highlightedElementRef.current.style.backgroundColor = '';
-      highlightedElementRef.current.style.borderRadius = '';
-      highlightedElementRef.current.style.transition = '';
+      const elementToClear = highlightedElementRef.current;
+      clearHighlightSmoothly(elementToClear);
       highlightedElementRef.current = undefined;
     }
     setActiveRefText(null);

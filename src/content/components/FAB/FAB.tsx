@@ -19,7 +19,7 @@ export interface FABProps {
   onClearTranslations?: () => void;
   /** Callback when Options is clicked */
   onOptions?: () => void;
-  /** Callback when Save URL is clicked */
+  /** Callback when Save page link is clicked */
   onSaveUrl?: () => void;
   /** Whether component is rendered in Shadow DOM (uses plain class names) */
   useShadowDom?: boolean;
@@ -200,7 +200,7 @@ export const FAB: React.FC<FABProps> = ({
   }, [onOptions]);
 
   const handleSaveUrl = useCallback(() => {
-    console.log('[FAB] Save URL clicked');
+    console.log('[FAB] Save page link clicked');
     onSaveUrl?.();
   }, [onSaveUrl]);
 
@@ -283,7 +283,7 @@ export const FAB: React.FC<FABProps> = ({
         </div>
         <ActionButton
           icon="bookmark"
-          tooltip={isBookmarked ? "Remove saved link" : "Save url"}
+          tooltip={isBookmarked ? "Remove saved link" : "Save page link"}
           onClick={handleSaveUrl}
           className={actionButtonClass}
           isBookmarked={isBookmarked}

@@ -74,6 +74,7 @@ export const TextExplanationView: React.FC<TextExplanationViewProps> = ({
   const translationsContainerRef = useRef<HTMLDivElement>(null);
   const [loadingDotCount, setLoadingDotCount] = useState(1);
   const [inputValue, setInputValue] = useState('');
+  const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedLanguage, setSelectedLanguage] = useState<string | undefined>(undefined);
   const [showSuccessCheckmark, setShowSuccessCheckmark] = useState(false);
@@ -217,12 +218,42 @@ export const TextExplanationView: React.FC<TextExplanationViewProps> = ({
     }
   }, [streamingText]);
 
-  // Auto-scroll to bottom when new content arrives
+  // Scroll detection logic
+  const SCROLL_THRESHOLD = 5; // pixels from bottom to consider "at bottom"
+  
+  const checkIfAtBottom = useCallback((element: HTMLDivElement): boolean => {
+    const { scrollTop, scrollHeight, clientHeight } = element;
+    return scrollTop >= scrollHeight - clientHeight - SCROLL_THRESHOLD;
+  }, []);
+
+  // Handle scroll events to detect user scrolling
   useEffect(() => {
-    if (chatContainerRef.current && (streamingText || chatMessages.length > 0)) {
+    const container = chatContainerRef.current;
+    if (!container) return;
+
+    const handleScroll = () => {
+      if (checkIfAtBottom(container)) {
+        // User scrolled to bottom - re-enable auto-scroll
+        setShouldAutoScroll(true);
+      } else {
+        // User scrolled up - disable auto-scroll
+        setShouldAutoScroll(false);
+      }
+    };
+
+    container.addEventListener('scroll', handleScroll, { passive: true });
+    
+    return () => {
+      container.removeEventListener('scroll', handleScroll);
+    };
+  }, [checkIfAtBottom]);
+
+  // Auto-scroll to bottom when new content arrives (only if shouldAutoScroll is true)
+  useEffect(() => {
+    if (chatContainerRef.current && shouldAutoScroll && (streamingText || chatMessages.length > 0)) {
       chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
     }
-  }, [streamingText, chatMessages]);
+  }, [streamingText, chatMessages, shouldAutoScroll]);
 
   // Show success checkmark when translation completes
   useEffect(() => {

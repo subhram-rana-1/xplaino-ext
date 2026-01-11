@@ -8492,7 +8492,7 @@ async function updateFolderListModal(): Promise<void> {
     // Determine modal title based on mode and summary availability
     const modalTitle = folderModalMode === 'link' 
       ? (folderModalLinkSummary && folderModalLinkSummary.trim().length > 0 
-          ? 'Save page url with summary' 
+          ? 'Save page link with summary' 
           : 'Save page url without summary')
       : 'Choose folder';
     
@@ -9410,10 +9410,10 @@ function removeFolderListModal(): void {
 // =============================================================================
 
 /**
- * Handle FAB Save URL button click
+ * Handle FAB Save page link button click
  */
 async function handleFabSaveUrlClick(): Promise<void> {
-  console.log('[Content Script] FAB Save URL clicked');
+  console.log('[Content Script] FAB Save page link clicked');
   
   // If already bookmarked, remove the saved link
   if (fabSavedLinkId) {

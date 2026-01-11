@@ -107,6 +107,7 @@ export const WordAskAISidePanel: React.FC<WordAskAISidePanelProps> = ({
   const [expandedLoaded, setExpandedLoaded] = useState(false);
   const [inputValue, setInputValue] = useState('');
   const [loadingDotCount, setLoadingDotCount] = useState(1);
+  const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
   const hasEmergedRef = useRef(false);
   const isUnmountingRef = useRef(false);
   const isAnimatingRef = useRef(false);
@@ -257,12 +258,42 @@ export const WordAskAISidePanel: React.FC<WordAskAISidePanelProps> = ({
     }
   }, [isOpen, emerge]);
 
-  // Auto-scroll to bottom when new messages arrive
+  // Scroll detection logic
+  const SCROLL_THRESHOLD = 5; // pixels from bottom to consider "at bottom"
+  
+  const checkIfAtBottom = useCallback((element: HTMLDivElement): boolean => {
+    const { scrollTop, scrollHeight, clientHeight } = element;
+    return scrollTop >= scrollHeight - clientHeight - SCROLL_THRESHOLD;
+  }, []);
+
+  // Handle scroll events to detect user scrolling
   useEffect(() => {
-    if (chatContainerRef.current) {
+    const container = chatContainerRef.current;
+    if (!container) return;
+
+    const handleScroll = () => {
+      if (checkIfAtBottom(container)) {
+        // User scrolled to bottom - re-enable auto-scroll
+        setShouldAutoScroll(true);
+      } else {
+        // User scrolled up - disable auto-scroll
+        setShouldAutoScroll(false);
+      }
+    };
+
+    container.addEventListener('scroll', handleScroll, { passive: true });
+    
+    return () => {
+      container.removeEventListener('scroll', handleScroll);
+    };
+  }, [checkIfAtBottom]);
+
+  // Auto-scroll to bottom when new messages arrive (only if shouldAutoScroll is true)
+  useEffect(() => {
+    if (chatContainerRef.current && shouldAutoScroll) {
       chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
     }
-  }, [chatHistory, streamingText]);
+  }, [chatHistory, streamingText, shouldAutoScroll]);
 
   const handleSend = useCallback(() => {
     if (!inputValue.trim() || isRequesting) return;
