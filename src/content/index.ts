@@ -48,6 +48,7 @@ import welcomeModalStyles from './styles/welcomeModal.shadow.css?inline';
 import youtubeAskAIButtonStyles from './styles/youtubeAskAIButton.shadow.css?inline';
 import highlightedCouponStyles from './styles/highlightedCoupon.shadow.css?inline';
 import minimalCouponButtonStyles from './styles/minimalCouponButton.shadow.css?inline';
+import baseSidePanelStyles from './styles/baseSidePanel.shadow.css?inline';
 
 // Import color CSS variables
 import { ALL_COLOR_VARIABLES, getAllColorVariables } from '../constants/colors.css.js';
@@ -4601,10 +4602,16 @@ async function toggleImageExplanationPanel(explanationId: string): Promise<void>
   if (explanationId === activeId) {
     // Same explanation: toggle panel
     if (panelOpen) {
-      // Closing - close panel
-      console.log('[Content Script] Closing image explanation panel from icon toggle');
-      store.set(imageExplanationPanelOpenAtom, false);
-      updateImageExplanationPanel();
+      // Closing - use animated close handler if available
+      if (imageExplanationPanelCloseHandler) {
+        console.log('[Content Script] Calling animated close handler from image icon toggle');
+        imageExplanationPanelCloseHandler();
+      } else {
+        // Fallback: direct close if handler not registered yet
+        console.warn('[Content Script] Image close handler not available, using direct close');
+        store.set(imageExplanationPanelOpenAtom, false);
+        updateImageExplanationPanel();
+      }
       updateImageExplanationIconContainer();
     } else {
       // Opening - close side panel first if it's open
@@ -6582,6 +6589,9 @@ let handleImageInputSubmitCallback: ((inputText: string) => Promise<void>) | nul
 let handleImageCloseCallback: (() => void) | null = null;
 let handleImageSimplifyCallback: (() => Promise<void>) | null = null;
 
+// Store reference to panel's close handler for animated close from icon toggle
+let imageExplanationPanelCloseHandler: (() => void) | null = null;
+
 let isUpdatingImagePanel = false;
 let pendingImageUpdate = false;
 
@@ -6927,10 +6937,10 @@ function updateImageExplanationPanel(): void {
           isBookmarked: !!activeExplanation.savedImageId,
           hideFooter: true,
           showUpgradeFooter: true,
-          hideHighlightedCoupon: true,
           firstChunkReceived,
-          onCloseHandlerReady: () => {
-            // Handler registered for animated close if needed
+          onCloseHandlerReady: (handler) => {
+            console.log('[index.ts] Close handler registered from ImageExplanationSidePanel');
+            imageExplanationPanelCloseHandler = handler;
           },
         })
       )
@@ -6968,8 +6978,8 @@ function injectImageExplanationPanel(): void {
   // Inject highlighted coupon styles
   injectStyles(shadow, highlightedCouponStyles);
   injectStyles(shadow, minimalCouponButtonStyles);
-  // Inject side panel styles for footer (coupon and upgrade buttons)
-  injectStyles(shadow, sidePanelStyles);
+  // Inject base side panel styles for upgrade footer (coupon and upgrade buttons)
+  injectStyles(shadow, baseSidePanelStyles);
   
   document.body.appendChild(host);
   console.log('[Content Script] Image explanation panel host appended to body');

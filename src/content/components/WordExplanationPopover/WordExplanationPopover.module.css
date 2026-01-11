@@ -436,4 +436,12 @@
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
+/* Target word highlight in examples */
+.targetWordHighlight {
+  color: #0d8070;
+  text-decoration: underline;
+  text-decoration-style: solid;
+  text-decoration-color: #0d8070;
+  text-underline-offset: 2px;
+}
 

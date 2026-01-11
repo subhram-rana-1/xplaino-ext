@@ -7,8 +7,7 @@ import styles from './WordAskAISidePanel.module.css';
 import { ChatMessage } from '@/store/wordExplanationAtoms';
 import { ChromeStorage } from '@/storage/chrome-local/ChromeStorage';
 import { useEmergeAnimation } from '@/hooks/useEmergeAnimation';
-import { MinimalCouponButton } from '../HighlightedCoupon';
-import { HighlightedCoupon } from '../HighlightedCoupon';
+import { Footer } from '../SidePanel/Footer';
 
 // Custom expand icon - arrows pointing away from center (up and down)
 const ExpandVerticalIcon: React.FC<{ size?: number }> = ({ size = 18 }) => (
@@ -387,17 +386,12 @@ export const WordAskAISidePanel: React.FC<WordAskAISidePanelProps> = ({
         
         {/* Center: Title */}
         <div className={headerCenterClass}>
-          <span className={headerTitleClass}>Ask about "{word}"</span>
-          {/* Minimal Coupon Button */}
-          <MinimalCouponButton useShadowDom={useShadowDom} />
+          <span className={headerTitleClass}>Ask about "{word.toUpperCase()}"</span>
         </div>
         
         {/* Right: Empty (for symmetry) */}
         <div className={headerRightClass}></div>
       </div>
-
-      {/* Highlighted Coupon */}
-      <HighlightedCoupon useShadowDom={useShadowDom} />
 
       {/* Content */}
       <div className={contentClass}>
@@ -463,6 +457,9 @@ export const WordAskAISidePanel: React.FC<WordAskAISidePanelProps> = ({
             ))}
           </span>
         </div>
+
+        {/* Footer with Upgrade and Coupon buttons */}
+        <Footer useShadowDom={useShadowDom} />
 
         {/* Input Container */}
         <div className={inputContainerClass}>

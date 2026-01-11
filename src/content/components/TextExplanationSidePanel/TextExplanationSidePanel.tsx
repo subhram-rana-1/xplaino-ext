@@ -6,8 +6,7 @@ import styles from './TextExplanationSidePanel.module.css';
 import { TextExplanationHeader } from './TextExplanationHeader';
 import { TextExplanationFooter } from './TextExplanationFooter';
 import { TextExplanationView } from './TextExplanationView';
-import { HighlightedCoupon } from '../HighlightedCoupon';
-import { Footer } from '../SidePanel/Footer';
+import { UpgradeFooter } from '../BaseSidePanel/UpgradeFooter';
 import { ChromeStorage } from '@/storage/chrome-local/ChromeStorage';
 import { showLoginModalAtom } from '@/store/uiAtoms';
 import { useEmergeAnimation } from '@/hooks/useEmergeAnimation';
@@ -79,8 +78,6 @@ export interface TextExplanationSidePanelProps {
   hideFooter?: boolean;
   /** Whether to show the upgrade footer with coupon and upgrade buttons (used for image explanations) */
   showUpgradeFooter?: boolean;
-  /** Whether to hide the highlighted coupon in the header area */
-  hideHighlightedCoupon?: boolean;
 }
 
 const MIN_WIDTH = 300;
@@ -121,7 +118,6 @@ export const TextExplanationSidePanel: React.FC<TextExplanationSidePanelProps> =
   isBookmarked = false,
   hideFooter = false,
   showUpgradeFooter = false,
-  hideHighlightedCoupon = false,
 }) => {
   const [width, setWidth] = useState(DEFAULT_WIDTH);
   const [isVerticallyExpanded, setIsVerticallyExpanded] = useState(false);
@@ -414,9 +410,6 @@ export const TextExplanationSidePanel: React.FC<TextExplanationSidePanelProps> =
         showDeleteIcon={showDeleteIcon}
       />
 
-      {/* Highlighted Coupon (hidden for image explanations) */}
-      {!hideHighlightedCoupon && <HighlightedCoupon useShadowDom={useShadowDom} />}
-
       {/* Content */}
       <div className={contentClass}>
         <TextExplanationView
@@ -454,7 +447,7 @@ export const TextExplanationSidePanel: React.FC<TextExplanationSidePanelProps> =
 
       {/* Upgrade Footer with coupon and upgrade buttons (shown for image explanations) */}
       {showUpgradeFooter && (
-        <Footer useShadowDom={useShadowDom} />
+        <UpgradeFooter useShadowDom={useShadowDom} />
       )}
     </div>
   );

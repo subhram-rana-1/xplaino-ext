@@ -21,19 +21,21 @@
 }
 
 .imageExplanationIcon.panelOpen {
-  border: 2px solid rgba(149, 39, 245, 0.8);
+  /* Border only shown when greenIcon (book icon) is displayed */
 }
 
 .imageExplanationIcon.greenIcon {
-  box-shadow: 0 2px 8px rgba(20, 184, 166, 0.3);
+  background: transparent;
+  box-shadow: none;
 }
 
 .imageExplanationIcon.greenIcon:hover {
-  box-shadow: 0 4px 12px rgba(20, 184, 166, 0.5);
+  transform: scale(1.1);
+  box-shadow: none;
 }
 
 .imageExplanationIcon.greenIcon.panelOpen {
-  border: 2px solid rgba(20, 184, 166, 0.8);
+  border: 2px solid #14B8A6;
 }
 
 .imageExplanationIcon:active {

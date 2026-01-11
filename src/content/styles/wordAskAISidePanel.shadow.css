@@ -9,9 +9,9 @@
 
 /* CSS Variables */
 :host {
-  --color-primary: #9527F5;
-  --color-primary-dark: #8607F5;
-  --color-primary-light: #BF7EFA;
+  --color-primary: #0d8070;
+  --color-primary-dark: #0a5f54;
+  --color-primary-light: #14a08a;
   --color-white: #FFFFFF;
   --color-text: #2D3748;
   --color-text-secondary: #718096;
@@ -68,7 +68,7 @@
   transform: translateY(-50%) !important;
   width: 4px !important;
   height: 50px !important;
-  background: var(--color-primary-light, #BF7EFA) !important;
+  background: var(--color-primary-light, #14a08a) !important;
   border-radius: 0 3px 3px 0 !important;
   cursor: ew-resize !important;
   pointer-events: auto !important;
@@ -81,7 +81,7 @@
 
 .resizeHandle:hover,
 .resizeHandle:active {
-  background: var(--color-primary, #9527F5) !important;
+  background: var(--color-primary, #0d8070) !important;
   width: 6px !important;
   height: 70px !important;
 }
@@ -120,7 +120,7 @@
 .headerTitle {
   font-size: 14px !important;
   font-weight: 600 !important;
-  color: var(--color-primary, #9527F5) !important;
+  color: var(--color-primary, #0d8070) !important;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
 }
 
@@ -150,8 +150,8 @@
 .iconButton svg {
   width: 18px !important;
   height: 18px !important;
-  color: var(--color-primary-light, #BF7EFA) !important;
-  stroke: var(--color-primary-light, #BF7EFA) !important;
+  color: var(--color-primary-light, #14a08a) !important;
+  stroke: var(--color-primary-light, #14a08a) !important;
   stroke-width: 2.5 !important;
   fill: none !important;
   pointer-events: none !important;
@@ -159,8 +159,8 @@
 }
 
 .iconButton:hover svg {
-  color: var(--color-primary, #9527F5) !important;
-  stroke: var(--color-primary, #9527F5) !important;
+  color: var(--color-primary, #0d8070) !important;
+  stroke: var(--color-primary, #0d8070) !important;
 }
 
 .content {
@@ -179,7 +179,7 @@
   flex-direction: column !important;
   gap: 12px !important;
   scrollbar-width: thin !important;
-  scrollbar-color: var(--color-primary-light, #B66DFF) transparent !important;
+  scrollbar-color: var(--color-primary-light, #14a08a) transparent !important;
 }
 
 .chatContainer::-webkit-scrollbar {
@@ -191,7 +191,7 @@
 }
 
 .chatContainer::-webkit-scrollbar-thumb {
-  background-color: var(--color-primary-light, #B66DFF) !important;
+  background-color: var(--color-primary-light, #14a08a) !important;
   border-radius: 3px !important;
 }
 
@@ -249,7 +249,7 @@
   display: inline-block !important;
   width: 2px !important;
   height: 1em !important;
-  background-color: var(--color-primary, #9527F5) !important;
+  background-color: var(--color-primary, #0d8070) !important;
   margin-left: 2px !important;
   animation: blink 1s step-end infinite !important;
 }
@@ -269,7 +269,7 @@
   justify-content: flex-start !important;
   padding: 12px !important;
   font-size: 24px !important;
-  color: var(--color-primary, #9527F5) !important;
+  color: var(--color-primary, #0d8070) !important;
   font-weight: 600 !important;
   letter-spacing: 4px !important;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
@@ -307,7 +307,7 @@
 
 .promptButton:hover:not(:disabled) {
   background: var(--color-primary-opacity-8) !important;
-  color: var(--color-primary, #9527F5) !important;
+  color: var(--color-primary, #0d8070) !important;
   border-color: var(--color-primary-opacity-20) !important;
 }
 
@@ -344,11 +344,11 @@
 }
 
 .questionItem:hover:not(:disabled) .questionIcon {
-  color: var(--color-primary, #9527F5) !important;
+  color: var(--color-primary, #0d8070) !important;
 }
 
 .questionItem:hover:not(:disabled) .questionText {
-  color: var(--color-primary, #9527F5) !important;
+  color: var(--color-primary, #0d8070) !important;
 }
 
 .questionItem:disabled {
@@ -357,7 +357,7 @@
 }
 
 .questionIcon {
-  color: var(--color-primary-light, #BF7EFA) !important;
+  color: var(--color-primary-light, #14a08a) !important;
   flex-shrink: 0 !important;
   transition: color 0.2s ease !important;
 }
@@ -393,7 +393,7 @@
 }
 
 .input:focus {
-  border-color: var(--color-primary, #9527F5) !important;
+  border-color: var(--color-primary, #0d8070) !important;
 }
 
 .input:disabled {
@@ -410,7 +410,7 @@
   width: 36px !important;
   height: 36px !important;
   border-radius: 50% !important;
-  background: var(--color-primary, #9527F5) !important;
+  background: var(--color-primary, #0d8070) !important;
   border: none !important;
   cursor: pointer !important;
   display: flex !important;
@@ -423,7 +423,7 @@
 }
 
 .sendButton:hover:not(:disabled) {
-  background: var(--color-primary-dark, #8607F5) !important;
+  background: var(--color-primary-dark, #0a5f54) !important;
   transform: scale(1.05) !important;
 }
 

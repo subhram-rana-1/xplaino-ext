@@ -40,7 +40,7 @@ function getPurpleIconUrl(): string {
 }
 
 /**
- * Teal Book Open icon (Lucide) for successful explanation
+ * Teal Book Open icon (Lucide wireframe/outline style) for successful explanation
  */
 const TealBookIcon: React.FC<{ className?: string }> = ({ className }) => (
   <svg
@@ -48,8 +48,11 @@ const TealBookIcon: React.FC<{ className?: string }> = ({ className }) => (
     width="18"
     height="18"
     viewBox="0 0 24 24"
-    fill="#14B8A6"
-    stroke="none"
+    fill="none"
+    stroke="#14B8A6"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
   >
     <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
     <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />

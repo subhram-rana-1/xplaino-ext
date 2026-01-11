@@ -594,4 +594,12 @@
   font-family: var(--font-family-primary) !important;
 }
 
+/* Target word highlight in examples */
+.targetWordHighlight {
+  color: var(--color-primary) !important;
+  text-decoration: underline !important;
+  text-decoration-style: solid !important;
+  text-decoration-color: var(--color-primary) !important;
+  text-underline-offset: 2px !important;
+}
 

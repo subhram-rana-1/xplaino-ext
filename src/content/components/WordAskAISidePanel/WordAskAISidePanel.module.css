@@ -12,7 +12,7 @@
   max-width: 800px;
   background: var(--color-white, #FFFFFF);
   border-radius: 30px 0 0 30px;
-  box-shadow: 0 0 20px rgba(149, 39, 245, 0.3);
+  box-shadow: 0 0 20px rgba(13, 128, 112, 0.3);
   z-index: 2147483646;
   display: flex;
   flex-direction: column;
@@ -45,7 +45,7 @@
   transform: translateY(-50%);
   width: 4px;
   height: 50px;
-  background: var(--color-primary-light, #BF7EFA);
+  background: var(--color-primary-light, #14a08a);
   border-radius: 0 3px 3px 0;
   cursor: ew-resize;
   pointer-events: auto;
@@ -58,7 +58,7 @@
 
 .resizeHandle:hover,
 .resizeHandle:active {
-  background: var(--color-primary, #9527F5);
+  background: var(--color-primary, #0d8070);
   width: 6px;
   height: 70px;
 }
@@ -68,9 +68,9 @@
   align-items: center;
   justify-content: space-between;
   padding: 8px 12px;
-  background: rgba(149, 39, 245, 0.05);
+  background: rgba(13, 128, 112, 0.05);
   height: 48px;
-  border-bottom: 1px solid rgba(149, 39, 245, 0.1);
+  border-bottom: 1px solid rgba(13, 128, 112, 0.1);
   flex-shrink: 0;
   box-sizing: border-box;
 }
@@ -97,7 +97,7 @@
 .headerTitle {
   font-size: 14px;
   font-weight: 600;
-  color: var(--color-primary, #9527F5);
+  color: var(--color-primary, #0d8070);
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
@@ -117,7 +117,7 @@
 }
 
 .iconButton:hover {
-  background: rgba(149, 39, 245, 0.1);
+  background: rgba(13, 128, 112, 0.1);
 }
 
 .iconButton:active {
@@ -127,8 +127,8 @@
 .iconButton svg {
   width: 18px;
   height: 18px;
-  color: var(--color-primary-light, #BF7EFA);
-  stroke: var(--color-primary-light, #BF7EFA);
+  color: var(--color-primary-light, #14a08a);
+  stroke: var(--color-primary-light, #14a08a);
   stroke-width: 2.5;
   fill: none;
   pointer-events: none;
@@ -136,8 +136,8 @@
 }
 
 .iconButton:hover svg {
-  color: var(--color-primary, #9527F5);
-  stroke: var(--color-primary, #9527F5);
+  color: var(--color-primary, #0d8070);
+  stroke: var(--color-primary, #0d8070);
 }
 
 .content {
@@ -156,7 +156,7 @@
   flex-direction: column;
   gap: 12px;
   scrollbar-width: thin;
-  scrollbar-color: var(--color-primary-light, #B66DFF) transparent;
+  scrollbar-color: var(--color-primary-light, #14a08a) transparent;
 }
 
 .chatContainer::-webkit-scrollbar {
@@ -168,7 +168,7 @@
 }
 
 .chatContainer::-webkit-scrollbar-thumb {
-  background-color: var(--color-primary-light, #B66DFF);
+  background-color: var(--color-primary-light, #14a08a);
   border-radius: 3px;
 }
 
@@ -183,7 +183,7 @@
 }
 
 .userMessage {
-  background: rgba(149, 39, 245, 0.08);
+  background: rgba(13, 128, 112, 0.08);
   color: var(--color-text, #2D3748);
   align-self: flex-end;
   border-radius: 20px 20px 0 20px;
@@ -215,7 +215,7 @@
 }
 
 .assistantMessage code {
-  background: rgba(149, 39, 245, 0.1);
+  background: rgba(13, 128, 112, 0.1);
   padding: 2px 6px;
   border-radius: 4px;
   font-family: 'Monaco', 'Courier New', monospace;
@@ -226,7 +226,7 @@
   display: inline-block;
   width: 2px;
   height: 1em;
-  background-color: var(--color-primary, #9527F5);
+  background-color: var(--color-primary, #0d8070);
   margin-left: 2px;
   animation: blink 1s step-end infinite;
 }
@@ -246,7 +246,7 @@
   justify-content: flex-start;
   padding: 12px;
   font-size: 24px;
-  color: var(--color-primary, #9527F5);
+  color: var(--color-primary, #0d8070);
   font-weight: 600;
   letter-spacing: 4px;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
@@ -282,9 +282,9 @@
 }
 
 .promptButton:hover:not(:disabled) {
-  background: rgba(149, 39, 245, 0.08);
-  color: var(--color-primary, #9527F5);
-  border-color: rgba(149, 39, 245, 0.2);
+  background: rgba(13, 128, 112, 0.08);
+  color: var(--color-primary, #0d8070);
+  border-color: rgba(13, 128, 112, 0.2);
 }
 
 .promptButton:disabled {
@@ -319,11 +319,11 @@
 }
 
 .questionItem:hover:not(:disabled) .questionIcon {
-  color: var(--color-primary, #9527F5);
+  color: var(--color-primary, #0d8070);
 }
 
 .questionItem:hover:not(:disabled) .questionText {
-  color: var(--color-primary, #9527F5);
+  color: var(--color-primary, #0d8070);
 }
 
 .questionItem:disabled {
@@ -332,7 +332,7 @@
 }
 
 .questionIcon {
-  color: var(--color-primary-light, #BF7EFA);
+  color: var(--color-primary-light, #14a08a);
   flex-shrink: 0;
   transition: color 0.2s ease;
 }
@@ -367,7 +367,7 @@
 }
 
 .input:focus {
-  border-color: var(--color-primary, #9527F5);
+  border-color: var(--color-primary, #0d8070);
 }
 
 .input:disabled {
@@ -384,7 +384,7 @@
   width: 36px;
   height: 36px;
   border-radius: 50%;
-  background: var(--color-primary, #9527F5);
+  background: var(--color-primary, #0d8070);
   border: none;
   cursor: pointer;
   display: flex;
@@ -397,7 +397,7 @@
 }
 
 .sendButton:hover:not(:disabled) {
-  background: var(--color-primary-dark, #8607F5);
+  background: var(--color-primary-dark, #0a5f54);
   transform: scale(1.05);
 }
 

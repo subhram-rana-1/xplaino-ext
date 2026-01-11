@@ -1,15 +1,7 @@
-/* src/content/components/SidePanel/Footer.module.css */
-/* ALL properties use !important for style isolation */
-/* CSS Variables - values from src/constants/colors.ts */
+/* src/content/components/BaseSidePanel/UpgradeFooter.module.css */
+/* Upgrade footer with coupon and upgrade buttons */
 
-.footer {
-  /* CSS Variables defined on component */
-  --color-primary: #0d8070 !important;
-  --color-primary-light: #14a08a !important;
-  --color-primary-medium: #0a5f54 !important;
-  --color-white: #FFFFFF !important;
-  --color-primary-hover-bg: rgba(13, 128, 112, 0.1) !important;
-  
+.upgradeFooter {
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
@@ -19,7 +11,7 @@
   position: relative !important;
 }
 
-.footerContent {
+.upgradeFooterContent {
   display: flex !important;
   align-items: center !important;
   justify-content: space-between !important;
@@ -55,25 +47,23 @@
   opacity: 0.8 !important;
 }
 
-/* Animated gradient background */
 @keyframes gradientShift {
   0% {
-    background-position: 0% 50% !important;
+    background-position: 0% 50%;
   }
   25% {
-    background-position: 100% 0% !important;
+    background-position: 100% 0%;
   }
   50% {
-    background-position: 100% 100% !important;
+    background-position: 100% 100%;
   }
   75% {
-    background-position: 0% 100% !important;
+    background-position: 0% 100%;
   }
   100% {
-    background-position: 0% 50% !important;
+    background-position: 0% 50%;
   }
 }
-
 
 .couponText {
   color: #FFFFFF !important;
@@ -152,5 +142,3 @@
 .upgradeButtonCentered {
   margin: 0 auto !important;
 }
-
-/* Tab group styles are now handled by IconTabGroup component */

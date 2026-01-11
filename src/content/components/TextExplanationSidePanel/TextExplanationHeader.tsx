@@ -3,7 +3,6 @@ import React from 'react';
 import { Minus, Bookmark, Trash2, Eye } from 'lucide-react';
 import styles from './TextExplanationHeader.module.css';
 import { COLORS } from '../../../constants/colors';
-import { MinimalCouponButton } from '../HighlightedCoupon';
 
 // Custom expand icon - arrows pointing away from center (up and down)
 const ExpandVerticalIcon: React.FC<{ size?: number }> = ({ size = 18 }) => (
@@ -118,10 +117,8 @@ export const TextExplanationHeader: React.FC<TextExplanationHeaderProps> = ({
         </button>
       </div>
 
-      {/* Center: Empty */}
+      {/* Center: Empty (coupon removed) */}
       <div className={getClassName('headerCenter')}>
-        {/* Minimal Coupon Button */}
-        <MinimalCouponButton useShadowDom={useShadowDom} />
       </div>
 
       {/* Right: Action Icons */}

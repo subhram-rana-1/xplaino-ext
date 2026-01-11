@@ -52,9 +52,12 @@ export const ContentActionsButtonGroup: React.FC<ContentActionsButtonGroupProps>
   const [showOptionsPopover, setShowOptionsPopover] = useState(false);
   const [showDisableButton, setShowDisableButton] = useState(false);
   const [isDisableButtonHiding, setIsDisableButtonHiding] = useState(false);
+  const [animationComplete, setAnimationComplete] = useState(false); // Track when width animation completes
   const hideTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const animationTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const powerButtonTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isPopoverShowingRef = useRef(false); // Debounce popover showing to prevent glitches
   const buttonGroupRef = useRef<HTMLDivElement>(null);
-  const buttonDelaysRef = useRef<Map<HTMLElement, number>>(new Map());
 
   const handleDisableExtensionButtonClick = useCallback(() => {
     setShowDisablePopover((prev) => {
@@ -72,17 +75,20 @@ export const ContentActionsButtonGroup: React.FC<ContentActionsButtonGroupProps>
   }, []);
 
   const hideOptionsAndDisableButton = useCallback(() => {
+    // Cancel any pending power button timeout
+    if (powerButtonTimeoutRef.current) {
+      clearTimeout(powerButtonTimeoutRef.current);
+      powerButtonTimeoutRef.current = null;
+    }
+    // Reset debounce flag
+    isPopoverShowingRef.current = false;
     // First hide the popover
     setShowOptionsPopover(false);
     // Close the disable popover if it's open
     setShowDisablePopover(false);
-    // Then start the slide-out animation for disable button
-    setIsDisableButtonHiding(true);
-    // Wait for slide-out animation to complete before actually hiding
-    setTimeout(() => {
-      setShowDisableButton(false);
-      setIsDisableButtonHiding(false);
-    }, 200); // Match animation duration
+    // Hide disable button - width animation will handle the visual transition
+    setShowDisableButton(false);
+    setIsDisableButtonHiding(false);
   }, []);
 
   const handleOptionsButtonMouseEnter = useCallback(() => {
@@ -91,13 +97,30 @@ export const ContentActionsButtonGroup: React.FC<ContentActionsButtonGroupProps>
       clearTimeout(hideTimeoutRef.current);
       hideTimeoutRef.current = null;
     }
+    
+    // Prevent re-triggering if already showing (fixes glitch on double-click)
+    if (isPopoverShowingRef.current) return;
+    isPopoverShowingRef.current = true;
+    
     // Show popover immediately
     setShowOptionsPopover(true);
     setIsDisableButtonHiding(false);
+    
+    // Cancel any pending power button timeout
+    if (powerButtonTimeoutRef.current) {
+      clearTimeout(powerButtonTimeoutRef.current);
+    }
+    
     // Delay power button appearance until after width animation completes (0.4s)
-    setTimeout(() => {
+    powerButtonTimeoutRef.current = setTimeout(() => {
       setShowDisableButton(true);
     }, 400);
+    
+    // Reset debounce flag after a short delay
+    setTimeout(() => {
+      isPopoverShowingRef.current = false;
+    }, 300);
+    
     onKeepActive?.();
   }, [onKeepActive]);
 
@@ -159,7 +182,7 @@ export const ContentActionsButtonGroup: React.FC<ContentActionsButtonGroupProps>
   }, [onActionComplete]);
 
   // Measure actual content width and set it dynamically for smooth expansion animation
-  // Also calculate button delays based on their positions
+  // Also calculate button delays based on their positions for progressive reveal effect
   useEffect(() => {
     if (!buttonGroupRef.current) {
       return;
@@ -168,11 +191,19 @@ export const ContentActionsButtonGroup: React.FC<ContentActionsButtonGroupProps>
     const element = buttonGroupRef.current;
     
     if (!visible) {
-      // Reset CSS variable when hidden
+      // Reset CSS variable and animation state when hidden
       element.style.setProperty('--button-group-width', '0px');
-      buttonDelaysRef.current.clear();
+      setAnimationComplete(false);
+      // Clear any pending animation timeout
+      if (animationTimeoutRef.current) {
+        clearTimeout(animationTimeoutRef.current);
+        animationTimeoutRef.current = null;
+      }
       return;
     }
+
+    // Reset animation complete state when visibility changes
+    setAnimationComplete(false);
 
     // Wait a frame to ensure visibility: visible is applied
     const rafId1 = requestAnimationFrame(() => {
@@ -193,9 +224,6 @@ export const ContentActionsButtonGroup: React.FC<ContentActionsButtonGroupProps>
         // Measure the natural width
         const naturalWidth = element.scrollWidth;
         
-        // Calculate button delays based on their positions
-        // Width expands over 400ms, buttons should appear when the expanding right edge reaches their position
-        const buttons = Array.from(element.querySelectorAll<HTMLElement>('.contentActionButton'));
         const widthExpansionDuration = 400; // ms - time for button group to fully expand
         
         // Restore max-width first
@@ -203,7 +231,6 @@ export const ContentActionsButtonGroup: React.FC<ContentActionsButtonGroupProps>
         element.style.width = ''; // Clear inline width, use CSS variable
         
         // If this is the initial appearance (currentWidth is 0), start from 0
-        // If power button is appearing (currentWidth > 0), start from current width
         if (currentWidth === 0) {
           // Initial appearance - animate from 0
           element.style.setProperty('--button-group-width', '0px');
@@ -211,75 +238,32 @@ export const ContentActionsButtonGroup: React.FC<ContentActionsButtonGroupProps>
           void element.offsetWidth;
         }
         
-        // Use multiple RAFs to ensure buttons are positioned after width is set
+        // Now trigger the width animation (in next frame to ensure initial styles are applied)
         requestAnimationFrame(() => {
-          requestAnimationFrame(() => {
-            // Now measure buttons with their actual positions
-            const buttonsArray = Array.from(buttons);
-            
-            // Sort buttons by their left position to get serial order (left to right)
-            const buttonsWithPositions = buttonsArray.map((button) => {
-              const buttonRect = button.getBoundingClientRect();
-              const containerRect = element.getBoundingClientRect();
-              const buttonLeft = buttonRect.left - containerRect.left;
-              const buttonRight = buttonLeft + buttonRect.width;
-              return { button, buttonLeft, buttonRight };
-            }).sort((a, b) => a.buttonLeft - b.buttonLeft); // Sort by left position (serial order)
-            
-            // Calculate delay for each button based on when expanding width reaches its position
-            // Each button appears when the expanding right edge reaches its right edge
-            buttonsWithPositions.forEach(({ button, buttonRight }) => {
-              // Calculate when the expanding right edge reaches this button's right edge
-              // delay = (buttonRight / naturalWidth) * widthExpansionDuration
-              const delay = Math.max(0, Math.min((buttonRight / naturalWidth) * widthExpansionDuration, widthExpansionDuration));
-              buttonDelaysRef.current.set(button, delay);
-              
-              // Ensure button is visible and ready for animation
-              button.style.opacity = '0';
-              button.style.transform = 'scale(0)';
-              
-              // Set the delay on the button element - button will scale from 0 to 1 at this time
-              button.style.animationDelay = `${delay}ms`;
-              button.style.animationName = 'buttonScaleIn';
-              button.style.animationDuration = '0.25s';
-              button.style.animationFillMode = 'forwards';
-              button.style.animationTimingFunction = 'cubic-bezier(0.4, 0, 0.2, 1)';
-              
-              // Also set delay on SVG icon inside the button
-              const svg = button.querySelector('svg');
-              if (svg) {
-                svg.style.opacity = '0';
-                svg.style.transform = 'scale(0)';
-                svg.style.animationDelay = `${delay}ms`;
-                svg.style.animationName = 'iconScaleIn';
-                svg.style.animationDuration = '0.25s';
-                svg.style.animationFillMode = 'forwards';
-                svg.style.animationTimingFunction = 'cubic-bezier(0.4, 0, 0.2, 1)';
-              }
-            });
-            
-            // Now trigger the width animation
-            if (currentWidth === 0) {
-              // Then animate to final width
-              element.style.setProperty('--button-group-width', `${naturalWidth}px`);
-            } else {
-              // Power button appearing - animate from current width to new width
-              element.style.setProperty('--button-group-width', `${naturalWidth}px`);
-            }
-          });
+          element.style.setProperty('--button-group-width', `${naturalWidth}px`);
+          
+          // Set animation complete after width animation finishes
+          // This allows overflow: visible for tooltips
+          animationTimeoutRef.current = setTimeout(() => {
+            setAnimationComplete(true);
+          }, widthExpansionDuration + 100);
         });
       });
     });
 
     return () => {
       cancelAnimationFrame(rafId1);
+      if (animationTimeoutRef.current) {
+        clearTimeout(animationTimeoutRef.current);
+        animationTimeoutRef.current = null;
+      }
     };
   }, [visible, showDisableButton, isDisableButtonHiding]);
 
   return (
     <div
       ref={buttonGroupRef}
-      className={`contentActionsButtonGroup ${visible ? 'visible' : ''} ${!isWordSelection ? 'hasBookmark' : ''} ${showDisableButton ? 'hasPowerButton' : ''}`}
+      className={`contentActionsButtonGroup ${visible ? 'visible' : ''} ${animationComplete ? 'animationComplete' : ''} ${!isWordSelection ? 'hasBookmark' : ''} ${showDisableButton ? 'hasPowerButton' : ''}`}
       onMouseDown={(e) => e.stopPropagation()}
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
@@ -287,7 +271,7 @@ export const ContentActionsButtonGroup: React.FC<ContentActionsButtonGroupProps>
       {/* Explain button */}
       <ContentActionButton
         icon="explain"
-        tooltip="Explain"
+        tooltip="AI explanation"
         onClick={onExplain}
         delay={0}
       />
@@ -341,8 +325,8 @@ export const ContentActionsButtonGroup: React.FC<ContentActionsButtonGroupProps>
             icon="power"
             tooltip="Disable extension"
             onClick={handleDisableExtensionButtonClick}
-            delay={0} // No delay for dynamic appearance
-            className={`powerButton ${isDisableButtonHiding ? 'disableButtonSlideOut' : 'disableButtonSlideIn'}`}
+            delay={0}
+            className="powerButton"
             hideTooltip={showDisablePopover}
           >
             <DisablePopover

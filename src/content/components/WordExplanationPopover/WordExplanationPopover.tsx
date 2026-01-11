@@ -287,6 +287,29 @@ export const WordExplanationPopover: React.FC<WordExplanationPopoverProps> = ({
     return styleClass || baseClass;
   };
 
+  // Helper to highlight target word in text nodes with teal underline
+  const highlightTargetWordInText = (text: string, targetWord: string): React.ReactNode => {
+    if (!text || !targetWord) return text;
+    // Escape special regex characters in the target word
+    const escapedWord = targetWord.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    // Case-insensitive split
+    const regex = new RegExp(`(\\b${escapedWord}\\b)`, 'gi');
+    const parts = text.split(regex);
+    
+    if (parts.length === 1) return text; // No matches found
+    
+    return parts.map((part, index) => {
+      if (part.toLowerCase() === targetWord.toLowerCase()) {
+        return (
+          <span key={index} className={getClassName('targetWordHighlight')}>
+            {part}
+          </span>
+        );
+      }
+      return part;
+    });
+  };
+
   const handleButtonChange = (buttonId: string) => {
     if (buttonId === 'contextual' || buttonId === 'grammar') {
       onTabChange(buttonId);
@@ -467,7 +490,34 @@ export const WordExplanationPopover: React.FC<WordExplanationPopoverProps> = ({
             )}
           </div>
         ) : content ? (
-          <ReactMarkdown>{content}</ReactMarkdown>
+          <ReactMarkdown
+            components={{
+              p: ({ children, ...props }) => {
+                const processChildren = (nodes: React.ReactNode): React.ReactNode => {
+                  return React.Children.map(nodes, (child) => {
+                    if (typeof child === 'string') {
+                      return highlightTargetWordInText(child, word);
+                    }
+                    return child;
+                  });
+                };
+                return <p {...props}>{processChildren(children)}</p>;
+              },
+              li: ({ children, ...props }) => {
+                const processChildren = (nodes: React.ReactNode): React.ReactNode => {
+                  return React.Children.map(nodes, (child) => {
+                    if (typeof child === 'string') {
+                      return highlightTargetWordInText(child, word);
+                    }
+                    return child;
+                  });
+                };
+                return <li {...props}>{processChildren(children)}</li>;
+              }
+            }}
+          >
+            {content}
+          </ReactMarkdown>
         ) : (
           <div className={getClassName('noExplanationContainer')}>
             <button 

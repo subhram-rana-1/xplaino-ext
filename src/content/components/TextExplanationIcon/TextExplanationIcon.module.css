@@ -4,25 +4,24 @@
   width: 22px;
   height: 22px;
   border-radius: 10px;
-  background: var(--color-white, #FFFFFF);
+  background: transparent;
   border: none;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-  transition: box-shadow 0.2s ease, transform 0.2s ease;
+  box-shadow: none;
+  transition: transform 0.2s ease;
   padding: 0;
   margin: 0;
 }
 
 .textExplanationIcon:hover {
-  box-shadow: 0 4px 12px rgba(20, 184, 166, 0.5);
   transform: scale(1.1);
 }
 
 .textExplanationIcon.panelOpen {
-  box-shadow: 0 4px 12px rgba(20, 184, 166, 0.8);
+  border: 2px solid #14B8A6;
 }
 
 .textExplanationIcon:active {
