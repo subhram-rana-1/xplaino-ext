@@ -121,10 +121,35 @@
 
 /* Closing state - keeps visible during width shrink animation */
 .contentActionsButtonGroup.closing {
-  opacity: 1 !important;
   visibility: visible !important;
   overflow: hidden !important;
-  transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.15s ease 0.3s, visibility 0s ease 0.4s !important;
+  animation: buttonGroupClose 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards !important;
+  transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+/* Keyframe animation for closing - synced with width shrink */
+@keyframes buttonGroupClose {
+  0% {
+    opacity: 1;
+    padding: 3px;
+    border-width: 1.5px;
+  }
+  70% {
+    opacity: 1;
+    padding: 3px;
+    border-width: 1.5px;
+  }
+  90% {
+    opacity: 0;
+    padding: 1px;
+    border-width: 0.5px;
+  }
+  100% {
+    opacity: 0;
+    padding: 0;
+    border-width: 0;
+    visibility: hidden;
+  }
 }
 
 /* Allow tooltips after animation completes */
