@@ -445,10 +445,10 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: 6px;
   padding: 12px 24px;
-  background: var(--color-primary, #0d8070);
-  color: white;
+  background: var(--color-white, #FFFFFF);
+  color: var(--color-primary, #0d8070);
   border: none;
   border-radius: 8px;
   font-size: 14px;
@@ -456,30 +456,37 @@
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   cursor: pointer;
   transition: all 0.2s ease;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  box-shadow: none;
+  flex-shrink: 0;
 }
 
 .getContextualMeaningButton:hover:not(:disabled) {
-  background: var(--color-primary-hover, #14a08a);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-  transform: translateY(-1px);
+  background: var(--color-primary-opacity-5, rgba(13, 128, 112, 0.05));
+  box-shadow: none;
 }
 
 .getContextualMeaningButton:active:not(:disabled) {
-  transform: translateY(0);
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+  transform: scale(0.98);
 }
 
 .getContextualMeaningButton:disabled {
-  opacity: 0.6;
+  background: var(--color-white, #FFFFFF);
+  color: var(--color-text-secondary, #718096);
   cursor: not-allowed;
+  opacity: 1;
+  box-shadow: none;
+}
+
+.getContextualMeaningButton :global(.spinner) {
+  display: inline-block;
+  color: var(--color-primary, #0d8070);
 }
 
 .getContextualMeaningButton .buttonSpinner {
   width: 16px;
   height: 16px;
-  border: 2px solid rgba(255, 255, 255, 0.3);
-  border-top-color: white;
+  border: 2px solid rgba(13, 128, 112, 0.2);
+  border-top-color: var(--color-primary, #0d8070);
   border-radius: 50%;
   animation: spin 0.6s linear infinite;
 }

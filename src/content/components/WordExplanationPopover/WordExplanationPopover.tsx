@@ -828,7 +828,7 @@ export const WordExplanationPopover: React.FC<WordExplanationPopoverProps> = ({
             >
               {isLoading ? (
                 <>
-                  <div className={getClassName('buttonSpinner')} />
+                  <Spinner size="md" useShadowDom={useShadowDom} />
                   <span>Loading...</span>
                 </>
               ) : (
@@ -902,7 +902,7 @@ export const WordExplanationPopover: React.FC<WordExplanationPopoverProps> = ({
                   disabled={isLoadingSynonyms}
                 >
                   {isLoadingSynonyms ? (
-                    <div className={getClassName('buttonSpinner')} />
+                    <Spinner size="sm" useShadowDom={useShadowDom} />
                   ) : (
                     <Equal size={20} strokeWidth={2.5} />
                   )}
@@ -927,7 +927,7 @@ export const WordExplanationPopover: React.FC<WordExplanationPopoverProps> = ({
                   disabled={isLoadingAntonyms}
                 >
                   {isLoadingAntonyms ? (
-                    <div className={getClassName('buttonSpinner')} />
+                    <Spinner size="sm" useShadowDom={useShadowDom} />
                   ) : (
                     <ArrowLeftRight size={20} strokeWidth={2.5} />
                   )}
@@ -952,7 +952,7 @@ export const WordExplanationPopover: React.FC<WordExplanationPopoverProps> = ({
                   disabled={isLoadingTranslation}
                 >
                   {isLoadingTranslation ? (
-                    <div className={getClassName('buttonSpinner')} />
+                    <Spinner size="sm" useShadowDom={useShadowDom} />
                   ) : (
                     <Languages size={20} strokeWidth={2.5} />
                   )}

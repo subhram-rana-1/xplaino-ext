@@ -3592,8 +3592,12 @@ async function handleGetContextualMeaning(wordId: string): Promise<void> {
     localState.streamedContent = '';
     localState.firstEventReceived = false;
     localState.errorMessage = null;
+    console.log('[Content Script] Local state updated - isLoading:', localState.isLoading, 'streamedContent:', localState.streamedContent);
+  } else {
+    console.error('[Content Script] Local state not found for wordId:', wordId);
   }
   
+  console.log('[Content Script] About to call updateWordExplanationPopover with loading state');
   updateWordExplanationPopover();
 
   // Create abort controller

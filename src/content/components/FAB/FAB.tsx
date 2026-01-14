@@ -78,6 +78,7 @@ export const FAB: React.FC<FABProps> = ({
   const parentRef = useRef<HTMLDivElement>(null);
   const hideTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isHoveringRef = useRef(false);
+  const isDisablingRef = useRef(false);
 
   // Get class names based on context
   const getClassName = useCallback((shadowClass: string, moduleClass: string) => {
@@ -119,14 +120,14 @@ export const FAB: React.FC<FABProps> = ({
   // Handle parent container mouse leave - hides actions after delay
   const handleParentMouseLeave = useCallback(() => {
     isHoveringRef.current = false;
-    // Don't hide if summarising, translating, if actions shouldn't be hidden yet, or if any popover is open
+    // Don't hide if summarising, translating, if actions shouldn't be hidden yet, if any popover is open, or if disable action is in progress
     const isTranslating = translationState === 'translating';
-    if (isSummarising || isTranslating || !canHideActions || showDisablePopover || showTranslationPopover) {
+    if (isSummarising || isTranslating || !canHideActions || showDisablePopover || showTranslationPopover || isDisablingRef.current) {
       return;
     }
     clearHideTimeout();
     hideTimeoutRef.current = setTimeout(() => {
-      if (!isHoveringRef.current) {
+      if (!isHoveringRef.current && !isDisablingRef.current) {
         setActionsVisible(false);
       }
     }, 300); // Small delay before hiding
@@ -222,10 +223,26 @@ export const FAB: React.FC<FABProps> = ({
   }, [clearHideTimeout]);
 
   const handleDisabled = useCallback(() => {
+    // Set disable flag to prevent actions from hiding
+    isDisablingRef.current = true;
+    // Keep actions visible during disable process
+    clearHideTimeout();
+    isHoveringRef.current = true;
+    setActionsVisible(true);
+    // Close the popover
     setShowDisablePopover(false);
-  }, []);
+    // Clear the disable flag after a delay to allow storage listener to process
+    // The FAB will be removed by the storage listener, so this is just a safety measure
+    setTimeout(() => {
+      isDisablingRef.current = false;
+    }, 500);
+  }, [clearHideTimeout]);
 
   const handleDisablePopoverMouseLeave = useCallback(() => {
+    // Don't close popover if disable action is in progress
+    if (isDisablingRef.current) {
+      return;
+    }
     // Hide popover when mouse leaves
     setShowDisablePopover(false);
   }, []);

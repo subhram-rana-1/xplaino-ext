@@ -381,7 +381,7 @@ export function useEmergeAnimation(options: EmergeAnimationOptions = {}): Emerge
       }
       // Otherwise: shrink cancelled us - silently let shrink manage state
     }
-  }, [duration, easing, transformOrigin]);
+  }, [duration, easing, transformOrigin, mode]);
 
   /**
    * Trigger shrink animation (disappear into source)
@@ -545,7 +545,7 @@ export function useEmergeAnimation(options: EmergeAnimationOptions = {}): Emerge
       setAnimationState('hidden');
       setIsVisible(false);
     }
-  }, [duration, easing, transformOrigin]);
+  }, [duration, easing, transformOrigin, mode]);
 
   /**
    * Toggle between emerge and shrink
