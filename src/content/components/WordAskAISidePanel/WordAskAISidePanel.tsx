@@ -133,7 +133,7 @@ export const WordAskAISidePanel: React.FC<WordAskAISidePanelProps> = ({
     shrink,
     style: animationStyle,
   } = useEmergeAnimation({
-    duration: 400, // 400ms for merge and shrink animations
+    duration: 300, // 300ms for merge and shrink animations
     easing: 'cubic-bezier(0.4, 0, 0.2, 1)',
     transformOrigin: 'top right',
   });

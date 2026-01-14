@@ -1,11 +1,12 @@
 // src/content/components/WordExplanationPopover/WordExplanationPopover.tsx
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
-import { BookText, GraduationCap, Bookmark, Lightbulb, MessageCircle, BookOpen, ArrowLeftRight, Languages, Sparkles, Copy, Check, Trash2 } from 'lucide-react';
+import { BookText, GraduationCap, Bookmark, Lightbulb, MessageCircle, Equal, ArrowLeftRight, Languages, Sparkles, Copy, Check, Trash2 } from 'lucide-react';
 import { ButtonGroup, ButtonItem } from '@/components/ui/ButtonGroup';
 import { useEmergeAnimation } from '@/hooks/useEmergeAnimation';
 import { MinimizeIcon } from '../ui/MinimizeIcon';
 import { OnHoverMessage } from '../OnHoverMessage';
+import { Spinner } from '../ui/Spinner/Spinner';
 import styles from './WordExplanationPopover.module.css';
 
 export type TabType = 'contextual' | 'grammar';
@@ -131,13 +132,32 @@ export const WordExplanationPopover: React.FC<WordExplanationPopoverProps> = ({
   const bookmarkButtonRef = useRef<HTMLButtonElement>(null);
   const deleteButtonRef = useRef<HTMLButtonElement>(null);
   
+  // Refs for utility action buttons
+  const moreExamplesButtonRef = useRef<HTMLButtonElement>(null);
+  const synonymsButtonRef = useRef<HTMLButtonElement>(null);
+  const antonymsButtonRef = useRef<HTMLButtonElement>(null);
+  const translateButtonRef = useRef<HTMLButtonElement>(null);
+  
   // Track when header refs are mounted for OnHoverMessage
   const [headerMounted, setHeaderMounted] = useState(false);
+  
+  // Track when utility button refs are mounted for OnHoverMessage
+  const [utilityButtonsMounted, setUtilityButtonsMounted] = useState(false);
   
   // Set mounted state after initial render
   useEffect(() => {
     setHeaderMounted(true);
   }, []);
+  
+  // Re-trigger utility buttons mounted state when tab changes to ensure refs are ready
+  useEffect(() => {
+    setUtilityButtonsMounted(false);
+    // Small delay to ensure refs are set after render
+    const timer = setTimeout(() => {
+      setUtilityButtonsMounted(true);
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [activeTab]);
 
   console.log('[WordExplanationPopover] Render with props:', {
     visible,
@@ -487,9 +507,6 @@ export const WordExplanationPopover: React.FC<WordExplanationPopoverProps> = ({
     }
   };
 
-  // Tooltip state for utility buttons
-  const [activeTooltip, setActiveTooltip] = useState<string | null>(null);
-
   // Utility button handlers
   const handleGetMoreExamples = () => {
     console.log('[WordExplanationPopover] Get more examples clicked');
@@ -502,11 +519,18 @@ export const WordExplanationPopover: React.FC<WordExplanationPopoverProps> = ({
   };
 
   // Pass Ask AI button ref to parent when mounted
+  // Always pass the ref object, even if current is null initially
+  // The parent can check .current when needed
   useEffect(() => {
-    if (askAIButtonRef.current) {
+    onAskAIButtonMount?.(askAIButtonRef);
+  }, [onAskAIButtonMount, askAIButtonRef]);
+  
+  // Re-notify parent when button becomes available (for contextual tab)
+  useEffect(() => {
+    if (utilityButtonsMounted && activeTab === 'contextual' && askAIButtonRef.current) {
       onAskAIButtonMount?.(askAIButtonRef);
     }
-  }, [onAskAIButtonMount]);
+  }, [utilityButtonsMounted, activeTab, onAskAIButtonMount, askAIButtonRef]);
 
   const handleGetSynonyms = () => {
     console.log('[WordExplanationPopover] Get synonyms clicked');
@@ -623,11 +647,6 @@ export const WordExplanationPopover: React.FC<WordExplanationPopoverProps> = ({
               offset={8}
             />
           )}
-          <MinimizeIcon
-            onClick={onClose}
-            size={18}
-            useShadowDom={useShadowDom}
-          />
           {onDelete && (
             <>
               <button 
@@ -648,6 +667,11 @@ export const WordExplanationPopover: React.FC<WordExplanationPopoverProps> = ({
               )}
             </>
           )}
+          <MinimizeIcon
+            onClick={onClose}
+            size={18}
+            useShadowDom={useShadowDom}
+          />
         </div>
       </div>
 
@@ -781,44 +805,44 @@ export const WordExplanationPopover: React.FC<WordExplanationPopoverProps> = ({
           // Only show utility buttons if there's content
           content ? (
             <>
-              {shouldAllowFetchMoreExamples && (
+              {isLoadingExamples ? (
+                <Spinner size="md" useShadowDom={useShadowDom} />
+              ) : shouldAllowFetchMoreExamples ? (
                 <div className={getClassName('utilityButtonWrapper')}>
                   <button 
-                    className={`${getClassName('utilityButton')} ${isLoadingExamples ? getClassName('utilityButtonDisabled') : ''}`}
+                    ref={moreExamplesButtonRef}
+                    className={getClassName('utilityButton')}
                     onClick={handleGetMoreExamples}
-                    onMouseEnter={() => setActiveTooltip('examples')}
-                    onMouseLeave={() => setActiveTooltip(null)}
                     aria-label="Get more examples"
-                    disabled={isLoadingExamples}
                   >
-                    {isLoadingExamples ? (
-                      <div className={getClassName('buttonSpinner')} />
-                    ) : (
-                      <Lightbulb size={20} strokeWidth={2.5} />
-                    )}
+                    <Lightbulb size={20} strokeWidth={2.5} />
                   </button>
-                  {activeTooltip === 'examples' && !isLoadingExamples && (
-                    <div className={getClassName('utilityTooltip')}>
-                      Get more examples
-                    </div>
+                  {utilityButtonsMounted && moreExamplesButtonRef.current && (
+                    <OnHoverMessage
+                      message="Get more examples"
+                      targetRef={moreExamplesButtonRef}
+                      position="bottom"
+                      offset={8}
+                    />
                   )}
                 </div>
-              )}
+              ) : null}
               <div className={getClassName('utilityButtonWrapper')}>
                 <button 
                   ref={askAIButtonRef}
                   className={getClassName('utilityButton')} 
                   onClick={handleAskAI}
-                  onMouseEnter={() => setActiveTooltip('askAI')}
-                  onMouseLeave={() => setActiveTooltip(null)}
                   aria-label="Ask AI"
                 >
                   <MessageCircle size={20} strokeWidth={2.5} />
                 </button>
-                {activeTooltip === 'askAI' && (
-                  <div className={getClassName('utilityTooltip')}>
-                    Ask AI
-                  </div>
+                {utilityButtonsMounted && askAIButtonRef.current && (
+                  <OnHoverMessage
+                    message="Ask AI"
+                    targetRef={askAIButtonRef}
+                    position="bottom"
+                    offset={8}
+                  />
                 )}
               </div>
             </>
@@ -828,33 +852,34 @@ export const WordExplanationPopover: React.FC<WordExplanationPopoverProps> = ({
             {synonyms.length === 0 && (
               <div className={getClassName('utilityButtonWrapper')}>
                 <button 
+                  ref={synonymsButtonRef}
                   className={`${getClassName('utilityButton')} ${isLoadingSynonyms ? getClassName('utilityButtonDisabled') : ''}`}
                   onClick={handleGetSynonyms}
-                  onMouseEnter={() => setActiveTooltip('synonyms')}
-                  onMouseLeave={() => setActiveTooltip(null)}
                   aria-label="Get synonyms"
                   disabled={isLoadingSynonyms}
                 >
                   {isLoadingSynonyms ? (
                     <div className={getClassName('buttonSpinner')} />
                   ) : (
-                    <BookOpen size={20} strokeWidth={2.5} />
+                    <Equal size={20} strokeWidth={2.5} />
                   )}
                 </button>
-                {activeTooltip === 'synonyms' && !isLoadingSynonyms && (
-                  <div className={getClassName('utilityTooltip')}>
-                    Get synonyms
-                  </div>
+                {utilityButtonsMounted && !isLoadingSynonyms && synonymsButtonRef.current && (
+                  <OnHoverMessage
+                    message="Get synonyms"
+                    targetRef={synonymsButtonRef}
+                    position="bottom"
+                    offset={8}
+                  />
                 )}
               </div>
             )}
             {antonyms.length === 0 && (
               <div className={getClassName('utilityButtonWrapper')}>
                 <button 
+                  ref={antonymsButtonRef}
                   className={`${getClassName('utilityButton')} ${isLoadingAntonyms ? getClassName('utilityButtonDisabled') : ''}`}
                   onClick={handleGetOpposite}
-                  onMouseEnter={() => setActiveTooltip('opposite')}
-                  onMouseLeave={() => setActiveTooltip(null)}
                   aria-label="Get opposite"
                   disabled={isLoadingAntonyms}
                 >
@@ -864,20 +889,22 @@ export const WordExplanationPopover: React.FC<WordExplanationPopoverProps> = ({
                     <ArrowLeftRight size={20} strokeWidth={2.5} />
                   )}
                 </button>
-                {activeTooltip === 'opposite' && !isLoadingAntonyms && (
-                  <div className={getClassName('utilityTooltip')}>
-                    Get opposite
-                  </div>
+                {utilityButtonsMounted && !isLoadingAntonyms && antonymsButtonRef.current && (
+                  <OnHoverMessage
+                    message="Get opposite"
+                    targetRef={antonymsButtonRef}
+                    position="bottom"
+                    offset={8}
+                  />
                 )}
               </div>
             )}
             {translations.length === 0 && (
               <div className={getClassName('utilityButtonWrapper')}>
                 <button 
+                  ref={translateButtonRef}
                   className={`${getClassName('utilityButton')} ${isLoadingTranslation ? getClassName('utilityButtonDisabled') : ''}`}
                   onClick={handleTranslate}
-                  onMouseEnter={() => setActiveTooltip('translate')}
-                  onMouseLeave={() => setActiveTooltip(null)}
                   aria-label="Translate"
                   disabled={isLoadingTranslation}
                 >
@@ -887,10 +914,13 @@ export const WordExplanationPopover: React.FC<WordExplanationPopoverProps> = ({
                     <Languages size={20} strokeWidth={2.5} />
                   )}
                 </button>
-                {activeTooltip === 'translate' && !isLoadingTranslation && (
-                  <div className={getClassName('utilityTooltip')}>
-                    Translate
-                  </div>
+                {utilityButtonsMounted && !isLoadingTranslation && translateButtonRef.current && (
+                  <OnHoverMessage
+                    message="Translate"
+                    targetRef={translateButtonRef}
+                    position="bottom"
+                    offset={8}
+                  />
                 )}
               </div>
             )}

@@ -370,25 +370,66 @@ function setupGlobalAuthListener(): void {
 }
 
 /**
- * Toggle side panel open/closed state
+ * Close all open sidebars except the specified one (non-blocking, triggers animations in parallel)
+ * @param except - The sidebar type to exclude from closing
  */
-async function setSidePanelOpen(open: boolean, initialTab?: 'summary' | 'settings'): Promise<void> {
-  // If opening side panel and text explanation panel is open, close it first with shrink animation
-  if (open && store.get(textExplanationPanelOpenAtom)) {
-    console.log('[Content Script] Closing text explanation panel before opening side panel');
-    
+function closeAllSidebars(except?: 'main' | 'text' | 'image' | 'wordAskAI'): void {
+  console.log('[Content Script] closeAllSidebars called, except:', except);
+  
+  // Close main side panel
+  if (except !== 'main' && sidePanelOpen) {
+    console.log('[Content Script] Closing main side panel');
+    sidePanelOpen = false;
+    updateSidePanel();
+  }
+  
+  // Close text explanation panel
+  if (except !== 'text' && store.get(textExplanationPanelOpenAtom)) {
+    console.log('[Content Script] Closing text explanation panel');
     if (textExplanationPanelCloseHandler) {
-      // Use the animated close handler (triggers shrink animation)
       textExplanationPanelCloseHandler();
-      // Wait for shrink animation to complete (400ms duration)
-      await new Promise(resolve => setTimeout(resolve, 450));
     } else {
       // Fallback: immediate close if handler not available
-      console.warn('[Content Script] Text explanation panel close handler not available, using immediate close');
       store.set(textExplanationPanelOpenAtom, false);
       updateTextExplanationPanel();
       updateTextExplanationIconContainer();
     }
+  }
+  
+  // Close image explanation panel
+  if (except !== 'image' && store.get(imageExplanationPanelOpenAtom)) {
+    console.log('[Content Script] Closing image explanation panel');
+    if (imageExplanationPanelCloseHandler) {
+      imageExplanationPanelCloseHandler();
+    } else {
+      // Fallback: immediate close if handler not available
+      store.set(imageExplanationPanelOpenAtom, false);
+      updateImageExplanationPanel();
+      updateImageExplanationIconContainer();
+    }
+  }
+  
+  // Close word Ask AI panel
+  if (except !== 'wordAskAI' && store.get(wordAskAISidePanelOpenAtom)) {
+    console.log('[Content Script] Closing word Ask AI panel');
+    if (wordAskAICloseHandler) {
+      wordAskAICloseHandler();
+    } else {
+      // Fallback: immediate close if handler not available
+      store.set(wordAskAISidePanelOpenAtom, false);
+      store.set(wordAskAISidePanelWordIdAtom, null);
+      updateWordAskAISidePanel();
+    }
+  }
+}
+
+/**
+ * Toggle side panel open/closed state
+ */
+function setSidePanelOpen(open: boolean, initialTab?: 'summary' | 'settings'): void {
+  // If opening side panel, close all other sidebars (parallel animations)
+  if (open) {
+    closeAllSidebars('main');
   }
   
   sidePanelOpen = open;
@@ -4139,6 +4180,9 @@ function handleAskAI(wordId: string): void {
     return;
   }
 
+  // Close all other sidebars (parallel animations)
+  closeAllSidebars('wordAskAI');
+
   // Open Ask AI side panel
   store.set(wordAskAISidePanelOpenAtom, true);
   store.set(wordAskAISidePanelWordIdAtom, wordId);
@@ -4605,7 +4649,7 @@ function handleAskAIClearChat(wordId: string): void {
  * If clicking same explanation ID: toggle panel (close if open, open if closed)
  * If clicking different ID: close current panel, set new active ID, open new panel
  */
-async function toggleTextExplanationPanel(explanationId: string): Promise<void> {
+function toggleTextExplanationPanel(explanationId: string): void {
   const activeId = store.get(activeTextExplanationIdAtom);
   const panelOpen = store.get(textExplanationPanelOpenAtom);
   
@@ -4624,35 +4668,11 @@ async function toggleTextExplanationPanel(explanationId: string): Promise<void> 
         updateTextExplanationIconContainer();
       }
     } else {
-      // Opening - close side panel first if it's open
-      if (sidePanelOpen) {
-        console.log('[Content Script] Closing side panel before opening text explanation panel');
-        setSidePanelOpen(false);
-        // Wait for slide animation to complete (300ms duration)
-        await new Promise(resolve => setTimeout(resolve, 350));
-      }
+      // Opening - close all other sidebars (parallel animations)
+      closeAllSidebars('text');
       
-      // Switch from image to text panel - open text panel first, then close image panel
-      // This creates a smooth content switch UX instead of close-then-open
       store.set(textExplanationPanelOpenAtom, true);
       updateTextExplanationPanel();
-      
-      // Close any open image explanation panel (after opening text panel for smooth transition)
-      const activeImageId = store.get(activeImageExplanationIdAtom);
-      if (activeImageId && store.get(imageExplanationPanelOpenAtom)) {
-        console.log('[Content Script] Switching from image to text explanation panel');
-        const imageExplanations = store.get(imageExplanationsAtom);
-        const activeImageExplanation = imageExplanations.get(activeImageId);
-        if (activeImageExplanation?.abortController) {
-          activeImageExplanation.abortController.abort();
-        }
-        store.set(imageExplanationPanelOpenAtom, false);
-        store.set(activeImageExplanationIdAtom, null);
-        // Update the image panel and icons to reflect the closed state
-        updateImageExplanationPanel();
-        updateImageExplanationIconContainer();
-      }
-      
       updateTextExplanationIconContainer();
     }
   } else {
@@ -4666,36 +4686,12 @@ async function toggleTextExplanationPanel(explanationId: string): Promise<void> 
       }
     }
     
-    // Close side panel first if it's open
-    if (sidePanelOpen) {
-      console.log('[Content Script] Closing side panel before opening text explanation panel');
-      setSidePanelOpen(false);
-      // Wait for slide animation to complete (300ms duration)
-      await new Promise(resolve => setTimeout(resolve, 350));
-    }
+    // Close all other sidebars (parallel animations)
+    closeAllSidebars('text');
     
-    // Switch from image to text panel - open text panel first, then close image panel
-    // This creates a smooth content switch UX instead of close-then-open
     store.set(activeTextExplanationIdAtom, explanationId);
     store.set(textExplanationPanelOpenAtom, true);
     updateTextExplanationPanel();
-    
-    // Close any open image explanation panel (after opening text panel for smooth transition)
-    const activeImageId = store.get(activeImageExplanationIdAtom);
-    if (activeImageId && store.get(imageExplanationPanelOpenAtom)) {
-      console.log('[Content Script] Switching from image to text explanation panel');
-      const imageExplanations = store.get(imageExplanationsAtom);
-      const activeImageExplanation = imageExplanations.get(activeImageId);
-      if (activeImageExplanation?.abortController) {
-        activeImageExplanation.abortController.abort();
-      }
-      store.set(imageExplanationPanelOpenAtom, false);
-      store.set(activeImageExplanationIdAtom, null);
-      // Update the image panel and icons to reflect the closed state
-      updateImageExplanationPanel();
-      updateImageExplanationIconContainer();
-    }
-    
     updateTextExplanationIconContainer();
   }
 }
@@ -4705,7 +4701,7 @@ async function toggleTextExplanationPanel(explanationId: string): Promise<void> 
  * If clicking same explanation ID: toggle panel (close if open, open if closed)
  * If clicking different ID: close current panel, set new active ID, open new panel
  */
-async function toggleImageExplanationPanel(explanationId: string): Promise<void> {
+function toggleImageExplanationPanel(explanationId: string): void {
   const activeId = store.get(activeImageExplanationIdAtom);
   const panelOpen = store.get(imageExplanationPanelOpenAtom);
   
@@ -4724,39 +4720,15 @@ async function toggleImageExplanationPanel(explanationId: string): Promise<void>
       }
       updateImageExplanationIconContainer();
     } else {
-      // Opening - close side panel first if it's open
-      if (sidePanelOpen) {
-        console.log('[Content Script] Closing side panel before opening image explanation panel');
-        setSidePanelOpen(false);
-        // Wait for slide animation to complete (300ms duration)
-        await new Promise(resolve => setTimeout(resolve, 350));
-      }
+      // Opening - close all other sidebars (parallel animations)
+      closeAllSidebars('image');
       
-      // Switch from text to image panel - open image panel first, then close text panel
-      // This creates a smooth content switch UX instead of close-then-open
       // Ensure panel is injected before opening
       injectImageExplanationPanel();
       
       store.set(activeImageExplanationIdAtom, explanationId);
       store.set(imageExplanationPanelOpenAtom, true);
       updateImageExplanationPanel();
-      
-      // Close any open text explanation panel (after opening image panel for smooth transition)
-      const activeTextId = store.get(activeTextExplanationIdAtom);
-      if (activeTextId && store.get(textExplanationPanelOpenAtom)) {
-        console.log('[Content Script] Switching from text to image explanation panel');
-        const textExplanations = store.get(textExplanationsAtom);
-        const activeTextExplanation = textExplanations.get(activeTextId);
-        if (activeTextExplanation?.abortController) {
-          activeTextExplanation.abortController.abort();
-        }
-        store.set(textExplanationPanelOpenAtom, false);
-        store.set(activeTextExplanationIdAtom, null);
-        // Update the text panel and icons to reflect the closed state
-        updateTextExplanationPanel();
-        updateTextExplanationIconContainer();
-      }
-      
       updateImageExplanationIconContainer();
     }
   } else {
@@ -4770,39 +4742,15 @@ async function toggleImageExplanationPanel(explanationId: string): Promise<void>
       }
     }
     
-    // Close side panel first if it's open
-    if (sidePanelOpen) {
-      console.log('[Content Script] Closing side panel before opening image explanation panel');
-      setSidePanelOpen(false);
-      // Wait for slide animation to complete (300ms duration)
-      await new Promise(resolve => setTimeout(resolve, 350));
-    }
+    // Close all other sidebars (parallel animations)
+    closeAllSidebars('image');
     
-    // Switch from text to image panel - open image panel first, then close text panel
-    // This creates a smooth content switch UX instead of close-then-open
     // Ensure panel is injected before opening
     injectImageExplanationPanel();
     
     store.set(activeImageExplanationIdAtom, explanationId);
     store.set(imageExplanationPanelOpenAtom, true);
     updateImageExplanationPanel();
-    
-    // Close any open text explanation panel (after opening image panel for smooth transition)
-    const activeTextId = store.get(activeTextExplanationIdAtom);
-    if (activeTextId && store.get(textExplanationPanelOpenAtom)) {
-      console.log('[Content Script] Switching from text to image explanation panel');
-      const textExplanations = store.get(textExplanationsAtom);
-      const activeTextExplanation = textExplanations.get(activeTextId);
-      if (activeTextExplanation?.abortController) {
-        activeTextExplanation.abortController.abort();
-      }
-      store.set(textExplanationPanelOpenAtom, false);
-      store.set(activeTextExplanationIdAtom, null);
-      // Update the text panel and icons to reflect the closed state
-      updateTextExplanationPanel();
-      updateTextExplanationIconContainer();
-    }
-    
     updateImageExplanationIconContainer();
   }
 }
