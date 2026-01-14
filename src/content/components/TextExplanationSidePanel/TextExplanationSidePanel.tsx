@@ -368,10 +368,9 @@ export const TextExplanationSidePanel: React.FC<TextExplanationSidePanelProps> =
   }
 
   // Class names for Shadow DOM vs CSS Modules
-  // Don't apply 'open' class when using animation - animation handles positioning
   const sidePanelClass = getClassName(
-    `textExplanationSidePanel ${isVerticallyExpanded ? 'verticallyExpanded' : ''}`,
-    `${styles.textExplanationSidePanel} ${isVerticallyExpanded ? styles.verticallyExpanded : ''}`
+    `textExplanationSidePanel open ${isVerticallyExpanded ? 'verticallyExpanded' : ''}`,
+    `${styles.textExplanationSidePanel} ${styles.open} ${isVerticallyExpanded ? styles.verticallyExpanded : ''}`
   );
   const resizeHandleClass = getClassName('resizeHandle', styles.resizeHandle);
   const contentClass = getClassName('content', styles.content);

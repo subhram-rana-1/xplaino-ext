@@ -138,6 +138,9 @@ export const WordExplanationPopover: React.FC<WordExplanationPopoverProps> = ({
   const antonymsButtonRef = useRef<HTMLButtonElement>(null);
   const translateButtonRef = useRef<HTMLButtonElement>(null);
   
+  // Ref for main content container (for smooth height transitions)
+  const mainContentRef = useRef<HTMLDivElement>(null);
+  
   // Track when header refs are mounted for OnHoverMessage
   const [headerMounted, setHeaderMounted] = useState(false);
   
