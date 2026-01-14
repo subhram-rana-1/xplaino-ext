@@ -79,6 +79,7 @@ export const FAB: React.FC<FABProps> = ({
   const hideTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isHoveringRef = useRef(false);
   const isDisablingRef = useRef(false);
+  const disableButtonClickedRef = useRef(false); // Track if disable button was just clicked
 
   // Get class names based on context
   const getClassName = useCallback((shadowClass: string, moduleClass: string) => {
@@ -161,6 +162,41 @@ export const FAB: React.FC<FABProps> = ({
     };
   }, []);
 
+  // Click outside handler - close popovers and hide actions when clicking outside
+  // Uses composedPath() to correctly handle Shadow DOM boundaries
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      // Use composedPath() to get all elements in the event path, including through Shadow DOM
+      const path = event.composedPath();
+      
+      // Check if any element in the path is our FAB parent container
+      const isClickInside = path.some((element) => element === parentRef.current);
+      
+      if (!isClickInside) {
+        // Click was outside - close popover and hide actions
+        if (showDisablePopover) {
+          setShowDisablePopover(false);
+        }
+        if (showTranslationPopover) {
+          setShowTranslationPopover(false);
+        }
+        // Hide actions if they're visible and can be hidden
+        if (actionsVisible && canHideActions && !isSummarising && translationState !== 'translating') {
+          setActionsVisible(false);
+        }
+      }
+    };
+
+    // Only add listener if actions are visible or a popover is open
+    if (actionsVisible || showDisablePopover || showTranslationPopover) {
+      // Use window to capture all clicks, including those in Shadow DOM
+      window.addEventListener('mousedown', handleClickOutside, true);
+      return () => {
+        window.removeEventListener('mousedown', handleClickOutside, true);
+      };
+    }
+  }, [actionsVisible, showDisablePopover, showTranslationPopover, canHideActions, isSummarising, translationState]);
+
   // Action handlers
   const handleSummarise = useCallback(() => {
     console.log('[FAB] Summarise clicked');
@@ -210,6 +246,12 @@ export const FAB: React.FC<FABProps> = ({
   }, [onSaveUrl]);
 
   const handleDisableExtensionButtonClick = useCallback(() => {
+    // Set flag to prevent mouse leave from immediately closing the popover
+    disableButtonClickedRef.current = true;
+    setTimeout(() => {
+      disableButtonClickedRef.current = false;
+    }, 100); // Reset flag after a short delay
+    
     setShowDisablePopover((prev) => {
       const newValue = !prev;
       if (newValue) {
@@ -241,6 +283,10 @@ export const FAB: React.FC<FABProps> = ({
   const handleDisablePopoverMouseLeave = useCallback(() => {
     // Don't close popover if disable action is in progress
     if (isDisablingRef.current) {
+      return;
+    }
+    // Don't close popover if the disable button was just clicked (toggle action)
+    if (disableButtonClickedRef.current) {
       return;
     }
     // Hide popover when mouse leaves

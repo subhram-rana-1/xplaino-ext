@@ -117,29 +117,38 @@ export const FABDisablePopover: React.FC<FABDisablePopoverProps> = ({
   }, [visible, emerge, shrink]);
 
   const handleDisableGlobally = useCallback(async () => {
-    await updateExtensionSettings({ globalDisabled: true });
-    console.log('[FAB] Disabled globally');
+    // Show modal and call onDisabled BEFORE updating storage
+    // This ensures the user sees feedback before the FAB is removed by the storage listener
     onDisabled?.();
     onShowModal?.();
+    // Small delay to allow modal to render before storage update triggers FAB removal
+    await new Promise(resolve => setTimeout(resolve, 50));
+    await updateExtensionSettings({ globalDisabled: true });
+    console.log('[FAB] Disabled globally');
   }, [onDisabled, onShowModal]);
 
   const handleDisableOnSite = useCallback(async () => {
     if (!currentDomain) return;
+    // Show modal and call onDisabled BEFORE updating storage
+    // This ensures the user sees feedback before the FAB is removed by the storage listener
+    onDisabled?.();
+    onShowModal?.();
+    // Small delay to allow modal to render before storage update triggers FAB removal
+    await new Promise(resolve => setTimeout(resolve, 50));
     await updateExtensionSettings({
       domainStatus: { domain: currentDomain, status: 'DISABLED' },
     });
     console.log('[FAB] Disabled on:', currentDomain);
-    onDisabled?.();
-    onShowModal?.();
   }, [currentDomain, onDisabled, onShowModal]);
 
-  // Don't render if animation is complete and not visible
-  if (!shouldRender && !visible) return null;
-
+  // IMPORTANT: All hooks must be called BEFORE any early returns (React Rules of Hooks)
   const handleMouseLeave = useCallback(() => {
     // Close the popover when mouse leaves
     onMouseLeave?.();
   }, [onMouseLeave]);
+
+  // Don't render if animation is complete and not visible
+  if (!shouldRender && !visible) return null;
 
   return (
     <div
