@@ -3,7 +3,6 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { BookText, GraduationCap, Bookmark, Lightbulb, MessageCircle, Equal, ArrowLeftRight, Languages, Sparkles, Copy, Check, Trash2 } from 'lucide-react';
 import { ButtonGroup, ButtonItem } from '@/components/ui/ButtonGroup';
-import { useEmergeAnimation } from '@/hooks/useEmergeAnimation';
 import { MinimizeIcon } from '../ui/MinimizeIcon';
 import { OnHoverMessage } from '../OnHoverMessage';
 import { Spinner } from '../ui/Spinner/Spinner';
@@ -127,6 +126,12 @@ export const WordExplanationPopover: React.FC<WordExplanationPopoverProps> = ({
   const askAIButtonRef = useRef<HTMLButtonElement>(null);
   const [isCopied, setIsCopied] = useState(false);
   
+  // Simple fade animation state
+  const elementRef = useRef<HTMLDivElement>(null);
+  const [shouldRender, setShouldRender] = useState(false);
+  const animationTimeoutRef = useRef<number | null>(null);
+  const isClosingRef = useRef(false); // Track if we're in the middle of a closing animation
+  
   // Refs for header buttons
   const copyButtonRef = useRef<HTMLButtonElement>(null);
   const bookmarkButtonRef = useRef<HTMLButtonElement>(null);
@@ -209,30 +214,6 @@ export const WordExplanationPopover: React.FC<WordExplanationPopoverProps> = ({
     errorMessage,
   });
 
-  // Animation hook
-  const {
-    elementRef,
-    sourceRef: animationSourceRef,
-    emerge,
-    shrink,
-    shouldRender: animationShouldRender,
-    style: animationStyle,
-    animationState,
-  } = useEmergeAnimation({
-    duration: 300,
-    easing: 'cubic-bezier(0.4, 0, 0.2, 1)',
-    transformOrigin: 'center center',
-  });
-
-  // Use animation hook's shouldRender - it manages visibility during animations
-  const shouldRender = animationShouldRender;
-
-  console.log('[WordExplanationPopover] Animation state:', { 
-    visible, 
-    animationShouldRender, 
-    shouldRender 
-  });
-
   // Calculate popover position based on source element
   const calculatePosition = useCallback(() => {
     if (!sourceRef?.current || !elementRef.current) {
@@ -299,10 +280,10 @@ export const WordExplanationPopover: React.FC<WordExplanationPopoverProps> = ({
     }
   }, [visible, sourceRef, elementRef, calculatePosition]);
 
-  // Recalculate position when animation completes (state becomes 'visible')
+  // Recalculate position when element becomes visible
   // This ensures position is correct when reopening the popover
   useEffect(() => {
-    if (animationState === 'visible' && sourceRef?.current && elementRef.current) {
+    if (visible && shouldRender && sourceRef?.current && elementRef.current) {
       // Small delay to ensure element is fully rendered
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
@@ -310,7 +291,7 @@ export const WordExplanationPopover: React.FC<WordExplanationPopoverProps> = ({
         });
       });
     }
-  }, [animationState, sourceRef, elementRef, calculatePosition]);
+  }, [visible, shouldRender, sourceRef, elementRef, calculatePosition]);
 
   // Set up scroll listeners to keep popover tied to word span
   useEffect(() => {
@@ -375,34 +356,61 @@ export const WordExplanationPopover: React.FC<WordExplanationPopoverProps> = ({
     };
   }, [visible, sourceRef, calculatePosition]);
 
-  // Sync sourceRef with animation hook when element renders
-  // Similar to FABDisablePopover pattern
-  useEffect(() => {
-    if (shouldRender && sourceRef?.current) {
-      (animationSourceRef as React.MutableRefObject<HTMLElement | null>).current = sourceRef.current;
-      console.log('[WordExplanationPopover] Synced source ref:', {
-        sourceElement: sourceRef.current,
-        tagName: sourceRef.current.tagName,
-        className: sourceRef.current.className,
-        textContent: sourceRef.current.textContent,
-      });
-    }
-  }, [sourceRef, animationSourceRef, shouldRender]);
 
-  // Handle visibility changes with animation
-  // Pattern similar to FABDisablePopover
+  // Handle visibility changes with simple fade animation using direct DOM manipulation
+  // This effect handles three scenarios:
+  // 1. Opening (first time or reopening): visible=true, shouldRender=false/true -> fade in
+  // 2. Closing: visible=false, wasVisible=true -> fade out over 300ms
+  // 3. After animation complete: shouldRender=false, component unmounts
+  // The reopening logic detects when visible changes from false to true after a close
   useEffect(() => {
-    if (visible && !wasVisible.current) {
-      // Opening
+    console.log('[WordExplanationPopover] Visibility effect triggered:', {
+      visible,
+      shouldRender,
+      wasVisibleRef: wasVisible.current,
+      isClosingRef: isClosingRef.current,
+    });
+
+    // Clear any pending timeouts
+    if (animationTimeoutRef.current !== null) {
+      console.log('[WordExplanationPopover] Clearing pending animation timeout');
+      clearTimeout(animationTimeoutRef.current);
+      animationTimeoutRef.current = null;
+    }
+
+    // Handle case where visible becomes true but shouldRender is false (reopening after close)
+    if (visible && !shouldRender && !isClosingRef.current) {
+      // Component was closed but now needs to open - ensure it renders
+      console.log('[WordExplanationPopover] Reopening detected - setting shouldRender to true');
+      setShouldRender(true);
       wasVisible.current = true;
-      console.log('[WordExplanationPopover] Opening with emerge animation');
       
-      // Wait for element to be mounted, then calculate position and animate
-      requestAnimationFrame(() => {
-        const element = elementRef.current;
+      // Wait for element to be mounted, then calculate position and fade in
+      // Use multiple RAF calls to ensure element is actually mounted
+      const waitForElementAndAnimate = async () => {
+        let element = elementRef.current;
         const source = sourceRef?.current;
+        let attempts = 0;
+        const maxAttempts = 10; // Wait up to ~166ms
+        
+        // Poll until element is available
+        while (!element && attempts < maxAttempts) {
+          await new Promise(resolve => requestAnimationFrame(resolve));
+          element = elementRef.current;
+          attempts++;
+        }
+        
+        console.log('[WordExplanationPopover] Reopening - element and source check after waiting:', {
+          hasElement: !!element,
+          hasSource: !!source,
+          attempts,
+        });
         
         if (element && source) {
+          // Start with opacity 0
+          element.style.opacity = '0';
+          console.log('[WordExplanationPopover] Reopening - set initial opacity to 0');
+          
           // Calculate position synchronously
           const sourceRect = source.getBoundingClientRect();
           const popoverRect = element.getBoundingClientRect();
@@ -434,40 +442,175 @@ export const WordExplanationPopover: React.FC<WordExplanationPopoverProps> = ({
             top = 20;
           }
 
-          console.log('[WordExplanationPopover] Calculated position synchronously:', { top, left });
+          console.log('[WordExplanationPopover] Reopening - calculated position:', { top, left });
           
-          // CRITICAL: Apply position directly to DOM BEFORE emerge() reads it
+          // Apply position directly to DOM
           element.style.top = `${top}px`;
           element.style.left = `${left}px`;
           
           // Also update state for subsequent renders
           setPosition({ top, left });
           
-          console.log('[WordExplanationPopover] Position applied to DOM, starting emerge animation');
+          // Force reflow to ensure opacity: 0 is registered
+          void element.offsetHeight;
+          
+          // Start fade in animation - direct DOM manipulation
+          requestAnimationFrame(() => {
+            if (elementRef.current) {
+              elementRef.current.style.opacity = '1';
+              console.log('[WordExplanationPopover] Reopening - fade in started (opacity set to 1)');
+            }
+          });
+        } else {
+          console.warn('[WordExplanationPopover] Reopening - element or source not available after waiting');
+        }
+      };
+      
+      waitForElementAndAnimate();
+      return;
+    }
+
+    if (visible && !wasVisible.current && !isClosingRef.current) {
+      // Opening: fade in
+      wasVisible.current = true;
+      setShouldRender(true); // Ensure component renders
+      
+      console.log('[WordExplanationPopover] Opening (first time) with fade in animation');
+      
+      // Wait for element to be mounted, then calculate position and fade in
+      // Use multiple RAF calls to ensure element is actually mounted
+      const waitForElementAndAnimate = async () => {
+        let element = elementRef.current;
+        const source = sourceRef?.current;
+        let attempts = 0;
+        const maxAttempts = 10; // Wait up to ~166ms
+        
+        // Poll until element is available
+        while (!element && attempts < maxAttempts) {
+          await new Promise(resolve => requestAnimationFrame(resolve));
+          element = elementRef.current;
+          attempts++;
         }
         
-        // Start animation - element is now at its final position
-        emerge().catch((error) => {
-          console.error('[WordExplanationPopover] Emerge animation error:', error);
+        console.log('[WordExplanationPopover] Opening - element and source check after waiting:', {
+          hasElement: !!element,
+          hasSource: !!source,
+          attempts,
         });
-      });
-    } else if (!visible && wasVisible.current) {
-      // Closing
+        
+        if (element && source) {
+          // Start with opacity 0
+          element.style.opacity = '0';
+          console.log('[WordExplanationPopover] Opening - set initial opacity to 0');
+          
+          // Calculate position synchronously
+          const sourceRect = source.getBoundingClientRect();
+          const popoverRect = element.getBoundingClientRect();
+          const viewportHeight = window.innerHeight;
+          const viewportWidth = window.innerWidth;
+
+          // Default: position below the word, centered
+          let top = sourceRect.bottom + 8; // 8px gap
+          let left = sourceRect.left + (sourceRect.width / 2) - (popoverRect.width / 2);
+
+          // Check if popover would go off the right edge
+          if (left + popoverRect.width > viewportWidth - 20) {
+            left = viewportWidth - popoverRect.width - 20;
+          }
+
+          // Check if popover would go off the left edge
+          if (left < 20) {
+            left = 20;
+          }
+
+          // Check if popover would go off the bottom edge
+          if (top + popoverRect.height > viewportHeight - 20) {
+            // Position above the word instead
+            top = sourceRect.top - popoverRect.height - 8;
+          }
+
+          // Ensure it doesn't go above the viewport
+          if (top < 20) {
+            top = 20;
+          }
+
+          console.log('[WordExplanationPopover] Opening - calculated position:', { top, left });
+          
+          // Apply position directly to DOM
+          element.style.top = `${top}px`;
+          element.style.left = `${left}px`;
+          
+          // Also update state for subsequent renders
+          setPosition({ top, left });
+          
+          // Force reflow to ensure opacity: 0 is registered
+          void element.offsetHeight;
+          
+          // Start fade in animation - direct DOM manipulation
+          requestAnimationFrame(() => {
+            if (elementRef.current) {
+              elementRef.current.style.opacity = '1';
+              console.log('[WordExplanationPopover] Opening - fade in started (opacity set to 1)');
+            }
+          });
+        } else {
+          console.warn('[WordExplanationPopover] Opening - element or source not available after waiting');
+        }
+      };
+      
+      waitForElementAndAnimate();
+    } else if (!visible && wasVisible.current && !isClosingRef.current) {
+      // Closing: fade out
+      console.log('[WordExplanationPopover] Close requested - starting fade out animation');
+      isClosingRef.current = true;
       wasVisible.current = false;
-      setPosition(null);
-      console.log('[WordExplanationPopover] Closing with shrink animation');
-      shrink()
-        .then(() => {
-          console.log('[WordExplanationPopover] Shrink animation completed, calling onAnimationComplete');
-          onAnimationComplete?.();
-        })
-        .catch((error) => {
-          console.error('[WordExplanationPopover] Shrink animation error:', error);
-          // Still call onAnimationComplete even on error so the component gets unmounted
-          onAnimationComplete?.();
+      // DON'T clear position yet - it will cause re-render and interfere with animation
+      // We'll clear it after animation completes
+      
+      const element = elementRef.current;
+      if (element) {
+        // Get current computed opacity before starting animation
+        const currentOpacity = window.getComputedStyle(element).opacity;
+        console.log('[WordExplanationPopover] Current computed opacity before closing:', currentOpacity);
+        
+        // CRITICAL: Force opacity to 1 first to ensure we have a starting point for the transition
+        element.style.opacity = '1';
+        console.log('[WordExplanationPopover] Set opacity to 1 (starting point for fade-out)');
+        
+        // Force reflow to ensure the browser registers opacity: 1
+        void element.offsetHeight;
+        
+        // Now transition to opacity 0 - CSS transition will animate this
+        requestAnimationFrame(() => {
+          if (elementRef.current) {
+            elementRef.current.style.opacity = '0';
+            console.log('[WordExplanationPopover] Set opacity to 0, CSS transition should animate this over 300ms');
+          }
         });
+      }
+      
+      // Wait for fade out animation to complete (300ms), then hide and call callback
+      console.log('[WordExplanationPopover] Setting timeout for 300ms to complete fade-out animation');
+      animationTimeoutRef.current = window.setTimeout(() => {
+        console.log('[WordExplanationPopover] Fade out animation timeout completed');
+        isClosingRef.current = false;
+        setPosition(null); // Clear position now that animation is done
+        setShouldRender(false);
+        console.log('[WordExplanationPopover] Set shouldRender to false, calling onAnimationComplete');
+        onAnimationComplete?.();
+        animationTimeoutRef.current = null;
+      }, 300); // Match CSS transition duration
     }
-  }, [visible, emerge, shrink, onAnimationComplete, sourceRef, elementRef]);
+
+    // Cleanup function
+    return () => {
+      if (animationTimeoutRef.current !== null) {
+        console.log('[WordExplanationPopover] Cleaning up pending animation timeout in effect cleanup');
+        clearTimeout(animationTimeoutRef.current);
+        animationTimeoutRef.current = null;
+      }
+    };
+  }, [visible, onAnimationComplete, sourceRef, shouldRender]);
 
   // Handle outside click
   useEffect(() => {
@@ -605,37 +748,39 @@ export const WordExplanationPopover: React.FC<WordExplanationPopoverProps> = ({
 
   // Don't render if shouldn't be visible
   if (!shouldRender) {
-    console.log('[WordExplanationPopover] Not rendering - shouldRender is false');
+    console.log('[WordExplanationPopover] Not rendering - shouldRender is false', {
+      visible,
+      wasVisibleRef: wasVisible.current,
+      isClosingRef: isClosingRef.current,
+    });
     return null;
   }
 
-  console.log('[WordExplanationPopover] Rendering popover container');
+  console.log('[WordExplanationPopover] Rendering popover container', {
+    isClosing: isClosingRef.current,
+    hasElementRef: !!elementRef.current,
+    visible,
+  });
 
-  // Combine animation style with position style
-  // Combine animation style with position style
+  // Combine position styles (opacity is managed via direct DOM manipulation)
+  // We don't set opacity in inline styles at all - let the visibility effect handle it entirely
+  // This ensures CSS transitions work properly in both directions
   const combinedStyle: React.CSSProperties = {
-    ...animationStyle,
-    // CRITICAL: Always apply position when available - transform animation is relative to this
-    // The Web Animations API needs the element at its final position to calculate correct transforms
     ...(position && {
       top: `${position.top}px`,
       left: `${position.left}px`,
     }),
-    // Set visibility based on animation state
-    ...(animationState === 'visible' && {
-      opacity: 1,
-      visibility: 'visible' as const,
-    }),
+    visibility: shouldRender ? ('visible' as const) : ('hidden' as const),
     zIndex: 2147483640,
   };
 
   console.log('[WordExplanationPopover] Combined style:', combinedStyle);
-  console.log('[WordExplanationPopover] Animation state:', animationState);
+  console.log('[WordExplanationPopover] Should render:', shouldRender);
   console.log('[WordExplanationPopover] Element ref:', elementRef.current);
 
   return (
     <div
-      ref={elementRef as React.RefObject<HTMLDivElement>}
+      ref={elementRef}
       className={getClassName('popoverContainer')}
       style={combinedStyle}
     >

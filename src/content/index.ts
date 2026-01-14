@@ -3447,15 +3447,33 @@ function injectWordSpanStyles(): void {
  */
 function toggleWordPopover(wordId: string): void {
   const state = wordExplanationsMap.get(wordId);
-  if (!state) return;
-
-  state.popoverVisible = !state.popoverVisible;
-  
-  if (state.popoverVisible) {
-    injectWordExplanationPopover();
+  if (!state) {
+    console.log('[Content Script] toggleWordPopover - no state found for wordId:', wordId);
+    return;
   }
-  
+
+  const previousVisible = state.popoverVisible;
+  state.popoverVisible = !state.popoverVisible;
+
+  console.log('[Content Script] toggleWordPopover called:', {
+    wordId,
+    word: state.word,
+    previousVisible,
+    newVisible: state.popoverVisible,
+    hasWordSpan: !!state.wordSpanElement,
+    hasSourceRef: !!state.sourceRef.current,
+  });
+
+  if (state.popoverVisible) {
+    console.log('[Content Script] toggleWordPopover - opening popover, calling injectWordExplanationPopover');
+    injectWordExplanationPopover();
+  } else {
+    console.log('[Content Script] toggleWordPopover - closing popover');
+  }
+
+  console.log('[Content Script] toggleWordPopover - calling updateWordExplanationPopover');
   updateWordExplanationPopover();
+  console.log('[Content Script] toggleWordPopover - update complete');
 }
 
 /**
@@ -7480,7 +7498,7 @@ function updateWordExplanationPopover(): void {
 
   console.log('[Content Script] Searching for visible word explanation in map, size:', wordExplanationsMap.size);
   for (const [wordId, state] of wordExplanationsMap.entries()) {
-    console.log('[Content Script] Checking wordId:', wordId, 'popoverVisible:', state.popoverVisible);
+    console.log('[Content Script] Checking wordId:', wordId, 'popoverVisible:', state.popoverVisible, 'word:', state.word);
     if (state.popoverVisible) {
       visibleWordState = state;
       visibleWordId = wordId;
@@ -7493,6 +7511,13 @@ function updateWordExplanationPopover(): void {
   let wordIdToRender: string | null = null;
   let isVisible = false;
 
+  console.log('[Content Script] Visibility state check:', {
+    hasVisibleWord: !!visibleWordState,
+    visibleWordId,
+    hasLastVisibleWordInfo: !!lastVisibleWordInfo,
+    lastVisibleWordId: lastVisibleWordInfo?.wordId,
+  });
+
   if (visibleWordState && visibleWordId) {
     // A popover is currently visible - update lastVisibleWordInfo for animation
     stateToRender = visibleWordState;
@@ -7502,13 +7527,21 @@ function updateWordExplanationPopover(): void {
       wordId: visibleWordId,
       state: visibleWordState,
     };
-    console.log('[Content Script] Found visible word explanation, saving to lastVisibleWordInfo:', visibleWordId);
+    console.log('[Content Script] Found visible word explanation, saving to lastVisibleWordInfo:', {
+      wordId: visibleWordId,
+      word: visibleWordState.word,
+      isVisible: true,
+    });
   } else if (lastVisibleWordInfo) {
     // No visible popover, but we have a last visible one - render with visible=false for shrink animation
     stateToRender = lastVisibleWordInfo.state;
     wordIdToRender = lastVisibleWordInfo.wordId;
     isVisible = false;
-    console.log('[Content Script] No visible popover, but using lastVisibleWordInfo for shrink animation:', lastVisibleWordInfo.wordId);
+    console.log('[Content Script] No visible popover, but using lastVisibleWordInfo for fade-out animation:', {
+      wordId: lastVisibleWordInfo.wordId,
+      word: lastVisibleWordInfo.state.word,
+      isVisible: false,
+    });
   }
 
   if (!stateToRender || !wordIdToRender) {
@@ -7518,12 +7551,13 @@ function updateWordExplanationPopover(): void {
     return;
   }
 
-  console.log('[Content Script] Rendering word explanation:', {
+  console.log('[Content Script] Rendering word explanation with state:', {
     wordId: wordIdToRender,
     word: stateToRender.word,
-    content: stateToRender.streamedContent.substring(0, 50) + '...',
+    contentLength: stateToRender.streamedContent.length,
     isLoading: stateToRender.isLoading,
-    sourceRef: stateToRender.sourceRef.current,
+    hasSourceRef: !!stateToRender.sourceRef.current,
+    sourceRefElement: stateToRender.sourceRef.current?.tagName,
     isVisible,
   });
 
@@ -7548,21 +7582,41 @@ function updateWordExplanationPopover(): void {
 
   // Handler for close
   const handleClose = () => {
+    console.log('[Content Script] handleClose called (minimize button clicked):', {
+      wordId: wordIdToRender,
+      hasState: !!wordExplanationsMap.get(wordIdToRender!),
+    });
+    
     const state = wordExplanationsMap.get(wordIdToRender!);
     if (state) {
+      console.log('[Content Script] handleClose - setting popoverVisible to false:', {
+        word: state.word,
+        previousVisible: state.popoverVisible,
+      });
       state.popoverVisible = false;
+      console.log('[Content Script] handleClose - calling updateWordExplanationPopover');
       updateWordExplanationPopover();
+      console.log('[Content Script] handleClose - update complete');
     }
   };
 
   // Handler for animation complete (shrink animation finished)
   const handleAnimationComplete = () => {
-    console.log('[Content Script] Shrink animation complete, clearing lastVisibleWordInfo');
+    console.log('[Content Script] handleAnimationComplete called - fade-out animation finished:', {
+      hadLastVisibleWordInfo: !!lastVisibleWordInfo,
+      lastVisibleWordId: lastVisibleWordInfo?.wordId,
+    });
+    
     lastVisibleWordInfo = null;
+    console.log('[Content Script] handleAnimationComplete - cleared lastVisibleWordInfo');
+    
     // Now render empty fragment since animation is done
     if (wordExplanationPopoverRoot) {
+      console.log('[Content Script] handleAnimationComplete - rendering empty fragment');
       wordExplanationPopoverRoot.render(React.createElement(React.Fragment));
     }
+    
+    console.log('[Content Script] handleAnimationComplete - complete');
   };
 
   // Render popover

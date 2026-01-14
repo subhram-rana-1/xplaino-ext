@@ -21,8 +21,11 @@
   box-sizing: border-box !important;
   pointer-events: auto !important;
   overflow: hidden !important;
-  /* Animation support - transform-origin for emerge/shrink animation */
-  transform-origin: center center !important;
+  /* Start with opacity 0 so element is invisible until animation starts */
+  /* CRITICAL: Don't use !important on opacity - inline styles need to override this */
+  opacity: 0;
+  /* Smooth fade in/out animation */
+  transition: opacity 300ms cubic-bezier(0.4, 0, 0.2, 1) !important;
 }
 
 /* Header */

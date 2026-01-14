@@ -26,10 +26,10 @@
   gap: 8px;
   box-sizing: border-box;
   overflow: hidden;
-  /* Animation support - transform-origin for emerge/shrink animation */
-  transform-origin: center center;
-  /* Smooth height transition when content changes */
-  transition: height 200ms cubic-bezier(0.4, 0, 0.2, 1);
+  /* Start with opacity 0 so element is invisible until animation starts */
+  opacity: 0;
+  /* Smooth fade in/out animation and height transition when content changes */
+  transition: opacity 300ms cubic-bezier(0.4, 0, 0.2, 1), height 200ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .header {
