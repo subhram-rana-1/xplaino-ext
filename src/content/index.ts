@@ -3229,37 +3229,39 @@ function createPurpleSpinner(wordSpan: HTMLElement): HTMLElement {
 
 /**
  * Create bookmark icon element for word span
+ * NOTE: This function is no longer used as we removed the bookmark icon from word spans
+ * to reduce visual clutter. Bookmark status is shown in the popover header instead.
  */
-function createBookmarkIcon(): HTMLElement {
-  const bookmarkIcon = document.createElement('div');
-  bookmarkIcon.className = 'word-explanation-bookmark-icon';
-  bookmarkIcon.style.cssText = `
-    position: absolute;
-    top: -8px;
-    left: -8px;
-    width: 16px;
-    height: 16px;
-    z-index: 1;
-    pointer-events: none;
-  `;
-  
-  // Create SVG bookmark icon
-  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-  svg.setAttribute('width', '16');
-  svg.setAttribute('height', '16');
-  svg.setAttribute('viewBox', '0 0 24 24');
-  svg.setAttribute('fill', COLORS.PRIMARY);
-  svg.style.cssText = 'width: 100%; height: 100%;';
-  
-  const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-  path.setAttribute('d', 'M17 3H7c-1.1 0-2 .9-2 2v16l7-3 7 3V5c0-1.1-.9-2-2-2z');
-  path.setAttribute('fill', COLORS.PRIMARY);
-  
-  svg.appendChild(path);
-  bookmarkIcon.appendChild(svg);
-  
-  return bookmarkIcon;
-}
+// function createBookmarkIcon(): HTMLElement {
+//   const bookmarkIcon = document.createElement('div');
+//   bookmarkIcon.className = 'word-explanation-bookmark-icon';
+//   bookmarkIcon.style.cssText = `
+//     position: absolute;
+//     top: -8px;
+//     left: -8px;
+//     width: 16px;
+//     height: 16px;
+//     z-index: 1;
+//     pointer-events: none;
+//   `;
+//   
+//   // Create SVG bookmark icon
+//   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+//   svg.setAttribute('width', '16');
+//   svg.setAttribute('height', '16');
+//   svg.setAttribute('viewBox', '0 0 24 24');
+//   svg.setAttribute('fill', COLORS.PRIMARY);
+//   svg.style.cssText = 'width: 100%; height: 100%;';
+//   
+//   const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+//   path.setAttribute('d', 'M17 3H7c-1.1 0-2 .9-2 2v16l7-3 7 3V5c0-1.1-.9-2-2-2z');
+//   path.setAttribute('fill', COLORS.PRIMARY);
+//   
+//   svg.appendChild(path);
+//   bookmarkIcon.appendChild(svg);
+//   
+//   return bookmarkIcon;
+// }
 
 /**
  * Create reusable green close button component for word span
@@ -3331,7 +3333,7 @@ function showPurpleXplainoIconForWordRemoval(wordSpanElement: HTMLElement, _word
 /**
  * Apply green styling and decorations to word span
  */
-function applyGreenWordSpanStyling(wordSpanElement: HTMLElement, _wordId: string, isSaved: boolean): void {
+function applyGreenWordSpanStyling(wordSpanElement: HTMLElement, _wordId: string, _isSaved: boolean): void {
   // Ensure position is relative for absolute positioning of icons
   if (wordSpanElement.style.position !== 'relative' && wordSpanElement.style.position !== 'absolute') {
     wordSpanElement.style.position = 'relative';
@@ -3381,11 +3383,12 @@ function applyGreenWordSpanStyling(wordSpanElement: HTMLElement, _wordId: string
     existingBookmark.remove();
   }
   
-  // Add bookmark icon if word is saved
-  if (isSaved) {
-    const bookmarkIcon = createBookmarkIcon();
-    wordSpanElement.appendChild(bookmarkIcon);
-  }
+  // Don't add bookmark icon on word span - user can see bookmark status in popover header
+  // Commenting out the bookmark icon creation to avoid visual clutter
+  // if (isSaved) {
+  //   const bookmarkIcon = createBookmarkIcon();
+  //   wordSpanElement.appendChild(bookmarkIcon);
+  // }
   
   // Close button removed - use delete button in header instead
 }

@@ -70,7 +70,7 @@
   align-items: center;
   justify-content: space-between;
   padding: 8px 12px;
-  background: rgba(13, 128, 112, 0.05);
+  background: var(--color-white, #FFFFFF);
   height: 48px;
   border-bottom: 1px solid rgba(13, 128, 112, 0.1);
   flex-shrink: 0;
