@@ -22,9 +22,109 @@ const EXCLUDED_TAGS = new Set([
 ]);
 
 /**
+ * Tags that typically contain navigation/UI elements to exclude
+ */
+const EXCLUDED_CONTAINER_TAGS = new Set([
+  'NAV',
+  'HEADER',
+  'FOOTER',
+  'ASIDE',
+]);
+
+/**
+ * Site-specific content selectors for popular platforms
+ * These selectors target the main content area of specific websites
+ */
+const SITE_SPECIFIC_SELECTORS: Record<string, string[]> = {
+  'medium.com': [
+    'article[data-post-id]',
+    'article section',
+    'article',
+    '[data-testid="post-content"]',
+  ],
+  'substack.com': [
+    '.post-content',
+    '.body.markup',
+    'article',
+  ],
+  'dev.to': [
+    '#article-body',
+    '.crayons-article__body',
+    'article',
+  ],
+  'hashnode.dev': [
+    '.prose',
+    'article',
+  ],
+  'blogger.com': [
+    '.post-body',
+    '.entry-content',
+    'article',
+  ],
+  'wordpress.com': [
+    '.entry-content',
+    '.post-content',
+    'article',
+  ],
+  'ghost.io': [
+    '.post-content',
+    '.gh-content',
+    'article',
+  ],
+  'notion.site': [
+    '.notion-page-content',
+    '[data-content-editable-root]',
+    'article',
+  ],
+};
+
+/**
+ * Generic content selectors to try (in order of preference)
+ */
+const GENERIC_CONTENT_SELECTORS = [
+  'article',
+  '[role="article"]',
+  'main',
+  '[role="main"]',
+  '.post-content',
+  '.article-content',
+  '.entry-content',
+  '.content-body',
+  '#content',
+  '.content',
+];
+
+/**
  * Attributes that indicate an element should be hidden
  */
 const HIDDEN_ATTRIBUTES = ['hidden', 'aria-hidden'];
+
+/**
+ * ID/class patterns to exclude (navigation, headers, footers, etc.)
+ */
+const EXCLUDED_PATTERNS = [
+  /nav/i, /menu/i, /header/i, /footer/i, /sidebar/i, 
+  /cookie/i, /gdpr/i, /consent/i, /advertisement/i, /ad-/i,
+  /comment/i, /related/i, /recommend/i, /subscribe/i,
+  /newsletter/i, /social/i, /share/i, /follow/i,
+];
+
+/**
+ * Check if an element should be excluded based on its ID/class
+ */
+function shouldExcludeByPattern(element: Element): boolean {
+  const id = element.id || '';
+  const className = typeof element.className === 'string' ? element.className : '';
+  const combined = `${id} ${className}`.toLowerCase();
+  
+  for (const pattern of EXCLUDED_PATTERNS) {
+    if (pattern.test(combined)) {
+      return true;
+    }
+  }
+  
+  return false;
+}
 
 /**
  * Check if an element is visible
@@ -53,16 +153,28 @@ function isElementVisible(element: Element): boolean {
 }
 
 /**
- * Extract text from a single element
+ * Extract text from a single element (recursive)
+ * @param element - The element to extract text from
+ * @param skipExcludedContainers - Whether to skip excluded container tags (nav, header, etc.)
  */
-function extractTextFromElement(element: Element): string {
+function extractTextFromElement(element: Element, skipExcludedContainers = false): string {
   // Skip excluded tags
   if (EXCLUDED_TAGS.has(element.tagName)) {
     return '';
   }
 
+  // Skip excluded container tags if flag is set
+  if (skipExcludedContainers && EXCLUDED_CONTAINER_TAGS.has(element.tagName)) {
+    return '';
+  }
+
   // Skip hidden elements
   if (!isElementVisible(element)) {
+    return '';
+  }
+
+  // Skip elements that match excluded patterns (when extracting from main content)
+  if (skipExcludedContainers && shouldExcludeByPattern(element)) {
     return '';
   }
 
@@ -76,7 +188,7 @@ function extractTextFromElement(element: Element): string {
         texts.push(text);
       }
     } else if (node.nodeType === Node.ELEMENT_NODE) {
-      const childText = extractTextFromElement(node as Element);
+      const childText = extractTextFromElement(node as Element, skipExcludedContainers);
       if (childText) {
         texts.push(childText);
       }
@@ -100,7 +212,83 @@ function cleanText(text: string): string {
 }
 
 /**
+ * Get site-specific selectors for the current hostname
+ */
+function getSiteSpecificSelectors(hostname: string): string[] {
+  // Check for exact match first
+  for (const [site, selectors] of Object.entries(SITE_SPECIFIC_SELECTORS)) {
+    if (hostname.includes(site)) {
+      return selectors;
+    }
+  }
+  return [];
+}
+
+/**
+ * Try to find the main content container using various strategies
+ */
+function findMainContentContainer(): Element | null {
+  const hostname = window.location.hostname;
+  
+  // Strategy 1: Try site-specific selectors
+  const siteSelectors = getSiteSpecificSelectors(hostname);
+  for (const selector of siteSelectors) {
+    try {
+      const element = document.querySelector(selector);
+      if (element && element.textContent && element.textContent.trim().length > 100) {
+        console.log(`[PageContentExtractor] Found content using site-specific selector: ${selector}`);
+        return element;
+      }
+    } catch {
+      // Ignore invalid selectors
+    }
+  }
+  
+  // Strategy 2: Try generic content selectors
+  for (const selector of GENERIC_CONTENT_SELECTORS) {
+    try {
+      const element = document.querySelector(selector);
+      if (element && element.textContent && element.textContent.trim().length > 100) {
+        console.log(`[PageContentExtractor] Found content using generic selector: ${selector}`);
+        return element;
+      }
+    } catch {
+      // Ignore invalid selectors
+    }
+  }
+  
+  // Strategy 3: Find the largest text-containing element
+  const candidates = document.querySelectorAll('article, main, section, div');
+  let bestCandidate: Element | null = null;
+  let maxTextLength = 0;
+  
+  for (const candidate of candidates) {
+    // Skip if it's a small container or has excluded patterns
+    if (shouldExcludeByPattern(candidate)) continue;
+    
+    const text = candidate.textContent?.trim() || '';
+    // Look for substantial content (more than 500 chars)
+    if (text.length > 500 && text.length > maxTextLength) {
+      // Check if this element has meaningful paragraph content
+      const paragraphs = candidate.querySelectorAll('p');
+      if (paragraphs.length >= 2) {
+        maxTextLength = text.length;
+        bestCandidate = candidate;
+      }
+    }
+  }
+  
+  if (bestCandidate) {
+    console.log(`[PageContentExtractor] Found content using largest text container strategy`);
+    return bestCandidate;
+  }
+  
+  return null;
+}
+
+/**
  * Extract all visible text content from the page
+ * Uses intelligent content detection to find the main article/content area
  */
 export function extractPageContent(): string {
   const body = document.body;
@@ -108,6 +296,23 @@ export function extractPageContent(): string {
     return '';
   }
 
+  // Try to find the main content container first
+  const mainContent = findMainContentContainer();
+  
+  if (mainContent) {
+    // Extract text from the main content area, skipping nav/header/footer elements
+    const rawText = extractTextFromElement(mainContent, true);
+    const cleanedText = cleanText(rawText);
+    
+    // Only use this if we got substantial content
+    if (cleanedText.length > 200) {
+      console.log(`[PageContentExtractor] Extracted ${cleanedText.length} chars from main content container`);
+      return cleanedText;
+    }
+  }
+  
+  // Fallback: Extract from entire body (original behavior)
+  console.log(`[PageContentExtractor] Falling back to full body extraction`);
   const rawText = extractTextFromElement(body);
   return cleanText(rawText);
 }
@@ -167,13 +372,8 @@ const EXCLUDED_ROLES = new Set([
   'contentinfo', 'menu', 'menubar', 'toolbar'
 ]);
 
-/**
- * ID/Class patterns to exclude (navigation, headers, footers, etc.)
- */
-const EXCLUDED_PATTERNS = [
-  /nav/i, /menu/i, /header/i, /footer/i, /sidebar/i, 
-  /cookie/i, /gdpr/i, /consent/i, /advertisement/i, /ad-/i
-];
+// EXCLUDED_PATTERNS is defined earlier in the file and used for both
+// page content extraction and translation element filtering
 
 /**
  * Translatable element interface
