@@ -54,7 +54,7 @@ import baseSidePanelStyles from './styles/baseSidePanel.shadow.css?inline';
 import spinnerStyles from './styles/spinner.shadow.css?inline';
 
 // Import color CSS variables
-import { ALL_COLOR_VARIABLES, getAllColorVariables } from '../constants/colors.css.js';
+import { getAllColorVariables } from '../constants/colors.css.js';
 import { COLORS } from '../constants/colors';
 import { getCurrentTheme } from '../constants/theme';
 
@@ -535,7 +535,7 @@ async function isExtensionAllowed(): Promise<boolean> {
 /**
  * Inject FAB into the page with Shadow DOM
  */
-function injectFAB(): void {
+async function injectFAB(): Promise<void> {
   // Check if already injected
   if (shadowHostExists(FAB_HOST_ID)) {
     console.log('[Content Script] FAB already injected');
@@ -548,8 +548,9 @@ function injectFAB(): void {
     zIndex: 2147483640,
   });
 
-  // Inject color CSS variables first
-  injectStyles(shadow, ALL_COLOR_VARIABLES, true);
+  // Inject color CSS variables first - get theme-aware variables
+  const colorVariables = await getAllColorVariables();
+  injectStyles(shadow, colorVariables, true);
 
   // Inject component styles
   injectStyles(shadow, fabStyles);
@@ -1054,7 +1055,7 @@ function updateSidePanel(initialTab?: 'summary' | 'settings'): void {
 /**
  * Inject Side Panel into the page with Shadow DOM
  */
-function injectSidePanel(): void {
+async function injectSidePanel(): Promise<void> {
   // Check if already injected
   if (shadowHostExists(SIDE_PANEL_HOST_ID)) {
     updateSidePanel();
@@ -1067,8 +1068,9 @@ function injectSidePanel(): void {
     zIndex: 2147483641,
   });
 
-  // Inject color CSS variables first
-  injectStyles(shadow, ALL_COLOR_VARIABLES, true);
+  // Inject color CSS variables first - get theme-aware variables
+  const colorVariables = await getAllColorVariables();
+  injectStyles(shadow, colorVariables, true);
   
   // Inject component styles
   injectStyles(shadow, sidePanelStyles);
@@ -1113,7 +1115,7 @@ function removeSidePanel(): void {
 /**
  * Inject Content Actions into the page with Shadow DOM
  */
-function injectContentActions(): void {
+async function injectContentActions(): Promise<void> {
   // Check if already injected
   if (shadowHostExists(CONTENT_ACTIONS_HOST_ID)) {
     console.log('[Content Script] Content Actions already injected');
@@ -1126,8 +1128,9 @@ function injectContentActions(): void {
     zIndex: 2147483647, // Highest z-index for selection popup
   });
 
-  // Inject color CSS variables first
-  injectStyles(shadow, ALL_COLOR_VARIABLES, true);
+  // Inject color CSS variables first - get theme-aware variables
+  const colorVariables = await getAllColorVariables();
+  injectStyles(shadow, colorVariables, true);
   
   // Inject component styles
   injectStyles(shadow, contentActionsStyles);
@@ -1721,7 +1724,7 @@ async function handleWordExplain(
     }
 
     // Create spinner near the word
-    const spinner = createSpinner(wordSpan);
+    const spinner = await createSpinner(wordSpan);
 
     // Create source ref for animation
     const sourceRef: React.MutableRefObject<HTMLElement | null> = { current: wordSpan };
@@ -2075,7 +2078,7 @@ async function handleSynonymClick(selectedText: string): Promise<void> {
     }
     
     // Create spinner near the word
-    const spinner = createSpinner(wordSpan);
+    const spinner = await createSpinner(wordSpan);
     
     // Create source ref for animation
     const sourceRef: React.MutableRefObject<HTMLElement | null> = { current: wordSpan };
@@ -2311,7 +2314,7 @@ async function handleAntonymClick(selectedText: string): Promise<void> {
     }
     
     // Create spinner near the word
-    const spinner = createSpinner(wordSpan);
+    const spinner = await createSpinner(wordSpan);
     
     // Create source ref for animation
     const sourceRef: React.MutableRefObject<HTMLElement | null> = { current: wordSpan };
@@ -2562,7 +2565,7 @@ async function handleWordTranslateClick(selectedText: string): Promise<void> {
     }
     
     // Create spinner near the word
-    const spinner = createSpinner(wordSpan);
+    const spinner = await createSpinner(wordSpan);
     
     // Create source ref for animation
     const sourceRef: React.MutableRefObject<HTMLElement | null> = { current: wordSpan };
@@ -3166,7 +3169,7 @@ function createWordSpan(_word: string, range: Range): HTMLElement | null {
 /**
  * Create spinner near the word span using the reusable Spinner component
  */
-function createSpinner(wordSpan: HTMLElement): HTMLElement {
+async function createSpinner(wordSpan: HTMLElement): Promise<HTMLElement> {
   const spinnerContainer = document.createElement('div');
   spinnerContainer.className = 'primary-spinner-container';
   
@@ -3206,8 +3209,9 @@ function createSpinner(wordSpan: HTMLElement): HTMLElement {
     justify-content: center;
   `;
   
-  // Inject spinner styles
-  injectStyles(shadow, ALL_COLOR_VARIABLES);
+  // Inject spinner styles - get theme-aware variables
+  const colorVariables = await getAllColorVariables();
+  injectStyles(shadow, colorVariables);
   injectStyles(shadow, spinnerStyles);
   
   // Create React root and render Spinner component
@@ -5709,7 +5713,7 @@ function updateTextExplanationPanel(): void {
 /**
  * Inject Text Explanation Panel into the page with Shadow DOM
  */
-function injectTextExplanationPanel(): void {
+async function injectTextExplanationPanel(): Promise<void> {
   if (shadowHostExists(TEXT_EXPLANATION_PANEL_HOST_ID)) {
     updateTextExplanationPanel();
     return;
@@ -5722,8 +5726,9 @@ function injectTextExplanationPanel(): void {
 
   // Inject component styles first (they define variables after all:initial)
   injectStyles(shadow, textExplanationSidePanelStyles);
-  // Then inject color variables to override/ensure they're set
-  injectStyles(shadow, ALL_COLOR_VARIABLES);
+  // Then inject color variables to override/ensure they're set - get theme-aware variables
+  const colorVariables = await getAllColorVariables();
+  injectStyles(shadow, colorVariables);
   // Inject base side panel styles for upgrade footer (coupon and upgrade buttons)
   injectStyles(shadow, baseSidePanelStyles);
 
@@ -5997,7 +6002,7 @@ function updateImageExplanationIconContainer(): void {
 /**
  * Inject Image Explanation Icon Container into the page with Shadow DOM
  */
-function injectImageExplanationIconContainer(): void {
+async function injectImageExplanationIconContainer(): Promise<void> {
   if (shadowHostExists(IMAGE_EXPLANATION_ICON_HOST_ID)) {
     updateImageExplanationIconContainer();
     return;
@@ -6008,8 +6013,9 @@ function injectImageExplanationIconContainer(): void {
     zIndex: 2147483647,
   });
   
-  // Inject color CSS variables first (without true flag to match text explanation)
-  injectStyles(shadow, ALL_COLOR_VARIABLES);
+  // Inject color CSS variables first - get theme-aware variables
+  const colorVariables = await getAllColorVariables();
+  injectStyles(shadow, colorVariables);
 
   // Inject component styles
   injectStyles(shadow, imageExplanationIconStyles);
@@ -7144,7 +7150,7 @@ function updateImageExplanationPanel(): void {
 /**
  * Inject Image Explanation Panel into the page with Shadow DOM
  */
-function injectImageExplanationPanel(): void {
+async function injectImageExplanationPanel(): Promise<void> {
   if (shadowHostExists(IMAGE_EXPLANATION_PANEL_HOST_ID)) {
     console.log('[Content Script] Image explanation panel host already exists, updating');
     updateImageExplanationPanel();
@@ -7159,8 +7165,9 @@ function injectImageExplanationPanel(): void {
   
   // Inject component styles first (they define variables after all:initial)
   injectStyles(shadow, textExplanationSidePanelStyles);
-  // Then inject color variables to override/ensure they're set
-  injectStyles(shadow, ALL_COLOR_VARIABLES);
+  // Then inject color variables to override/ensure they're set - get theme-aware variables
+  const colorVariables = await getAllColorVariables();
+  injectStyles(shadow, colorVariables);
   // Inject base side panel styles for upgrade footer (coupon and upgrade buttons)
   injectStyles(shadow, baseSidePanelStyles);
   
@@ -7876,7 +7883,7 @@ function updateTextExplanationIconContainer(): void {
 /**
  * Inject Text Explanation Icon Container into the page with Shadow DOM
  */
-function injectTextExplanationIconContainer(): void {
+async function injectTextExplanationIconContainer(): Promise<void> {
   if (shadowHostExists(TEXT_EXPLANATION_ICON_HOST_ID)) {
     updateTextExplanationIconContainer();
     return;
@@ -7887,7 +7894,8 @@ function injectTextExplanationIconContainer(): void {
     zIndex: 2147483647, // Highest z-index
   });
 
-  injectStyles(shadow, ALL_COLOR_VARIABLES);
+  const colorVariables = await getAllColorVariables();
+  injectStyles(shadow, colorVariables);
   injectStyles(shadow, textExplanationIconStyles);
   injectStyles(shadow, explanationIconButtonStyles);
   injectStyles(shadow, spinnerStyles);
@@ -8107,7 +8115,7 @@ function scrollToAndHighlightImage(imageElement: HTMLImageElement): void {
 /**
  * Inject Disable Notification Modal into the page with Shadow DOM
  */
-function injectDisableModal(): void {
+async function injectDisableModal(): Promise<void> {
   // Check if already injected
   if (shadowHostExists(DISABLE_MODAL_HOST_ID)) {
     console.log('[Content Script] Disable Modal already injected');
@@ -8121,8 +8129,9 @@ function injectDisableModal(): void {
     zIndex: 2147483647, // Highest z-index
   });
 
-  // Inject color CSS variables first
-  injectStyles(shadow, ALL_COLOR_VARIABLES, true);
+  // Inject color CSS variables first - get theme-aware variables
+  const colorVariables = await getAllColorVariables();
+  injectStyles(shadow, colorVariables, true);
   
   // Inject component styles
   injectStyles(shadow, disableNotificationModalStyles);
@@ -8229,7 +8238,7 @@ function showToast(message: string, type: 'success' | 'error' = 'success'): void
 /**
  * Inject Toast into the page with Shadow DOM
  */
-function injectToast(): void {
+async function injectToast(): Promise<void> {
   // Check if already injected
   if (shadowHostExists(TOAST_HOST_ID)) {
     return;
@@ -8241,8 +8250,9 @@ function injectToast(): void {
     zIndex: 2147483648, // Highest z-index for toast
   });
 
-  // Inject color CSS variables first
-  injectStyles(shadow, ALL_COLOR_VARIABLES, true);
+  // Inject color CSS variables first - get theme-aware variables
+  const colorVariables = await getAllColorVariables();
+  injectStyles(shadow, colorVariables, true);
   
   // Inject inline toast styles (since we don't have a separate toast shadow CSS)
   const toastStyles = `
@@ -8393,7 +8403,7 @@ async function showBookmarkToast(type: 'word' | 'paragraph' | 'link' | 'image', 
 /**
  * Inject Bookmark Toast into the page with Shadow DOM
  */
-function injectBookmarkToast(): void {
+async function injectBookmarkToast(): Promise<void> {
   // Check if already injected
   if (shadowHostExists(BOOKMARK_TOAST_HOST_ID)) {
     return;
@@ -8405,8 +8415,9 @@ function injectBookmarkToast(): void {
     zIndex: 2147483648, // Same as regular toast
   });
 
-  // Inject color CSS variables first
-  injectStyles(shadow, ALL_COLOR_VARIABLES, true);
+  // Inject color CSS variables first - get theme-aware variables
+  const colorVariables = await getAllColorVariables();
+  injectStyles(shadow, colorVariables, true);
   
   // Inject bookmark saved toast styles from CSS file
   injectStyles(shadow, bookmarkSavedToastStyles);
@@ -8717,7 +8728,7 @@ function updateWarningToast(): void {
 /**
  * Inject Folder List Modal into the page with Shadow DOM
  */
-function injectFolderListModal(): void {
+async function injectFolderListModal(): Promise<void> {
   // Check if already injected
   if (shadowHostExists(FOLDER_LIST_MODAL_HOST_ID)) {
     return;
@@ -8729,8 +8740,9 @@ function injectFolderListModal(): void {
     zIndex: 2147483646, // Below toast
   });
 
-  // Inject color CSS variables first
-  injectStyles(shadow, ALL_COLOR_VARIABLES, true);
+  // Inject color CSS variables first - get theme-aware variables
+  const colorVariables = await getAllColorVariables();
+  injectStyles(shadow, colorVariables, true);
   
   // Inject folder list modal styles
   injectStyles(shadow, folderListModalStyles);
@@ -9877,7 +9889,7 @@ async function handleFabRemoveLink(): Promise<void> {
 /**
  * Inject Login Modal into the page with Shadow DOM
  */
-function injectLoginModal(): void {
+async function injectLoginModal(): Promise<void> {
   // Check if already injected
   if (shadowHostExists(LOGIN_MODAL_HOST_ID)) {
     console.log('[Content Script] Login Modal already injected');
@@ -9890,8 +9902,9 @@ function injectLoginModal(): void {
     zIndex: 2147483647, // Highest z-index for modal
   });
 
-  // Inject color CSS variables first
-  injectStyles(shadow, ALL_COLOR_VARIABLES, true);
+  // Inject color CSS variables first - get theme-aware variables
+  const colorVariables = await getAllColorVariables();
+  injectStyles(shadow, colorVariables, true);
   
   // Inject component styles
   injectStyles(shadow, loginModalStyles);
@@ -9956,7 +9969,7 @@ function updateBackgroundBlur(): void {
 /**
  * Inject Subscription Modal into the page with Shadow DOM
  */
-function injectSubscriptionModal(): void {
+async function injectSubscriptionModal(): Promise<void> {
   // Check if already injected
   if (shadowHostExists(SUBSCRIPTION_MODAL_HOST_ID)) {
     console.log('[Content Script] Subscription Modal already injected');
@@ -9969,8 +9982,9 @@ function injectSubscriptionModal(): void {
     zIndex: 2147483647, // Highest z-index for modal
   });
 
-  // Inject color CSS variables first
-  injectStyles(shadow, ALL_COLOR_VARIABLES, true);
+  // Inject color CSS variables first - get theme-aware variables
+  const colorVariables = await getAllColorVariables();
+  injectStyles(shadow, colorVariables, true);
   
   // Inject component styles
   injectStyles(shadow, subscriptionModalStyles);
@@ -10007,7 +10021,7 @@ function removeSubscriptionModal(): void {
 /**
  * Inject Welcome Modal into the page with Shadow DOM
  */
-function injectWelcomeModal(): void {
+async function injectWelcomeModal(): Promise<void> {
   // Check if already injected
   if (shadowHostExists(WELCOME_MODAL_HOST_ID)) {
     console.log('[Content Script] Welcome Modal already injected');
@@ -10021,8 +10035,9 @@ function injectWelcomeModal(): void {
     zIndex: 2147483647, // Highest z-index for modal
   });
 
-  // Inject color CSS variables first
-  injectStyles(shadow, ALL_COLOR_VARIABLES, true);
+  // Inject color CSS variables first - get theme-aware variables
+  const colorVariables = await getAllColorVariables();
+  injectStyles(shadow, colorVariables, true);
   
   // Inject component styles
   injectStyles(shadow, welcomeModalStyles);
@@ -10388,14 +10403,17 @@ async function initContentScript(): Promise<void> {
   
   if (allowed) {
     console.log('[Content Script] Running content script functionality...');
-    injectFAB();
-    injectSidePanel();
-    injectContentActions();
-    injectLoginModal();
-    injectSubscriptionModal();
-    injectToast();
-    injectImageExplanationIconContainer();
-    injectImageExplanationPanel();
+    // Inject all components in parallel with proper async handling
+    await Promise.all([
+      injectFAB(),
+      injectSidePanel(),
+      injectContentActions(),
+      injectLoginModal(),
+      injectSubscriptionModal(),
+      injectToast(),
+      injectImageExplanationIconContainer(),
+      injectImageExplanationPanel(),
+    ]);
     setupImageHoverDetection();
     
     // Check if welcome modal should be shown
@@ -10410,9 +10428,9 @@ async function initContentScript(): Promise<void> {
       // 2. Domain status is ENABLED (not BANNED, not DISABLED, not INVALID)
       if (!dontShowWelcomeModal && domainStatus === DomainStatus.ENABLED) {
         // Show modal after a short delay to ensure page is loaded
-        setTimeout(() => {
+        setTimeout(async () => {
           welcomeModalVisible = true;
-          injectWelcomeModal();
+          await injectWelcomeModal();
         }, 500);
       } else {
         console.log('[Content Script] Welcome modal not shown:', {
@@ -10559,7 +10577,7 @@ function updateSavedParagraphIconContainer(): void {
 /**
  * Inject Saved Paragraph Icon Container into the page with Shadow DOM
  */
-function injectSavedParagraphIconContainer(): void {
+async function injectSavedParagraphIconContainer(): Promise<void> {
   if (shadowHostExists(SAVED_PARAGRAPH_ICON_HOST_ID)) {
     updateSavedParagraphIconContainer();
     return;
@@ -10570,7 +10588,8 @@ function injectSavedParagraphIconContainer(): void {
     zIndex: 2147483647, // Highest z-index
   });
 
-  injectStyles(shadow, ALL_COLOR_VARIABLES);
+  const colorVariables = await getAllColorVariables();
+  injectStyles(shadow, colorVariables);
   injectStyles(shadow, savedParagraphIconStyles);
 
   document.body.appendChild(host);

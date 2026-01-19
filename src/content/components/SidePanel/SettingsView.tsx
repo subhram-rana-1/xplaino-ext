@@ -10,6 +10,7 @@ import { Dropdown } from './Dropdown';
 import { showDisableModal } from '@/content/index';
 import { ENV } from '@/config/env';
 import { AuthService } from '@/api-services/AuthService';
+import { UserSettingsService } from '@/api-services/UserSettingsService';
 import styles from './SettingsView.module.css';
 
 export interface SettingsViewProps {
@@ -102,7 +103,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ useShadowDom = false
 
     try {
       if (value === 'account') {
-        // Remove domain override - will use account settings
+        // CRITICAL: Fetch fresh account settings from API first
+        console.log('[SettingsView] Fetching fresh account settings for theme sync...');
+        await UserSettingsService.syncUserAccountSettings();
+        console.log('[SettingsView] Account settings synced, removing domain override');
+        
+        // Remove domain override - will use fresh account settings
         await ChromeStorage.removeUserExtensionDomainTheme(currentDomain);
         setThemeSelection('account');
         console.log('[SettingsView] Removed domain theme override, using account settings');
