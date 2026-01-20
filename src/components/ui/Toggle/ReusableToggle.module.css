@@ -17,7 +17,7 @@
 }
 
 .toggleTrack.checked {
-  background: #0d8070;
+  background: var(--color-primary);
 }
 
 .toggleThumb {

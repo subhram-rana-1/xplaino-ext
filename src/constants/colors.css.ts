@@ -33,14 +33,14 @@ export async function getAllColorVariables(theme?: 'light' | 'dark', useHost: bo
       /* ============================================
          PRIMARY COLORS
          ============================================ */
-      --color-primary: ${COLORS.PRIMARY} !important;
-      --color-primary-light: ${activeTheme === 'dark' ? COLORS.DARK_ACCENT : COLORS.PRIMARY_LIGHT} !important;
-      --color-primary-light-alt: ${COLORS.PRIMARY_LIGHT_ALT} !important;
-      --color-primary-very-light: ${COLORS.PRIMARY_VERY_LIGHT} !important;
-      --color-primary-dark: ${COLORS.PRIMARY_DARK} !important;
-      --color-primary-hover: ${COLORS.PRIMARY_HOVER} !important;
-      --color-primary-hover-dark: ${COLORS.PRIMARY_HOVER_DARK} !important;
-      --color-primary-hover-alt: ${COLORS.PRIMARY_HOVER_ALT} !important;
+      --color-primary: ${activeTheme === 'dark' ? COLORS.DARK_PRIMARY : COLORS.PRIMARY} !important;
+      --color-primary-light: ${activeTheme === 'dark' ? COLORS.DARK_PRIMARY_LIGHT : COLORS.PRIMARY_LIGHT} !important;
+      --color-primary-light-alt: ${activeTheme === 'dark' ? COLORS.DARK_PRIMARY_LIGHT_ALT : COLORS.PRIMARY_LIGHT_ALT} !important;
+      --color-primary-very-light: ${activeTheme === 'dark' ? COLORS.DARK_PRIMARY_VERY_LIGHT : COLORS.PRIMARY_VERY_LIGHT} !important;
+      --color-primary-dark: ${activeTheme === 'dark' ? COLORS.DARK_PRIMARY_DARK : COLORS.PRIMARY_DARK} !important;
+      --color-primary-hover: ${activeTheme === 'dark' ? COLORS.DARK_PRIMARY_HOVER : COLORS.PRIMARY_HOVER} !important;
+      --color-primary-hover-dark: ${activeTheme === 'dark' ? COLORS.DARK_PRIMARY_HOVER_DARK : COLORS.PRIMARY_HOVER_DARK} !important;
+      --color-primary-hover-alt: ${activeTheme === 'dark' ? COLORS.DARK_PRIMARY_HOVER_ALT : COLORS.PRIMARY_HOVER_ALT} !important;
       
       /* ============================================
          SECONDARY COLORS
@@ -114,9 +114,9 @@ export async function getAllColorVariables(theme?: 'light' | 'dark', useHost: bo
       --color-bg-gray-50: ${COLORS.BACKGROUND_GRAY_50} !important;
       --color-bg-gray-100: ${COLORS.BACKGROUND_GRAY_100} !important;
       --color-bg-gray-200: ${COLORS.BACKGROUND_GRAY_200} !important;
-      --color-bg-green-tint-1: ${COLORS.BACKGROUND_GREEN_TINT_1} !important;
-      --color-bg-green-tint-2: ${COLORS.BACKGROUND_GREEN_TINT_2} !important;
-      --color-bg-green-tint-3: ${COLORS.BACKGROUND_GREEN_TINT_3} !important;
+      --color-bg-green-tint-1: ${activeTheme === 'dark' ? COLORS.DARK_BG_GREEN_TINT_1 : COLORS.BACKGROUND_GREEN_TINT_1} !important;
+      --color-bg-green-tint-2: ${activeTheme === 'dark' ? COLORS.DARK_BG_GREEN_TINT_2 : COLORS.BACKGROUND_GREEN_TINT_2} !important;
+      --color-bg-green-tint-3: ${activeTheme === 'dark' ? COLORS.DARK_BG_GREEN_TINT_3 : COLORS.BACKGROUND_GREEN_TINT_3} !important;
       
       /* ============================================
          TEXT COLORS
@@ -149,22 +149,22 @@ export async function getAllColorVariables(theme?: 'light' | 'dark', useHost: bo
       /* ============================================
          PRIMARY COLOR OPACITY VARIANTS
          ============================================ */
-      --color-primary-opacity-5: ${COLORS.PRIMARY_OPACITY_5} !important;
-      --color-primary-opacity-8: ${COLORS.PRIMARY_OPACITY_8} !important;
-      --color-primary-opacity-10: ${COLORS.PRIMARY_OPACITY_10} !important;
-      --color-primary-opacity-15: ${COLORS.PRIMARY_OPACITY_15} !important;
-      --color-primary-opacity-18: ${COLORS.PRIMARY_OPACITY_18} !important;
-      --color-primary-opacity-20: ${COLORS.PRIMARY_OPACITY_20} !important;
-      --color-primary-opacity-25: ${COLORS.PRIMARY_OPACITY_25} !important;
-      --color-primary-opacity-30: ${COLORS.PRIMARY_OPACITY_30} !important;
-      --color-primary-opacity-35: ${COLORS.PRIMARY_OPACITY_35} !important;
-      --color-primary-opacity-40: ${COLORS.PRIMARY_OPACITY_40} !important;
-      --color-primary-opacity-45: ${COLORS.PRIMARY_OPACITY_45} !important;
-      --color-primary-opacity-50: ${COLORS.PRIMARY_OPACITY_50} !important;
-      --color-primary-opacity-60: ${COLORS.PRIMARY_OPACITY_60} !important;
-      --color-primary-opacity-70: ${COLORS.PRIMARY_OPACITY_70} !important;
-      --color-primary-opacity-80: ${COLORS.PRIMARY_OPACITY_80} !important;
-      --color-primary-opacity-90: ${COLORS.PRIMARY_OPACITY_90} !important;
+      --color-primary-opacity-5: ${activeTheme === 'dark' ? COLORS.DARK_PRIMARY_OPACITY_5 : COLORS.PRIMARY_OPACITY_5} !important;
+      --color-primary-opacity-8: ${activeTheme === 'dark' ? COLORS.DARK_PRIMARY_OPACITY_8 : COLORS.PRIMARY_OPACITY_8} !important;
+      --color-primary-opacity-10: ${activeTheme === 'dark' ? COLORS.DARK_PRIMARY_OPACITY_10 : COLORS.PRIMARY_OPACITY_10} !important;
+      --color-primary-opacity-15: ${activeTheme === 'dark' ? COLORS.DARK_PRIMARY_OPACITY_15 : COLORS.PRIMARY_OPACITY_15} !important;
+      --color-primary-opacity-18: ${activeTheme === 'dark' ? COLORS.DARK_PRIMARY_OPACITY_18 : COLORS.PRIMARY_OPACITY_18} !important;
+      --color-primary-opacity-20: ${activeTheme === 'dark' ? COLORS.DARK_PRIMARY_OPACITY_20 : COLORS.PRIMARY_OPACITY_20} !important;
+      --color-primary-opacity-25: ${activeTheme === 'dark' ? COLORS.DARK_PRIMARY_OPACITY_25 : COLORS.PRIMARY_OPACITY_25} !important;
+      --color-primary-opacity-30: ${activeTheme === 'dark' ? COLORS.DARK_PRIMARY_OPACITY_30 : COLORS.PRIMARY_OPACITY_30} !important;
+      --color-primary-opacity-35: ${activeTheme === 'dark' ? COLORS.DARK_PRIMARY_OPACITY_35 : COLORS.PRIMARY_OPACITY_35} !important;
+      --color-primary-opacity-40: ${activeTheme === 'dark' ? COLORS.DARK_PRIMARY_OPACITY_40 : COLORS.PRIMARY_OPACITY_40} !important;
+      --color-primary-opacity-45: ${activeTheme === 'dark' ? COLORS.DARK_PRIMARY_OPACITY_45 : COLORS.PRIMARY_OPACITY_45} !important;
+      --color-primary-opacity-50: ${activeTheme === 'dark' ? COLORS.DARK_PRIMARY_OPACITY_50 : COLORS.PRIMARY_OPACITY_50} !important;
+      --color-primary-opacity-60: ${activeTheme === 'dark' ? COLORS.DARK_PRIMARY_OPACITY_60 : COLORS.PRIMARY_OPACITY_60} !important;
+      --color-primary-opacity-70: ${activeTheme === 'dark' ? COLORS.DARK_PRIMARY_OPACITY_70 : COLORS.PRIMARY_OPACITY_70} !important;
+      --color-primary-opacity-80: ${activeTheme === 'dark' ? COLORS.DARK_PRIMARY_OPACITY_80 : COLORS.PRIMARY_OPACITY_80} !important;
+      --color-primary-opacity-90: ${activeTheme === 'dark' ? COLORS.DARK_PRIMARY_OPACITY_90 : COLORS.PRIMARY_OPACITY_90} !important;
       
       /* ============================================
          SUCCESS COLOR OPACITY VARIANTS
@@ -259,6 +259,7 @@ export async function getAllColorVariables(theme?: 'light' | 'dark', useHost: bo
       --color-border-default-theme: ${borderDefault} !important;
       --color-bg-selected-theme: ${activeTheme === 'dark' ? COLORS.DARK_BG_SELECTED : COLORS.BACKGROUND_GREEN_TINT_1} !important;
       --color-bg-header-footer-theme: ${activeTheme === 'dark' ? COLORS.DARK_BG_HEADER_FOOTER : COLORS.WHITE} !important;
+      --color-hover-bg-action-theme: ${activeTheme === 'dark' ? 'transparent' : COLORS.PRIMARY_VERY_LIGHT} !important;
       
       /* ============================================
          FONT FAMILY
@@ -281,14 +282,14 @@ function getAllColorVariablesSync(theme: 'light' | 'dark', useHost: boolean = tr
       /* ============================================
          PRIMARY COLORS
          ============================================ */
-      --color-primary: ${COLORS.PRIMARY} !important;
-      --color-primary-light: ${activeTheme === 'dark' ? COLORS.DARK_ACCENT : COLORS.PRIMARY_LIGHT} !important;
-      --color-primary-light-alt: ${COLORS.PRIMARY_LIGHT_ALT} !important;
-      --color-primary-very-light: ${COLORS.PRIMARY_VERY_LIGHT} !important;
-      --color-primary-dark: ${COLORS.PRIMARY_DARK} !important;
-      --color-primary-hover: ${COLORS.PRIMARY_HOVER} !important;
-      --color-primary-hover-dark: ${COLORS.PRIMARY_HOVER_DARK} !important;
-      --color-primary-hover-alt: ${COLORS.PRIMARY_HOVER_ALT} !important;
+      --color-primary: ${activeTheme === 'dark' ? COLORS.DARK_PRIMARY : COLORS.PRIMARY} !important;
+      --color-primary-light: ${activeTheme === 'dark' ? COLORS.DARK_PRIMARY_LIGHT : COLORS.PRIMARY_LIGHT} !important;
+      --color-primary-light-alt: ${activeTheme === 'dark' ? COLORS.DARK_PRIMARY_LIGHT_ALT : COLORS.PRIMARY_LIGHT_ALT} !important;
+      --color-primary-very-light: ${activeTheme === 'dark' ? COLORS.DARK_PRIMARY_VERY_LIGHT : COLORS.PRIMARY_VERY_LIGHT} !important;
+      --color-primary-dark: ${activeTheme === 'dark' ? COLORS.DARK_PRIMARY_DARK : COLORS.PRIMARY_DARK} !important;
+      --color-primary-hover: ${activeTheme === 'dark' ? COLORS.DARK_PRIMARY_HOVER : COLORS.PRIMARY_HOVER} !important;
+      --color-primary-hover-dark: ${activeTheme === 'dark' ? COLORS.DARK_PRIMARY_HOVER_DARK : COLORS.PRIMARY_HOVER_DARK} !important;
+      --color-primary-hover-alt: ${activeTheme === 'dark' ? COLORS.DARK_PRIMARY_HOVER_ALT : COLORS.PRIMARY_HOVER_ALT} !important;
       
       /* ============================================
          SECONDARY COLORS
@@ -362,9 +363,9 @@ function getAllColorVariablesSync(theme: 'light' | 'dark', useHost: boolean = tr
       --color-bg-gray-50: ${COLORS.BACKGROUND_GRAY_50} !important;
       --color-bg-gray-100: ${COLORS.BACKGROUND_GRAY_100} !important;
       --color-bg-gray-200: ${COLORS.BACKGROUND_GRAY_200} !important;
-      --color-bg-green-tint-1: ${COLORS.BACKGROUND_GREEN_TINT_1} !important;
-      --color-bg-green-tint-2: ${COLORS.BACKGROUND_GREEN_TINT_2} !important;
-      --color-bg-green-tint-3: ${COLORS.BACKGROUND_GREEN_TINT_3} !important;
+      --color-bg-green-tint-1: ${activeTheme === 'dark' ? COLORS.DARK_BG_GREEN_TINT_1 : COLORS.BACKGROUND_GREEN_TINT_1} !important;
+      --color-bg-green-tint-2: ${activeTheme === 'dark' ? COLORS.DARK_BG_GREEN_TINT_2 : COLORS.BACKGROUND_GREEN_TINT_2} !important;
+      --color-bg-green-tint-3: ${activeTheme === 'dark' ? COLORS.DARK_BG_GREEN_TINT_3 : COLORS.BACKGROUND_GREEN_TINT_3} !important;
       
       /* ============================================
          TEXT COLORS
@@ -397,22 +398,22 @@ function getAllColorVariablesSync(theme: 'light' | 'dark', useHost: boolean = tr
       /* ============================================
          PRIMARY COLOR OPACITY VARIANTS
          ============================================ */
-      --color-primary-opacity-5: ${COLORS.PRIMARY_OPACITY_5} !important;
-      --color-primary-opacity-8: ${COLORS.PRIMARY_OPACITY_8} !important;
-      --color-primary-opacity-10: ${COLORS.PRIMARY_OPACITY_10} !important;
-      --color-primary-opacity-15: ${COLORS.PRIMARY_OPACITY_15} !important;
-      --color-primary-opacity-18: ${COLORS.PRIMARY_OPACITY_18} !important;
-      --color-primary-opacity-20: ${COLORS.PRIMARY_OPACITY_20} !important;
-      --color-primary-opacity-25: ${COLORS.PRIMARY_OPACITY_25} !important;
-      --color-primary-opacity-30: ${COLORS.PRIMARY_OPACITY_30} !important;
-      --color-primary-opacity-35: ${COLORS.PRIMARY_OPACITY_35} !important;
-      --color-primary-opacity-40: ${COLORS.PRIMARY_OPACITY_40} !important;
-      --color-primary-opacity-45: ${COLORS.PRIMARY_OPACITY_45} !important;
-      --color-primary-opacity-50: ${COLORS.PRIMARY_OPACITY_50} !important;
-      --color-primary-opacity-60: ${COLORS.PRIMARY_OPACITY_60} !important;
-      --color-primary-opacity-70: ${COLORS.PRIMARY_OPACITY_70} !important;
-      --color-primary-opacity-80: ${COLORS.PRIMARY_OPACITY_80} !important;
-      --color-primary-opacity-90: ${COLORS.PRIMARY_OPACITY_90} !important;
+      --color-primary-opacity-5: ${activeTheme === 'dark' ? COLORS.DARK_PRIMARY_OPACITY_5 : COLORS.PRIMARY_OPACITY_5} !important;
+      --color-primary-opacity-8: ${activeTheme === 'dark' ? COLORS.DARK_PRIMARY_OPACITY_8 : COLORS.PRIMARY_OPACITY_8} !important;
+      --color-primary-opacity-10: ${activeTheme === 'dark' ? COLORS.DARK_PRIMARY_OPACITY_10 : COLORS.PRIMARY_OPACITY_10} !important;
+      --color-primary-opacity-15: ${activeTheme === 'dark' ? COLORS.DARK_PRIMARY_OPACITY_15 : COLORS.PRIMARY_OPACITY_15} !important;
+      --color-primary-opacity-18: ${activeTheme === 'dark' ? COLORS.DARK_PRIMARY_OPACITY_18 : COLORS.PRIMARY_OPACITY_18} !important;
+      --color-primary-opacity-20: ${activeTheme === 'dark' ? COLORS.DARK_PRIMARY_OPACITY_20 : COLORS.PRIMARY_OPACITY_20} !important;
+      --color-primary-opacity-25: ${activeTheme === 'dark' ? COLORS.DARK_PRIMARY_OPACITY_25 : COLORS.PRIMARY_OPACITY_25} !important;
+      --color-primary-opacity-30: ${activeTheme === 'dark' ? COLORS.DARK_PRIMARY_OPACITY_30 : COLORS.PRIMARY_OPACITY_30} !important;
+      --color-primary-opacity-35: ${activeTheme === 'dark' ? COLORS.DARK_PRIMARY_OPACITY_35 : COLORS.PRIMARY_OPACITY_35} !important;
+      --color-primary-opacity-40: ${activeTheme === 'dark' ? COLORS.DARK_PRIMARY_OPACITY_40 : COLORS.PRIMARY_OPACITY_40} !important;
+      --color-primary-opacity-45: ${activeTheme === 'dark' ? COLORS.DARK_PRIMARY_OPACITY_45 : COLORS.PRIMARY_OPACITY_45} !important;
+      --color-primary-opacity-50: ${activeTheme === 'dark' ? COLORS.DARK_PRIMARY_OPACITY_50 : COLORS.PRIMARY_OPACITY_50} !important;
+      --color-primary-opacity-60: ${activeTheme === 'dark' ? COLORS.DARK_PRIMARY_OPACITY_60 : COLORS.PRIMARY_OPACITY_60} !important;
+      --color-primary-opacity-70: ${activeTheme === 'dark' ? COLORS.DARK_PRIMARY_OPACITY_70 : COLORS.PRIMARY_OPACITY_70} !important;
+      --color-primary-opacity-80: ${activeTheme === 'dark' ? COLORS.DARK_PRIMARY_OPACITY_80 : COLORS.PRIMARY_OPACITY_80} !important;
+      --color-primary-opacity-90: ${activeTheme === 'dark' ? COLORS.DARK_PRIMARY_OPACITY_90 : COLORS.PRIMARY_OPACITY_90} !important;
       
       /* ============================================
          SUCCESS COLOR OPACITY VARIANTS
@@ -508,6 +509,7 @@ function getAllColorVariablesSync(theme: 'light' | 'dark', useHost: boolean = tr
       --color-border-default-theme: ${THEMES[activeTheme]['border-default']} !important;
       --color-bg-selected-theme: ${activeTheme === 'dark' ? COLORS.DARK_BG_SELECTED : COLORS.BACKGROUND_GREEN_TINT_1} !important;
       --color-bg-header-footer-theme: ${activeTheme === 'dark' ? COLORS.DARK_BG_HEADER_FOOTER : COLORS.WHITE} !important;
+      --color-hover-bg-action-theme: ${activeTheme === 'dark' ? 'transparent' : COLORS.PRIMARY_VERY_LIGHT} !important;
       
       /* ============================================
          FONT FAMILY

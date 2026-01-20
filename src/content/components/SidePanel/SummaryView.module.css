@@ -139,7 +139,7 @@
   margin: 0 2px !important;
   border: none !important;
   border-radius: 50% !important;
-  background: var(--color-primary) !important;
+  background: var(--color-primary-light) !important;
   color: var(--color-white) !important;
   font-size: 11px !important;
   font-weight: 600 !important;
@@ -393,7 +393,7 @@
   align-items: center !important;
   gap: 8px !important;
   padding: 12px 16px !important;
-  background: var(--color-bg-primary-theme) !important;
+  background: transparent !important;
 }
 
 .inputWrapper {

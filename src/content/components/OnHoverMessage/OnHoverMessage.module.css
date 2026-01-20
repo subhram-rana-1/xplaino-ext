@@ -3,10 +3,10 @@
 
 .onHoverMessage {
   position: fixed !important;
-  background: var(--color-primary-very-light) !important;
+  background: var(--color-primary) !important;
   border: none !important;
   border-radius: 20px !important;
-  color: var(--color-primary-light) !important;
+  color: var(--color-white) !important;
   font-family: var(--font-family-primary) !important;
   font-size: 14px !important;
   font-weight: 500 !important;
@@ -19,7 +19,7 @@
   transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important, 
               visibility 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important,
               transform 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
-  box-shadow: none !important;
+  box-shadow: 0 2px 8px rgba(13, 128, 112, 0.3) !important;
 }
 
 .onHoverMessage.visible {

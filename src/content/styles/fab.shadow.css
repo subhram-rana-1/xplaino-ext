@@ -73,7 +73,7 @@
   width: 24px !important;
   height: 24px !important;
   border-radius: 12px 0 0 12px !important;
-  background: var(--color-white, #FFFFFF) !important;
+  background: var(--color-bg-primary-theme, #FFFFFF) !important;
   border: 1.5px solid var(--color-primary-opacity-25) !important;
   border-right: none !important;
   cursor: pointer !important;
@@ -90,7 +90,7 @@
 
 .fabButton:hover,
 .fabButton.actionsVisible {
-  background: var(--color-white, #FFFFFF) !important;
+  background: var(--color-bg-primary-theme, #FFFFFF) !important;
   box-shadow: none !important;
   transform: translateX(25px) !important;
 }
@@ -121,7 +121,7 @@
   flex-direction: column !important;
   justify-content: center !important; /* Center buttons so they spread from center as container expands */
   gap: 2px !important;
-  background: var(--color-white) !important;
+  background: var(--color-bg-primary-theme) !important;
   border-radius: 999px !important;
   padding: 4px !important;
   opacity: 0 !important;
@@ -221,7 +221,7 @@
 
 /* Hover state - scale up while preserving position */
 .actionsContainer.visible .actionButton:hover {
-  background: var(--color-primary-very-light) !important;
+  background: var(--color-hover-bg-action-theme) !important;
   transform: translateY(0) scale(1.05) !important;
   box-shadow: none !important;
 }
@@ -430,10 +430,10 @@
   display: flex !important;
   flex-direction: column !important;
   gap: 2px !important;
-  background: var(--color-white) !important;
+  background: var(--color-bg-primary-theme) !important;
   border-radius: 15px !important;
   padding: 4px !important;
-  border: 1.5px solid rgba(13, 128, 112, 0.2) !important;
+  border: 1.5px solid var(--color-border-default-theme) !important;
   /* Animation is handled by JavaScript useEmergeAnimation hook */
   z-index: 20 !important;
   width: fit-content !important;
@@ -450,7 +450,7 @@
   bottom: 100% !important;
   right: 10px !important;
   border: 6px solid transparent !important;
-  border-bottom-color: var(--color-white) !important;
+  border-bottom-color: var(--color-bg-primary-theme) !important;
 }
 
 /* Arrow border (creates the border effect on the arrow) */
@@ -460,7 +460,7 @@
   bottom: 100% !important;
   right: 10px !important;
   border: 6px solid transparent !important;
-  border-bottom-color: rgba(13, 128, 112, 0.2) !important;
+  border-bottom-color: var(--color-border-default-theme) !important;
   margin-bottom: -1px !important;
 }
 
@@ -484,7 +484,7 @@
 }
 
 .fabDisablePopoverOption:hover {
-  background: var(--color-primary-very-light) !important;
+  background: var(--color-hover-bg-action-theme) !important;
   color: var(--color-primary) !important;
 }
 
@@ -542,7 +542,7 @@
 
 /* Override hover state for stop button - keep pulsing, just change background */
 .actionsContainer.visible .actionButton.stopTranslating:hover {
-  background: var(--color-primary-very-light) !important;
+  background: var(--color-hover-bg-action-theme) !important;
   animation: stopButtonPulse 1s ease-in-out infinite !important;
   /* Transform is handled by animation */
 }
@@ -562,10 +562,10 @@
  * ============================================================================= */
 
 .translationControlPopover {
-  background: var(--color-white) !important;
+  background: var(--color-bg-primary-theme) !important;
   border-radius: 15px !important;
   padding: 12px !important;
-  border: 1.5px solid rgba(13, 128, 112, 0.2) !important;
+  border: 1.5px solid var(--color-border-default-theme) !important;
   min-width: 220px !important;
   /* Override parent container visibility */
   visibility: visible !important;
@@ -581,7 +581,7 @@
   top: 50% !important;
   transform: translateY(-50%) !important;
   border: 8px solid transparent !important;
-  border-left-color: var(--color-white) !important;
+  border-left-color: var(--color-bg-primary-theme) !important;
 }
 
 /* Arrow border (creates the border effect on the arrow) */
@@ -592,7 +592,7 @@
   top: 50% !important;
   transform: translateY(-50%) !important;
   border: 8px solid transparent !important;
-  border-left-color: rgba(13, 128, 112, 0.2) !important;
+  border-left-color: var(--color-border-default-theme) !important;
   margin-left: 1px !important;
 }
 
@@ -610,7 +610,7 @@
 }
 
 .translationControlPopoverToggleContainer:hover {
-  background-color: var(--color-primary-opacity-5) !important;
+  background-color: var(--color-hover-bg-action-theme) !important;
 }
 
 .translationControlPopoverToggleLabel {
@@ -691,7 +691,7 @@
   width: 44px !important;
   height: 20px !important;
   border-radius: 10px !important;
-  background: #E2E8F0 !important;
+  background: var(--color-border-default-theme, #E2E8F0) !important;
   transition: background-color 0.2s ease !important;
 }
 

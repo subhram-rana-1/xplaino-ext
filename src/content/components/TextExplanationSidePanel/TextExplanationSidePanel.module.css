@@ -44,7 +44,7 @@
   transform: translateY(-50%);
   width: 4px;
   height: 50px;
-  background: var(--color-primary-light, #14a08a);
+  background: var(--color-primary-light);
   border-radius: 0 3px 3px 0;
   cursor: ew-resize;
   pointer-events: auto;
@@ -57,7 +57,7 @@
 
 .resizeHandle:hover,
 .resizeHandle:active {
-  background: var(--color-primary, #0d8070);
+  background: var(--color-primary);
   width: 6px;
   height: 70px;
 }

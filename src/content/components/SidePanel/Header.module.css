@@ -3,14 +3,6 @@
 /* CSS Variables - values from src/constants/colors.ts */
 
 .header {
-  /* CSS Variables defined on component */
-  --color-primary: #0d8070 !important;
-  --color-primary-light: #14a08a !important;
-  --color-primary-medium: #0a5f54 !important;
-  --color-white: #FFFFFF !important;
-  --color-gray-600: #718096 !important;
-  --color-primary-hover-bg: rgba(13, 128, 112, 0.1) !important;
-  
   display: flex !important;
   align-items: center !important;
   justify-content: space-between !important;
@@ -19,7 +11,7 @@
   height: 48px !important;
   flex-shrink: 0 !important;
   box-sizing: border-box !important;
-  border-bottom: 1.5px solid var(--color-primary-hover-bg, rgba(13, 128, 112, 0.1)) !important;
+  border-bottom: 1.5px solid var(--color-primary-opacity-10) !important;
 }
 
 /* Settings tab header - same background as header */
@@ -76,15 +68,15 @@
 
 /* Bookmarked state - allow fill to be set */
 .headerIconButton.bookmarked svg {
-  fill: #0d8070 !important;
-  color: #0d8070 !important;
-  stroke: #0d8070 !important;
+  fill: var(--color-primary) !important;
+  color: var(--color-primary) !important;
+  stroke: var(--color-primary) !important;
 }
 
 .headerIconButton.bookmarked:hover svg {
-  fill: #0a5f54 !important;
-  color: #0a5f54 !important;
-  stroke: #0a5f54 !important;
+  fill: var(--color-primary-dark) !important;
+  color: var(--color-primary-dark) !important;
+  stroke: var(--color-primary-dark) !important;
 }
 
 /* Center Section: Branding */
@@ -112,7 +104,7 @@
 .headerTitle {
   font-size: 16px !important;
   font-weight: 600 !important;
-  color: var(--color-primary, #0d8070) !important;
+  color: var(--color-primary) !important;
 }
 
 /* Right Section: Bookmark */

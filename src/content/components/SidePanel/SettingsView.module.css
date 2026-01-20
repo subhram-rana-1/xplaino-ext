@@ -39,7 +39,7 @@
 .sectionAccent {
   width: 4px !important;
   height: 20px !important;
-  background: #0d8070 !important;
+  background: var(--color-primary) !important;
   border-radius: 2px !important;
   flex-shrink: 0 !important;
 }
@@ -57,7 +57,7 @@
   height: 2px !important;
   min-height: 2px !important;
   max-height: 2px !important;
-  background: #0d8070 !important;
+  background: var(--color-primary) !important;
   margin-left: 8px !important;
   margin-right: 16px !important;
   border-radius: 2px !important;
@@ -128,7 +128,7 @@
 }
 
 .domainName {
-  color: #0d8070 !important;
+  color: var(--color-primary) !important;
   font-style: italic !important;
   font-weight: 700 !important;
 }
@@ -169,7 +169,7 @@
 }
 
 .toggleTrack.checked {
-  background: #0d8070 !important;
+  background: var(--color-primary) !important;
 }
 
 .toggleThumb {
@@ -213,7 +213,7 @@
   background-color: transparent !important;
   border: none !important;
   cursor: pointer !important;
-  color: #0d8070 !important;
+  color: var(--color-primary) !important;
   font-size: 14px !important;
   font-weight: 500 !important;
   transition: all 0.2s ease !important;
@@ -221,11 +221,11 @@
 }
 
 .settingsButton:hover {
-  background-color: rgba(13, 128, 112, 0.1) !important;
+  background-color: var(--color-primary-opacity-10) !important;
 }
 
 .settingsButton svg {
-  color: #0d8070 !important;
+  color: var(--color-primary) !important;
 }
 
 /* =============================================================================
@@ -269,7 +269,7 @@
 
 .accountFreeTrialBadge {
   padding: 4px 10px !important;
-  background: #0d8070 !important;
+  background: var(--color-primary) !important;
   color: #FFFFFF !important;
   font-size: 11px !important;
   font-weight: 600 !important;
@@ -328,7 +328,7 @@
   background-color: transparent !important;
   border: none !important;
   cursor: pointer !important;
-  color: #0d8070 !important;
+  color: var(--color-primary) !important;
   font-size: 14px !important;
   font-weight: 500 !important;
   transition: all 0.2s ease !important;
@@ -337,11 +337,11 @@
 }
 
 .accountButton:hover {
-  background-color: rgba(13, 128, 112, 0.1) !important;
+  background-color: var(--color-primary-opacity-10) !important;
 }
 
 .accountButton svg {
-  color: #0d8070 !important;
+  color: var(--color-primary) !important;
 }
 
 .accountRight {
@@ -453,7 +453,7 @@
 .accountLoginButton {
   padding: 12px 32px !important;
   border: none !important;
-  background: #0d8070 !important;
+  background: var(--color-primary) !important;
   color: #FFFFFF !important;
   font-size: 14px !important;
   font-weight: 600 !important;
@@ -465,7 +465,7 @@
 }
 
 .accountLoginButton:hover {
-  background: #0a5f54 !important;
+  background: var(--color-primary-dark) !important;
 }
 
 .accountLoginButton:active {

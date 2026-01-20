@@ -3,7 +3,7 @@
 
 export const COLORS = {
   // ============================================
-  // PRIMARY COLORS (Teal theme - #0d8070)
+  // PRIMARY COLORS (Teal theme - #0d8070) - LIGHT THEME
   // ============================================
   PRIMARY: '#0d8070',           // Main teal (rgb(13, 128, 112))
   PRIMARY_LIGHT: '#14a08a',     // Lighter teal (lighter variant)
@@ -116,7 +116,7 @@ export const COLORS = {
   OVERLAY_DARK: 'rgba(26, 32, 44, 0.9)', // Dark overlay with gray-900
 
   // ============================================
-  // PRIMARY COLOR OPACITY VARIANTS (for shadows, backgrounds, borders)
+  // PRIMARY COLOR OPACITY VARIANTS (for shadows, backgrounds, borders) - LIGHT THEME
   // ============================================
   PRIMARY_OPACITY_5: 'rgba(13, 128, 112, 0.05)',
   PRIMARY_OPACITY_8: 'rgba(13, 128, 112, 0.08)',
@@ -200,26 +200,59 @@ export const COLORS = {
   SHADOW_BLACK_30: 'rgba(0, 0, 0, 0.3)',
 
   // ============================================
-  // DARK THEME COLORS - Teal-based Dark Mode
+  // DARK THEME COLORS - Turquoise-based Dark Mode
   // ============================================
   DARK_BG_PRIMARY: '#303030',        // Medium dark gray - main background
   DARK_BG_SECONDARY: '#1c1c1c',      // Very dark gray - secondary sections
   DARK_BG_TERTIARY: '#1c1c1c',       // Same as secondary for consistency
   DARK_BG_HOVER: '#252525',          // Slightly lighter for hover states
-  DARK_BG_HEADER_FOOTER: '#2a3835',  // Dark with teal undertone - for headers/footers
+  DARK_BG_HEADER_FOOTER: '#2d3f3c',  // Dark with teal undertone - for headers/footers
   DARK_TEXT_PRIMARY: '#e0e0e0',      // Light gray - main text
   DARK_TEXT_SECONDARY: '#b0b0b0',    // Muted gray - secondary text
   DARK_TEXT_MUTED: '#999999',        // More muted - placeholders
   DARK_TEXT_INVERSE: '#303030',      // Inverse text (matches primary bg)
-  DARK_BORDER_DEFAULT: 'rgba(13, 128, 112, 0.25)',    // Very light teal - visible borders
-  DARK_BORDER_SUBTLE: 'rgba(13, 128, 112, 0.20)',     // Light teal - subtle border variant
-  DARK_BORDER_FOCUS: '#0fa38d',      // Bright teal - focus/active states
-  DARK_ACCENT: '#0fa38d',            // Bright teal - links/accents
-  DARK_ACCENT_HOVER: '#00b3a5',      // Cyan green - hover states
+  DARK_BORDER_DEFAULT: 'rgba(56, 201, 181, 0.25)',    // Very light turquoise - visible borders
+  DARK_BORDER_SUBTLE: 'rgba(56, 201, 181, 0.20)',     // Light turquoise - subtle border variant
+  DARK_BORDER_FOCUS: '#4dd4bf',      // Bright turquoise - focus/active states
+  DARK_ACCENT: '#4dd4bf',            // Bright turquoise - links/accents
+  DARK_ACCENT_HOVER: '#5fdfca',      // Cyan green - hover states
   DARK_OVERLAY: 'rgba(18, 18, 18, 0.9)', // Dark overlay matching primary bg
   DARK_DISABLED: '#666666',          // Gray - disabled elements
   DARK_ERROR: '#ff6347',             // Tomato red - errors/warnings
-  DARK_BG_SELECTED: 'rgba(15, 163, 141, 0.15)', // Selected item background in dark theme
+  DARK_BG_SELECTED: 'rgba(56, 201, 181, 0.15)', // Selected item background in dark theme
+  
+  // Dark theme primary colors (turquoise theme for dark mode)
+  DARK_PRIMARY: '#38c9b5',           // Main turquoise for dark theme
+  DARK_PRIMARY_LIGHT: '#4dd4bf',     // Lighter turquoise variant
+  DARK_PRIMARY_LIGHT_ALT: '#5fdfca', // Alternative light turquoise
+  DARK_PRIMARY_VERY_LIGHT: '#e8f9f6', // Very light turquoise tint
+  DARK_PRIMARY_DARK: '#2a9985',      // Darker turquoise
+  DARK_PRIMARY_HOVER: '#4dd4bf',     // Hover state turquoise
+  DARK_PRIMARY_HOVER_DARK: '#2a9985', // Dark hover state
+  DARK_PRIMARY_HOVER_ALT: '#38c9b5',  // Alternative hover variant
+  
+  // Dark theme primary opacity variants
+  DARK_PRIMARY_OPACITY_5: 'rgba(56, 201, 181, 0.05)',
+  DARK_PRIMARY_OPACITY_8: 'rgba(56, 201, 181, 0.08)',
+  DARK_PRIMARY_OPACITY_10: 'rgba(56, 201, 181, 0.1)',
+  DARK_PRIMARY_OPACITY_15: 'rgba(56, 201, 181, 0.15)',
+  DARK_PRIMARY_OPACITY_18: 'rgba(56, 201, 181, 0.18)',
+  DARK_PRIMARY_OPACITY_20: 'rgba(56, 201, 181, 0.2)',
+  DARK_PRIMARY_OPACITY_25: 'rgba(56, 201, 181, 0.25)',
+  DARK_PRIMARY_OPACITY_30: 'rgba(56, 201, 181, 0.3)',
+  DARK_PRIMARY_OPACITY_35: 'rgba(56, 201, 181, 0.35)',
+  DARK_PRIMARY_OPACITY_40: 'rgba(56, 201, 181, 0.4)',
+  DARK_PRIMARY_OPACITY_45: 'rgba(56, 201, 181, 0.45)',
+  DARK_PRIMARY_OPACITY_50: 'rgba(56, 201, 181, 0.5)',
+  DARK_PRIMARY_OPACITY_60: 'rgba(56, 201, 181, 0.6)',
+  DARK_PRIMARY_OPACITY_70: 'rgba(56, 201, 181, 0.7)',
+  DARK_PRIMARY_OPACITY_80: 'rgba(56, 201, 181, 0.8)',
+  DARK_PRIMARY_OPACITY_90: 'rgba(56, 201, 181, 0.9)',
+  
+  // Dark theme background tints (turquoise)
+  DARK_BG_GREEN_TINT_1: '#e8f9f6',   // Turquoise-tinted background
+  DARK_BG_GREEN_TINT_2: '#d1f3ed',   // Turquoise-tinted background variant
+  DARK_BG_GREEN_TINT_3: '#f4fcfa',   // Turquoise-tinted background variant
 } as const;
 
 // Type for color keys

@@ -4,20 +4,20 @@
 
 .onHoverMessage {
   position: fixed !important;
-  background: var(--color-primary-very-light, #e0f2ef) !important;
+  background: var(--color-primary, #0d8070) !important;
   border: none !important;
   border-radius: 6px !important;
-  color: var(--color-primary-light, #14a08a) !important;
+  color: var(--color-white, #FFFFFF) !important;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
   font-size: 12px !important;
-  font-weight: 400 !important;
+  font-weight: 500 !important;
   padding: 4px 12px !important;
   white-space: nowrap !important;
   z-index: 2147483647 !important;
   pointer-events: none !important;
   opacity: 0 !important;
   visibility: hidden !important;
-  box-shadow: none !important;
+  box-shadow: 0 2px 8px rgba(13, 128, 112, 0.3) !important;
   transition: opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1),
               visibility 0.2s cubic-bezier(0.4, 0, 0.2, 1),
               transform 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
@@ -69,6 +69,6 @@
   left: 50% !important;
   transform: translateX(-50%) !important;
   border: 5px solid transparent !important;
-  border-top-color: var(--color-primary-very-light, #e0f2ef) !important;
+  border-top-color: var(--color-primary, #0d8070) !important;
 }
 

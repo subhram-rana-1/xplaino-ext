@@ -7,15 +7,6 @@
   font-family: var(--font-family-primary) !important;
 }
 
-/* Color variable fallbacks */
-:host {
-  --color-primary: #0d8070 !important;
-  --color-primary-light: #14a08a !important;
-  --color-primary-dark: #0a5f54 !important;
-  --color-white: #FFFFFF !important;
-  --color-error: #EF4444 !important;
-}
-
 * {
   box-sizing: border-box !important;
 }
@@ -105,7 +96,7 @@
   flex-shrink: 0 !important;
   height: 48px !important;
   box-sizing: border-box !important;
-  border-bottom: 1.5px solid var(--color-primary-opacity-10, rgba(13, 128, 112, 0.1)) !important;
+  border-bottom: 1.5px solid var(--color-primary-opacity-10) !important;
 }
 
 /* Settings tab header - same background as header */
@@ -872,7 +863,7 @@
 
 .loadingDots {
   font-size: 24px !important;
-  color: var(--color-primary, #0d8070) !important;
+  color: var(--color-primary) !important;
   font-weight: 600 !important;
   letter-spacing: 4px !important;
   font-family: var(--font-family-primary) !important;
@@ -1005,7 +996,7 @@
   align-items: center !important;
   gap: 8px !important;
   padding: 12px 16px !important;
-  background: var(--color-bg-header-footer-theme, #FFFFFF) !important;
+  background: transparent !important;
 }
 
 .inputWrapper {
@@ -1236,14 +1227,14 @@
 }
 
 .linkItem:hover {
-  border-color: #0d8070 !important;
+  border-color: var(--color-primary) !important;
   background: var(--color-primary-opacity-5) !important;
 }
 
 .linkIcon {
   width: 20px !important;
   height: 20px !important;
-  color: #0d8070 !important;
+  color: var(--color-primary) !important;
   flex-shrink: 0 !important;
   display: flex !important;
   align-items: center !important;
@@ -1278,7 +1269,7 @@
 }
 
 .linkItem:hover .linkRefIcon {
-  color: #0d8070 !important;
+  color: var(--color-primary) !important;
 }
 
 /* ============================================ */
@@ -1323,7 +1314,7 @@
 .sectionAccent {
   width: 4px !important;
   height: 20px !important;
-  background: #0d8070 !important;
+  background: var(--color-primary) !important;
   border-radius: 2px !important;
   flex-shrink: 0 !important;
 }
@@ -1341,7 +1332,7 @@
   height: 2px !important;
   min-height: 2px !important;
   max-height: 2px !important;
-  background: #0d8070 !important;
+  background: var(--color-primary) !important;
   margin-left: 8px !important;
   margin-right: 16px !important;
   border-radius: 2px !important;
@@ -1412,7 +1403,7 @@
 }
 
 .domainName {
-  color: #0d8070 !important;
+  color: var(--color-primary) !important;
   font-style: italic !important;
   font-weight: 700 !important;
 }
@@ -1453,7 +1444,7 @@
 }
 
 .toggleTrack.checked {
-  background: #0d8070 !important;
+  background: var(--color-primary) !important;
 }
 
 .toggleThumb {
@@ -1497,7 +1488,7 @@
   background-color: transparent !important;
   border: none !important;
   cursor: pointer !important;
-  color: #0d8070 !important;
+  color: var(--color-primary) !important;
   font-size: 14px !important;
   font-weight: 500 !important;
   transition: all 0.2s ease !important;
@@ -1505,7 +1496,7 @@
 }
 
 .settingsButton:hover {
-  background-color: rgba(13, 128, 112, 0.1) !important;
+  background-color: var(--color-primary-opacity-10) !important;
 }
 
 /* =============================================================================
@@ -1549,7 +1540,7 @@
 
 .accountFreeTrialBadge {
   padding: 4px 10px !important;
-  background: #0d8070 !important;
+  background: var(--color-primary) !important;
   color: #FFFFFF !important;
   font-size: 11px !important;
   font-weight: 600 !important;
@@ -1608,7 +1599,7 @@
   background-color: transparent !important;
   border: none !important;
   cursor: pointer !important;
-  color: #0d8070 !important;
+  color: var(--color-primary) !important;
   font-size: 14px !important;
   font-weight: 500 !important;
   transition: all 0.2s ease !important;
@@ -1617,11 +1608,11 @@
 }
 
 .accountButton:hover {
-  background-color: rgba(13, 128, 112, 0.1) !important;
+  background-color: var(--color-primary-opacity-10) !important;
 }
 
 .accountButton svg {
-  color: #0d8070 !important;
+  color: var(--color-primary) !important;
 }
 
 .accountRight {
@@ -1715,7 +1706,7 @@
 .accountLoginButton {
   padding: 12px 32px !important;
   border: none !important;
-  background: #0d8070 !important;
+  background: var(--color-primary) !important;
   color: #FFFFFF !important;
   font-size: 14px !important;
   font-weight: 600 !important;
@@ -1727,7 +1718,7 @@
 }
 
 .accountLoginButton:hover {
-  background: #0a5f54 !important;
+  background: var(--color-primary-dark) !important;
 }
 
 .accountLoginButton:active {
@@ -1735,7 +1726,7 @@
 }
 
 .settingsButton svg {
-  color: #0d8070 !important;
+  color: var(--color-primary) !important;
 }
 
 /* ============================================ */
@@ -1775,11 +1766,11 @@
 }
 
 .dropdownButton:hover {
-  border-color: #0d8070 !important;
+  border-color: var(--color-primary) !important;
 }
 
 .dropdownButton.open {
-  border-color: #0d8070 !important;
+  border-color: var(--color-primary) !important;
   box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.1) !important;
 }
 
@@ -1848,7 +1839,7 @@
 
 .dropdownItem.selected {
   background: var(--color-bg-selected-theme) !important;
-  color: #0d8070 !important;
+  color: var(--color-primary) !important;
   font-weight: 500 !important;
 }
 

@@ -3,9 +3,6 @@
 
 /* CSS Variables */
 :host {
-  --panel-primary: #0d8070 !important;
-  --panel-primary-light: #14a08a !important;
-  --panel-primary-medium: #0a5f54 !important;
   --panel-white: #FFFFFF !important;
   --panel-shadow: 0 4px 12px rgba(0, 0, 0, 0.25) !important;
   --panel-border-radius: 30px !important;
@@ -67,7 +64,7 @@
   transform: translateY(-50%) !important;
   width: 4px !important;
   height: 50px !important;
-  background: var(--panel-primary-light) !important;
+  background: var(--color-primary-light) !important;
   border-radius: 0 3px 3px 0 !important;
   cursor: ew-resize !important;
   pointer-events: auto !important;
@@ -80,7 +77,7 @@
 
 .resizeHandle:hover,
 .resizeHandle:active {
-  background: var(--panel-primary) !important;
+  background: var(--color-primary) !important;
   width: 6px !important;
   height: 70px !important;
 }
@@ -98,7 +95,7 @@
 /* Footer */
 .footer {
   background: var(--color-bg-header-footer-theme, #FFFFFF) !important;
-  border-top: 1.5px solid var(--panel-primary-light) !important;
+  border-top: 1.5px solid var(--color-primary-light) !important;
   padding: 0 !important;
   display: flex !important;
   flex-shrink: 0 !important;
@@ -116,7 +113,7 @@
   flex: 1 !important;
   background: transparent !important;
   border: none !important;
-  color: var(--panel-primary) !important;
+  color: var(--color-primary) !important;
   font-size: 14px !important;
   font-weight: 600 !important;
   cursor: pointer !important;
@@ -128,16 +125,16 @@
 }
 
 .tab:hover {
-  background: rgba(13, 128, 112, 0.1) !important;
+  background: var(--color-primary-opacity-10) !important;
 }
 
 .tab.active {
-  background: var(--panel-primary) !important;
+  background: var(--color-primary) !important;
   color: var(--panel-white) !important;
 }
 
 .tab:not(:last-child) {
-  border-right: 1.5px solid var(--panel-primary-light) !important;
+  border-right: 1.5px solid var(--color-primary-light) !important;
 }
 
 /* Scrollbar Styling */
@@ -150,10 +147,10 @@
 }
 
 .content::-webkit-scrollbar-thumb {
-  background: var(--panel-primary-light) !important;
+  background: var(--color-primary-light) !important;
   border-radius: 4px !important;
 }
 
 .content::-webkit-scrollbar-thumb:hover {
-  background: var(--panel-primary) !important;
+  background: var(--color-primary) !important;
 }

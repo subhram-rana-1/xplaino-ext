@@ -354,7 +354,7 @@
   gap: 8px !important;
   align-items: center !important;
   flex-shrink: 0 !important;
-  background: var(--color-bg-header-footer-theme) !important;
+  background: transparent !important;
 }
 
 .input {

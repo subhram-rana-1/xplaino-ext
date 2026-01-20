@@ -90,10 +90,10 @@
   flex-direction: row !important;
   align-items: center !important;
 
-  background: var(--color-white) !important;
+  background: var(--color-bg-primary-theme) !important;
   border-radius: 999px !important;
   padding: 3px !important;
-  border: 1.5px solid var(--color-primary-opacity-20) !important;
+  border: 1.5px solid var(--color-border-default-theme) !important;
   opacity: 0 !important;
   visibility: hidden !important;
   transform: translateX(-16px) translateY(-7px) !important;
@@ -208,7 +208,7 @@
 }
 
 .contentActionButton:hover {
-  background: var(--color-primary-very-light) !important;
+  background: var(--color-hover-bg-action-theme) !important;
 }
 
 .contentActionButton:active {
@@ -371,10 +371,10 @@
   display: flex !important;
   flex-direction: column !important;
   gap: 2px !important;
-  background: var(--color-white) !important;
+  background: var(--color-bg-primary-theme) !important;
   border-radius: 15px !important;
   padding: 4px !important;
-  border: 1.5px solid var(--color-primary-opacity-20) !important;
+  border: 1.5px solid var(--color-border-default-theme) !important;
   /* Animation is handled by JavaScript useEmergeAnimation hook */
   z-index: 20 !important;
   width: fit-content !important;
@@ -392,7 +392,7 @@
   left: 50% !important;
   transform: translateX(-50%) !important;
   border: 6px solid transparent !important;
-  border-bottom-color: var(--color-white) !important;
+  border-bottom-color: var(--color-bg-primary-theme) !important;
 }
 
 /* Action Button Option Button */
@@ -415,7 +415,7 @@
 }
 
 .actionButtonOption:hover {
-  background: var(--color-primary-very-light) !important;
+  background: var(--color-hover-bg-action-theme) !important;
   color: var(--color-primary) !important;
 }
 
@@ -446,10 +446,10 @@
   display: flex !important;
   flex-direction: column !important;
   gap: 2px !important;
-  background: var(--color-white) !important;
+  background: var(--color-bg-primary-theme) !important;
   border-radius: 15px !important;
   padding: 4px !important;
-  border: 1.5px solid var(--color-primary-opacity-20) !important;
+  border: 1.5px solid var(--color-border-default-theme) !important;
   box-shadow: none !important;
   /* Animation is handled by JavaScript useEmergeAnimation hook */
   z-index: 20 !important;
@@ -467,7 +467,7 @@
   left: 50% !important;
   transform: translateX(-50%) !important;
   border: 6px solid transparent !important;
-  border-bottom-color: var(--color-white) !important;
+  border-bottom-color: var(--color-bg-primary-theme) !important;
 }
 
 /* Disable Popover Option Button */
@@ -490,7 +490,7 @@
 }
 
 .disablePopoverOption:hover {
-  background: var(--color-primary-very-light) !important;
+  background: var(--color-hover-bg-action-theme) !important;
   color: var(--color-primary) !important;
 }
 

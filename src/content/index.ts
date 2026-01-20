@@ -10750,6 +10750,10 @@ store.sub(showSubscriptionModalAtom, () => {
 
 // Debounce timer for theme refresh to prevent duplicate calls
 let themeRefreshTimer: number | null = null;
+// Track if a theme refresh is currently in progress
+let themeRefreshInProgress = false;
+// Track if another refresh should run after the current one completes
+let themeRefreshPending = false;
 
 /**
  * Check if a style element contains color variables CSS
@@ -10785,11 +10789,19 @@ function isColorVariablesStyle(styleElement: HTMLStyleElement): boolean {
 
 /**
  * Refresh theme CSS variables in all Shadow DOM roots
+ * Improved debouncing with race condition prevention
  */
 async function refreshThemeInAllShadowRoots(): Promise<void> {
   console.log('[Content Script] refreshThemeInAllShadowRoots called');
   
-  // Clear any pending refresh
+  // If a refresh is currently in progress, mark that another one is needed
+  if (themeRefreshInProgress) {
+    console.log('[Content Script] Refresh in progress, marking pending refresh');
+    themeRefreshPending = true;
+    return;
+  }
+  
+  // Clear any pending debounce timer
   if (themeRefreshTimer !== null) {
     clearTimeout(themeRefreshTimer);
     themeRefreshTimer = null;
@@ -10798,6 +10810,10 @@ async function refreshThemeInAllShadowRoots(): Promise<void> {
   // Debounce: wait a bit to batch multiple rapid calls
   return new Promise((resolve) => {
     themeRefreshTimer = window.setTimeout(async () => {
+      // Mark refresh as in progress
+      themeRefreshInProgress = true;
+      themeRefreshPending = false;
+      
       try {
         // Get current theme
         const currentTheme = await getCurrentTheme();
@@ -10919,6 +10935,15 @@ async function refreshThemeInAllShadowRoots(): Promise<void> {
         resolve();
       } finally {
         themeRefreshTimer = null;
+        themeRefreshInProgress = false;
+        
+        // If another refresh was requested while this one was running, trigger it now
+        if (themeRefreshPending) {
+          console.log('[Content Script] Pending refresh detected, triggering now');
+          themeRefreshPending = false;
+          // Use setTimeout to avoid call stack issues
+          setTimeout(() => refreshThemeInAllShadowRoots(), 0);
+        }
       }
     }, 50); // 50ms debounce
   });
@@ -10959,14 +10984,6 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
     }
   }
 });
-
-// Listen for custom theme change event from SettingsView
-// Note: This is redundant with storage listener but provides immediate feedback
-// Debouncing in refreshThemeInAllShadowRoots prevents duplicate work
-window.addEventListener('theme-changed', ((event: CustomEvent) => {
-  console.log('[Content Script] Theme changed event received:', event.detail);
-  refreshThemeInAllShadowRoots();
-}) as EventListener);
 
 // Listen for custom login required event
 window.addEventListener('xplaino:login-required', () => {

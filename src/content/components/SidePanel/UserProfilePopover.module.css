@@ -7,7 +7,7 @@
   right: 0 !important;
   background: var(--color-bg-primary-theme) !important;
   border-radius: 12px !important;
-  box-shadow: 0 4px 20px rgba(13, 128, 112, 0.25) !important;
+  box-shadow: 0 4px 20px var(--color-primary-opacity-25) !important;
   padding: 12px !important;
   min-width: 180px !important;
   z-index: 1000 !important;

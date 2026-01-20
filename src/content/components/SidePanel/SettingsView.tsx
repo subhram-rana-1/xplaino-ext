@@ -119,10 +119,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ useShadowDom = false
         console.log('[SettingsView] Set domain theme:', value, 'for domain:', currentDomain);
       }
 
-      // Trigger theme change event to refresh UI
-      window.dispatchEvent(new CustomEvent('theme-changed', { 
-        detail: { type: 'extension', domain: currentDomain } 
-      }));
+      // Note: Theme change will be detected by storage listener in content/index.ts
+      // No need to manually dispatch event - storage changes trigger automatic refresh
     } catch (error) {
       console.error('[SettingsView] Error updating theme:', error);
     }

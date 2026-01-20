@@ -34,7 +34,7 @@
 }
 
 .footer :global(.button:hover) {
-  background: var(--color-primary-opacity-5, rgba(13, 128, 112, 0.05));
+  background: var(--color-primary-opacity-5);
 }
 
 /* Vertical separator between buttons */

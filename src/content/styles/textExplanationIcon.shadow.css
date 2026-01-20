@@ -7,13 +7,6 @@
   font-family: var(--font-family-primary) !important;
 }
 
-/* Color variable fallbacks */
-:host {
-  --color-primary: #0d8070 !important;
-  --color-primary-light: #14a08a !important;
-  --color-white: #FFFFFF !important;
-}
-
 * {
   box-sizing: border-box !important;
 }

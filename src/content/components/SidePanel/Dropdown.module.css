@@ -34,11 +34,11 @@
 }
 
 .dropdownButton:hover {
-  border-color: #0d8070 !important;
+  border-color: var(--color-primary) !important;
 }
 
 .dropdownButton.open {
-  border-color: #0d8070 !important;
+  border-color: var(--color-primary) !important;
   box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.1) !important;
 }
 
@@ -102,12 +102,12 @@
 }
 
 .dropdownItem:hover {
-  background: rgba(13, 128, 112, 0.1) !important;
+  background: var(--color-primary-opacity-10) !important;
 }
 
 .dropdownItem.selected {
   background: var(--color-bg-selected-theme) !important;
-  color: #0d8070 !important;
+  color: var(--color-primary) !important;
   font-weight: 500 !important;
 }
 
