@@ -818,7 +818,7 @@ async function handleTranslateClick(): Promise<void> {
 
     if (!nativeLanguage) {
       console.error('[Content Script] No native language set');
-      showWarningToast();
+      await showWarningToast();
       return;
     }
 
@@ -2571,7 +2571,7 @@ async function handleWordTranslateClick(selectedText: string): Promise<void> {
     const nativeLanguage = await ChromeStorage.getUserSettingNativeLanguage();
     if (!nativeLanguage) {
       console.error('[Content Script] No native language set');
-      showToast('Please set your native language in settings', 'error');
+      await showWarningToast();
       return;
     }
     
@@ -2820,7 +2820,7 @@ async function handleTextTranslateClick(selectedText: string): Promise<void> {
     const nativeLanguage = await ChromeStorage.getUserSettingNativeLanguage();
     if (!nativeLanguage) {
       console.error('[Content Script] No native language set');
-      showToast('Please set your native language in settings', 'error');
+      await showWarningToast();
       return;
     }
     
@@ -4219,7 +4219,7 @@ async function handleTranslateWord(wordId: string, _languageCode?: string): Prom
   const nativeLanguage = await ChromeStorage.getUserSettingNativeLanguage();
   if (!nativeLanguage) {
     console.error('[Content Script] No native language set');
-    showToast('Please set your native language in settings', 'error');
+    await showWarningToast();
     return;
   }
   
@@ -8447,10 +8447,8 @@ function updateToast(): void {
         {
           className: toastClosing ? 'toast-closing' : '',
           style: {
-            // Theme-aware background: detect system dark mode preference
-            background: window.matchMedia?.('(prefers-color-scheme: dark)')?.matches 
-              ? COLORS.DARK_BG_PRIMARY 
-              : 'white',
+            // Theme-aware background using CSS variable from extension settings
+            background: 'var(--color-bg-primary-theme)',
             border: toastType === 'error' ? `2px solid ${COLORS.ERROR}` : `2px solid ${COLORS.SUCCESS}`,
             color: toastType === 'error' ? COLORS.ERROR : COLORS.SUCCESS,
             padding: '0.75rem 1.5rem',
@@ -8618,18 +8616,18 @@ function updateBookmarkToast(): void {
 /**
  * Show warning toast for native language setting
  */
-function showWarningToast(): void {
+async function showWarningToast(): Promise<void> {
   warningToastVisible = true;
   warningToastClosing = false;
   
-  injectWarningToast();
+  await injectWarningToast();
   updateWarningToast();
 }
 
 /**
  * Inject Warning Toast into the page with Shadow DOM
  */
-function injectWarningToast(): void {
+async function injectWarningToast(): Promise<void> {
   // Check if already injected
   if (shadowHostExists(WARNING_TOAST_HOST_ID)) {
     return;
@@ -8640,6 +8638,10 @@ function injectWarningToast(): void {
     id: WARNING_TOAST_HOST_ID,
     zIndex: 2147483649, // Higher than regular toast
   });
+
+  // Inject color CSS variables first - get theme-aware variables
+  const colorVariables = await getAllColorVariables();
+  injectStyles(shadow, colorVariables, true);
 
   // Inject styles for animations
   const styles = `
@@ -8757,7 +8759,7 @@ function updateWarningToast(): void {
         'div',
         {
           style: {
-            background: 'white',
+            background: 'var(--color-bg-primary-theme)',
             border: `2px solid ${yellowColor}`,
             color: yellowColor,
             padding: '0.75rem 1rem',
@@ -8775,7 +8777,7 @@ function updateWarningToast(): void {
         React.createElement(
           'div',
           { style: { flex: '1', lineHeight: '1.5' } },
-          'Set your native language  ',
+          'Please set your native language in ',
           React.createElement(
             'a',
             {
@@ -8783,23 +8785,51 @@ function updateWarningToast(): void {
               onClick: handleLinkClick,
               style: {
                 color: yellowColor,
-                textDecoration: 'none',
+                textDecoration: 'underline',
                 fontWeight: '600',
                 display: 'inline-flex',
                 alignItems: 'center',
                 cursor: 'pointer',
+                gap: '4px',
               },
               onMouseEnter: (e: React.MouseEvent<HTMLAnchorElement>) => {
                 e.currentTarget.style.opacity = '0.8';
-                e.currentTarget.style.textDecoration = 'underline';
               },
               onMouseLeave: (e: React.MouseEvent<HTMLAnchorElement>) => {
                 e.currentTarget.style.opacity = '1';
-                e.currentTarget.style.textDecoration = 'none';
               },
             },
-            settingsIcon
-          )
+            settingsIcon,
+            'settings'
+          ),
+          '. If done, please ',
+          React.createElement(
+            'a',
+            {
+              href: '#',
+              onClick: (e: React.MouseEvent) => {
+                e.preventDefault();
+                // Close the warning toast
+                handleClose();
+                // Open settings side panel
+                setSidePanelOpen(true, 'settings');
+              },
+              style: {
+                color: yellowColor,
+                textDecoration: 'underline',
+                fontWeight: '600',
+                cursor: 'pointer',
+              },
+              onMouseEnter: (e: React.MouseEvent<HTMLAnchorElement>) => {
+                e.currentTarget.style.opacity = '0.8';
+              },
+              onMouseLeave: (e: React.MouseEvent<HTMLAnchorElement>) => {
+                e.currentTarget.style.opacity = '1';
+              },
+            },
+            'login'
+          ),
+          ' and refresh the page'
         ),
         React.createElement(
           'button',

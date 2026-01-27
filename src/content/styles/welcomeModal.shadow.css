@@ -23,16 +23,6 @@
   right: 20px !important;
   z-index: 2147483647 !important;
   will-change: transform, opacity !important;
-}
-
-/* Hidden state when not visible and not closing */
-.welcomeModalContainer:not(.visible):not(.closing) {
-  opacity: 0 !important;
-  pointer-events: none !important;
-}
-
-/* Visible state with fade in animation */
-.welcomeModalContainer.visible:not(.closing) {
   animation: fadeIn 0.4s ease-out forwards !important;
   pointer-events: auto !important;
 }

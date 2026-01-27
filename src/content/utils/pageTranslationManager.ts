@@ -141,18 +141,14 @@ export class PageTranslationManager {
             translationDiv.style.display = mode === 'original' ? 'none' : '';
           }
         } else {
-          // For replace mode, swap text content
+          // For replace mode, swap text content (color preserved from original)
           if (mode === 'original') {
             const original = element.element.getAttribute('data-xplaino-original');
             if (original) {
               element.element.textContent = original;
-              // Restore original color by removing inline color style
-              element.element.style.color = '';
             }
           } else {
             element.element.textContent = element.translatedText;
-            // Apply teal color for translated text
-            element.element.style.color = COLORS.PRIMARY;
           }
         }
       }
@@ -179,8 +175,6 @@ export class PageTranslationManager {
         const original = element.element.getAttribute('data-xplaino-original');
         if (original) {
           element.element.textContent = original;
-          // Restore original color by removing inline color style
-          element.element.style.color = '';
         }
       }
 
@@ -344,6 +338,33 @@ export class PageTranslationManager {
   }
 
   /**
+   * Detect if element is in dark mode context by checking background luminance
+   * Walks up the DOM tree to find a background color and calculates its luminance
+   */
+  private isElementInDarkMode(element: HTMLElement): boolean {
+    // Walk up the DOM to find a background color
+    let current: HTMLElement | null = element;
+    while (current) {
+      const bgColor = window.getComputedStyle(current).backgroundColor;
+      if (bgColor && bgColor !== 'rgba(0, 0, 0, 0)' && bgColor !== 'transparent') {
+        // Parse RGB values and calculate luminance
+        const match = bgColor.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+        if (match) {
+          const r = parseInt(match[1], 10);
+          const g = parseInt(match[2], 10);
+          const b = parseInt(match[3], 10);
+          // Calculate relative luminance (0-255 scale, <128 = dark)
+          const luminance = (0.299 * r + 0.587 * g + 0.114 * b);
+          return luminance < 128;
+        }
+      }
+      current = current.parentElement;
+    }
+    // Fallback to system preference
+    return window.matchMedia?.('(prefers-color-scheme: dark)')?.matches ?? false;
+  }
+
+  /**
    * Apply translation in append mode (add below original)
    */
   private applyAppendedTranslation(element: TranslatableElement): void {
@@ -368,8 +389,8 @@ export class PageTranslationManager {
     translationDiv.className = 'xplaino-translation-appended';
     translationDiv.textContent = element.translatedText;
     
-    // Theme-aware color: detect system dark mode preference
-    const isDarkMode = window.matchMedia?.('(prefers-color-scheme: dark)')?.matches;
+    // Theme-aware color: detect page theme from background luminance
+    const isDarkMode = this.isElementInDarkMode(element.element);
     const primaryColor = isDarkMode ? COLORS.DARK_PRIMARY : COLORS.PRIMARY;
     
     translationDiv.style.cssText = `
@@ -392,6 +413,7 @@ export class PageTranslationManager {
 
   /**
    * Apply translation in replace mode (swap content)
+   * Color and font style are preserved from the original element
    */
   private applyReplacedTranslation(element: TranslatableElement): void {
     if (!element.translatedText) return;
@@ -401,11 +423,8 @@ export class PageTranslationManager {
       element.element.setAttribute('data-xplaino-original', element.originalText);
     }
 
-    // Replace text content
+    // Replace text content (color and font style are preserved from the original element)
     element.element.textContent = element.translatedText;
-    
-    // Apply teal color while preserving existing font properties
-    element.element.style.color = COLORS.PRIMARY;
     
     element.element.setAttribute('data-xplaino-translated', 'true');
   }

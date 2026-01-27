@@ -118,6 +118,18 @@ export class AskService {
 
             // If retry successful, continue with SSE stream processing
             if (!retryResponse.ok) {
+              const errorData = await ApiResponseHandler.parseErrorResponse(retryResponse);
+              
+              // Check for string_too_long validation error
+              const stringTooLongCheck = ApiResponseHandler.checkStringTooLongError(errorData);
+              if (stringTooLongCheck.isError) {
+                callbacks.onError(
+                  'VALIDATION_ERROR',
+                  `Your message is too long. Maximum ${stringTooLongCheck.maxLength?.toLocaleString()} characters allowed.`
+                );
+                return;
+              }
+              
               const errorText = await retryResponse.text();
               callbacks.onError('HTTP_ERROR', `HTTP ${retryResponse.status}: ${errorText}`);
               return;
@@ -223,6 +235,16 @@ export class AskService {
 
       if (!response.ok) {
         const errorData = await ApiResponseHandler.parseErrorResponse(response);
+        
+        // Check for string_too_long validation error
+        const stringTooLongCheck = ApiResponseHandler.checkStringTooLongError(errorData);
+        if (stringTooLongCheck.isError) {
+          callbacks.onError(
+            'VALIDATION_ERROR',
+            `Your message is too long. Maximum ${stringTooLongCheck.maxLength?.toLocaleString()} characters allowed.`
+          );
+          return;
+        }
         
         // Check for LOGIN_REQUIRED in error response body (regardless of status code)
         if (ApiResponseHandler.checkLoginRequired(errorData, response.status)) {

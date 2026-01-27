@@ -125,6 +125,16 @@ export class SimplifyService {
             if (!retryResponse.ok) {
               const errorData = await ApiResponseHandler.parseErrorResponse(retryResponse);
               
+              // Check for string_too_long validation error
+              const stringTooLongCheck = ApiResponseHandler.checkStringTooLongError(errorData);
+              if (stringTooLongCheck.isError) {
+                callbacks.onError(
+                  'VALIDATION_ERROR',
+                  `The selected text is too long. Maximum ${stringTooLongCheck.maxLength?.toLocaleString()} characters allowed.`
+                );
+                return;
+              }
+              
               // Check for LOGIN_REQUIRED in error response body (regardless of status code)
               if (ApiResponseHandler.checkLoginRequired(errorData, retryResponse.status)) {
                 ApiResponseHandler.handleLoginRequired(callbacks.onLoginRequired, 'SimplifyService');
@@ -223,6 +233,16 @@ export class SimplifyService {
 
       if (!response.ok) {
         const errorData = await ApiResponseHandler.parseErrorResponse(response);
+        
+        // Check for string_too_long validation error
+        const stringTooLongCheck = ApiResponseHandler.checkStringTooLongError(errorData);
+        if (stringTooLongCheck.isError) {
+          callbacks.onError(
+            'VALIDATION_ERROR',
+            `The selected text is too long. Maximum ${stringTooLongCheck.maxLength?.toLocaleString()} characters allowed.`
+          );
+          return;
+        }
         
         // Check for LOGIN_REQUIRED in error response body (regardless of status code)
         if (ApiResponseHandler.checkLoginRequired(errorData, response.status)) {

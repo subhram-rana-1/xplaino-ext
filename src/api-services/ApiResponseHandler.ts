@@ -77,6 +77,40 @@ export class ApiResponseHandler {
   }
 
   /**
+   * Check if error response indicates string_too_long validation error (Pydantic)
+   * Checks for Pydantic validation error with type 'string_too_long'
+   * 
+   * Example error format:
+   * {
+   *   "detail": [
+   *     {
+   *       "type": "string_too_long",
+   *       "loc": ["body", "text"],
+   *       "msg": "String should have at most 50000 characters",
+   *       "ctx": { "max_length": 50000 }
+   *     }
+   *   ]
+   * }
+   * 
+   * @param errorData - Error response body (parsed JSON)
+   * @returns Object with isError flag and optional maxLength value
+   */
+  static checkStringTooLongError(errorData: any): { isError: boolean; maxLength?: number } {
+    // Check if error response has the Pydantic validation error structure
+    if (errorData?.detail && Array.isArray(errorData.detail)) {
+      for (const error of errorData.detail) {
+        if (error.type === 'string_too_long') {
+          return {
+            isError: true,
+            maxLength: error.ctx?.max_length || 50000
+          };
+        }
+      }
+    }
+    return { isError: false };
+  }
+
+  /**
    * Handle LOGIN_REQUIRED error
    * Triggers login modal via ApiErrorHandler (global handler) and/or service-specific callback
    * 

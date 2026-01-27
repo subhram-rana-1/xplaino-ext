@@ -34,18 +34,6 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({
     loadBrandImage();
   }, []);
 
-  // Trigger animation when visible becomes true
-  useEffect(() => {
-    if (visible && !isClosing && containerRef.current) {
-      // Force reflow to ensure animation triggers
-      requestAnimationFrame(() => {
-        if (containerRef.current) {
-          containerRef.current.offsetHeight; // Force reflow
-        }
-      });
-    }
-  }, [visible, isClosing]);
-
   const handleOk = useCallback(() => {
     setIsClosing(true);
     setTimeout(() => {
@@ -67,7 +55,7 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({
   return (
     <div 
       ref={containerRef}
-      className={`welcomeModalContainer ${isClosing ? 'closing' : ''} ${visible ? 'visible' : ''}`}
+      className={`welcomeModalContainer ${isClosing ? 'closing' : ''}`}
     >
       <div className="welcomeModalContent">
         {/* Brand Image */}
