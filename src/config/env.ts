@@ -19,7 +19,7 @@ export const ENV = {
   /**
    * Google OAuth Client ID (Production)
    */
-  GOOGLE_OAUTH_CLIENT_ID: import.meta.env.VITE_GOOGLE_OAUTH_CLIENT_ID || '355884005048-76olfh4sp2o2uitojjeslpsaonvc7d2s.apps.googleusercontent.com',
+  GOOGLE_OAUTH_CLIENT_ID: import.meta.env.VITE_GOOGLE_OAUTH_CLIENT_ID || '355884005048-4bn6e6rbq9mfdrb2q43sthsejc88sbcc.apps.googleusercontent.com',
 
   /**
    * Xplaino website base URL
