@@ -139,46 +139,56 @@
   object-fit: contain !important;
 }
 
-/* Pricing Button - Matching Save text / Add folder button style */
-.pricingButton {
-  width: 100% !important;
+/* Upgrade Button - Flashy Animated Pill Style */
+.upgradeButton {
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
-  gap: 12px !important;
+  gap: 8px !important;
+  width: 100% !important;
   padding: 14px 24px !important;
-  /* Transparent background with teal border */
-  border: 1.5px solid var(--color-primary-light, #14a08a) !important;
-  background: transparent !important;
-  border-radius: 12px !important;
+  background: linear-gradient(135deg, #FF6B9D 0%, #FFC107 50%, #9D4EDD 100%) !important;
+  background-size: 300% 300% !important;
+  animation: gradientShift 4s linear infinite !important;
+  border: 2px solid rgba(255, 255, 255, 0.3) !important;
+  border-radius: 9999px !important;
   cursor: pointer !important;
-  transition: all 0.15s ease !important;
-  font-size: 16px !important;
-  font-weight: 500 !important;
-  color: var(--color-primary-light, #14a08a) !important;
-}
-
-.pricingButton:hover:not(:disabled) {
-  /* Teal background on hover */
-  background-color: var(--color-primary-light, #14a08a) !important;
-  color: var(--color-white, #FFFFFF) !important;
-}
-
-.pricingButton:active:not(:disabled) {
-  transform: scale(0.98) !important;
-}
-
-.pricingButton:disabled {
-  opacity: 0.6 !important;
-  cursor: not-allowed !important;
-  border-color: var(--color-text-secondary-theme, #718096) !important;
-  color: var(--color-text-secondary-theme, #718096) !important;
-}
-
-.pricingButtonText {
   font-size: 15px !important;
-  font-weight: 500 !important;
-  color: inherit !important;
+  font-weight: 600 !important;
+  color: #FFFFFF !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2) !important;
+  transition: all 0.2s ease !important;
+}
+
+.upgradeButton:hover {
+  opacity: 0.9 !important;
+}
+
+.upgradeButton:active {
+  opacity: 0.8 !important;
+}
+
+.upgradeButton svg {
+  color: #FFFFFF !important;
+  stroke: #FFFFFF !important;
+}
+
+@keyframes gradientShift {
+  0% {
+    background-position: 0% 50%;
+  }
+  25% {
+    background-position: 100% 0%;
+  }
+  50% {
+    background-position: 100% 100%;
+  }
+  75% {
+    background-position: 0% 100%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
 }
 
 /* Footer */

@@ -1,6 +1,7 @@
 // src/content/components/SubscriptionModal/SubscriptionModal.tsx
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useAtom } from 'jotai';
+import { Crown } from 'lucide-react';
 import { showSubscriptionModalAtom } from '@/store/uiAtoms';
 import { ENV } from '@/config/env';
 
@@ -91,15 +92,14 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ useShadowD
           />
         </div>
 
-        {/* View All Plans Button */}
+        {/* Upgrade Button */}
         <button
-          className={getClassName('pricingButton')}
+          className={getClassName('upgradeButton')}
           onClick={handleGoToPricing}
           type="button"
         >
-          <span className={getClassName('pricingButtonText')}>
-            View all plans
-          </span>
+          <Crown size={16} strokeWidth={2.5} />
+          <span>Upgrade</span>
         </button>
 
         {/* Footer */}
