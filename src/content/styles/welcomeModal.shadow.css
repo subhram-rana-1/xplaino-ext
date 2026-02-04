@@ -22,15 +22,7 @@
   top: 20px !important;
   right: 20px !important;
   z-index: 2147483647 !important;
-  will-change: transform, opacity !important;
-  animation: fadeIn 0.4s ease-out forwards !important;
   pointer-events: auto !important;
-}
-
-/* Closing fade out animation */
-.welcomeModalContainer.closing {
-  animation: fadeOut 0.3s ease-in forwards !important;
-  pointer-events: none !important;
 }
 
 /* Welcome Modal Content */
@@ -111,28 +103,5 @@
 
 .welcomeModalButton:active {
   transform: scale(0.98) !important;
-}
-
-/* Animations */
-@keyframes fadeIn {
-  from {
-    opacity: 0 !important;
-    transform: scale(0.95) !important;
-  }
-  to {
-    opacity: 1 !important;
-    transform: scale(1) !important;
-  }
-}
-
-@keyframes fadeOut {
-  from {
-    opacity: 1 !important;
-    transform: scale(1) !important;
-  }
-  to {
-    opacity: 0 !important;
-    transform: scale(0.95) !important;
-  }
 }
 
