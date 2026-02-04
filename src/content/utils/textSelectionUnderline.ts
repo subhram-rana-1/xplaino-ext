@@ -96,21 +96,25 @@ function getBlocksInRange(range: Range): HTMLElement[] {
       acceptNode: (node: Node) => {
         const element = node as HTMLElement;
         if (BLOCK_ELEMENTS.has(element.tagName)) {
-          // Check if this block is within or intersects the range
+          // Check if this block intersects with the selection range
           try {
             const blockRange = document.createRange();
             blockRange.selectNodeContents(element);
             
-            // Check if ranges intersect
-            const startsBeforeEnd = range.compareBoundaryPoints(Range.START_TO_END, blockRange) <= 0;
-            const endsAfterStart = range.compareBoundaryPoints(Range.END_TO_START, blockRange) >= 0;
+            // Ranges intersect if: selection starts before block ends AND selection ends after block starts
+            // Using compareBoundaryPoints:
+            // - START_TO_END compares selection start to block end (negative = selection starts before block ends)
+            // - END_TO_START compares selection end to block start (positive = selection ends after block starts)
+            const selectionStartsBeforeBlockEnds = range.compareBoundaryPoints(Range.START_TO_END, blockRange) < 0;
+            const selectionEndsAfterBlockStarts = range.compareBoundaryPoints(Range.END_TO_START, blockRange) > 0;
             
-            if (!startsBeforeEnd || !endsAfterStart) {
+            // Accept block only if it intersects with the selection
+            if (selectionStartsBeforeBlockEnds && selectionEndsAfterBlockStarts) {
               return NodeFilter.FILTER_ACCEPT;
             }
           } catch {
-            // If comparison fails, include the block anyway
-            return NodeFilter.FILTER_ACCEPT;
+            // If comparison fails, skip this block to be safe
+            return NodeFilter.FILTER_SKIP;
           }
         }
         return NodeFilter.FILTER_SKIP;
@@ -128,9 +132,10 @@ function getBlocksInRange(range: Range): HTMLElement[] {
         try {
           const childRange = document.createRange();
           childRange.selectNodeContents(child);
-          const startsBeforeEnd = range.compareBoundaryPoints(Range.START_TO_END, childRange) <= 0;
-          const endsAfterStart = range.compareBoundaryPoints(Range.END_TO_START, childRange) >= 0;
-          return !startsBeforeEnd || !endsAfterStart;
+          // Check if this child block intersects with the selection
+          const selectionStartsBeforeChildEnds = range.compareBoundaryPoints(Range.START_TO_END, childRange) < 0;
+          const selectionEndsAfterChildStarts = range.compareBoundaryPoints(Range.END_TO_START, childRange) > 0;
+          return selectionStartsBeforeChildEnds && selectionEndsAfterChildStarts;
         } catch {
           return false;
         }
@@ -171,18 +176,33 @@ function getBlocksInRange(range: Range): HTMLElement[] {
 function createWrapperSpan(primaryColor: string): HTMLSpanElement {
   const wrapper = document.createElement('span');
   
+  // Explicitly inherit all font-related properties to preserve original styling
+  wrapper.style.font = 'inherit';
+  wrapper.style.fontSize = 'inherit';
+  wrapper.style.fontFamily = 'inherit';
+  wrapper.style.fontWeight = 'inherit';
+  wrapper.style.fontStyle = 'inherit';
+  wrapper.style.lineHeight = 'inherit';
+  wrapper.style.letterSpacing = 'inherit';
+  wrapper.style.color = 'inherit';
+  wrapper.style.verticalAlign = 'baseline';
+  
+  // Add underline styling - only these properties should be different
   wrapper.style.textDecoration = 'underline';
   wrapper.style.textDecorationStyle = 'dashed';
   wrapper.style.textDecorationColor = primaryColor;
   wrapper.style.textDecorationThickness = '1px';
   wrapper.style.textUnderlineOffset = '2px';
   wrapper.style.textDecorationSkipInk = 'auto';
+  
+  // Layout properties
   wrapper.style.position = 'relative';
   wrapper.style.display = 'inline';
   wrapper.style.padding = '0';
   wrapper.style.paddingBottom = '0';
   wrapper.style.margin = '0';
   wrapper.style.marginBottom = '0';
+  
   wrapper.setAttribute('data-text-explanation-wrapper', 'true');
   
   return wrapper;
