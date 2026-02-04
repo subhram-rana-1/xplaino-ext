@@ -10,7 +10,239 @@ import { getCurrentTheme } from '../../constants/theme';
 
 export interface UnderlineState {
   wrapperElement: HTMLElement;
+  // Support multiple wrapper elements for multi-block selections
+  wrapperElements?: HTMLElement[];
   originalRange: Range;
+}
+
+// Block-level element tag names
+const BLOCK_ELEMENTS = new Set([
+  'ADDRESS', 'ARTICLE', 'ASIDE', 'BLOCKQUOTE', 'DD', 'DIV', 'DL', 'DT',
+  'FIELDSET', 'FIGCAPTION', 'FIGURE', 'FOOTER', 'FORM', 'H1', 'H2', 'H3',
+  'H4', 'H5', 'H6', 'HEADER', 'HR', 'LI', 'MAIN', 'NAV', 'OL', 'P', 'PRE',
+  'SECTION', 'TABLE', 'TBODY', 'TD', 'TFOOT', 'TH', 'THEAD', 'TR', 'UL'
+]);
+
+/**
+ * Get the nearest block-level ancestor of a node
+ * @param node - The node to find the block ancestor for
+ * @returns The nearest block-level ancestor element, or null
+ */
+function getBlockAncestor(node: Node): HTMLElement | null {
+  let current: Node | null = node;
+  
+  while (current) {
+    if (current.nodeType === Node.ELEMENT_NODE) {
+      const element = current as HTMLElement;
+      if (BLOCK_ELEMENTS.has(element.tagName)) {
+        return element;
+      }
+    }
+    current = current.parentNode;
+  }
+  
+  return null;
+}
+
+/**
+ * Check if a selection range spans multiple block-level elements
+ * @param range - The range to check
+ * @returns true if the range spans multiple blocks
+ */
+function isMultiBlockSelection(range: Range): boolean {
+  const startBlock = getBlockAncestor(range.startContainer);
+  const endBlock = getBlockAncestor(range.endContainer);
+  
+  // If either doesn't have a block ancestor, or they're the same, it's not multi-block
+  if (!startBlock || !endBlock) {
+    return false;
+  }
+  
+  return startBlock !== endBlock;
+}
+
+/**
+ * Get all block elements that are within the range
+ * @param range - The range to get blocks from
+ * @returns Array of block elements within the range
+ */
+function getBlocksInRange(range: Range): HTMLElement[] {
+  const blocks: HTMLElement[] = [];
+  const startBlock = getBlockAncestor(range.startContainer);
+  const endBlock = getBlockAncestor(range.endContainer);
+  
+  if (!startBlock || !endBlock) {
+    return blocks;
+  }
+  
+  // Find the common ancestor
+  const commonAncestor = range.commonAncestorContainer;
+  let container: Node | null = commonAncestor;
+  
+  // If common ancestor is a text node, get its parent
+  if (container.nodeType === Node.TEXT_NODE) {
+    container = container.parentNode;
+  }
+  
+  if (!container || container.nodeType !== Node.ELEMENT_NODE) {
+    return [startBlock, endBlock].filter((v, i, a) => a.indexOf(v) === i);
+  }
+  
+  // Create a TreeWalker to find all block elements in the range
+  const walker = document.createTreeWalker(
+    container,
+    NodeFilter.SHOW_ELEMENT,
+    {
+      acceptNode: (node: Node) => {
+        const element = node as HTMLElement;
+        if (BLOCK_ELEMENTS.has(element.tagName)) {
+          // Check if this block is within or intersects the range
+          try {
+            const blockRange = document.createRange();
+            blockRange.selectNodeContents(element);
+            
+            // Check if ranges intersect
+            const startsBeforeEnd = range.compareBoundaryPoints(Range.START_TO_END, blockRange) <= 0;
+            const endsAfterStart = range.compareBoundaryPoints(Range.END_TO_START, blockRange) >= 0;
+            
+            if (!startsBeforeEnd || !endsAfterStart) {
+              return NodeFilter.FILTER_ACCEPT;
+            }
+          } catch {
+            // If comparison fails, include the block anyway
+            return NodeFilter.FILTER_ACCEPT;
+          }
+        }
+        return NodeFilter.FILTER_SKIP;
+      }
+    }
+  );
+  
+  // Collect all block elements
+  let node: Node | null;
+  while ((node = walker.nextNode())) {
+    const element = node as HTMLElement;
+    // Only include leaf-level blocks (blocks that don't contain other blocks in our selection)
+    const hasChildBlockInRange = Array.from(element.children).some(child => {
+      if (BLOCK_ELEMENTS.has(child.tagName)) {
+        try {
+          const childRange = document.createRange();
+          childRange.selectNodeContents(child);
+          const startsBeforeEnd = range.compareBoundaryPoints(Range.START_TO_END, childRange) <= 0;
+          const endsAfterStart = range.compareBoundaryPoints(Range.END_TO_START, childRange) >= 0;
+          return !startsBeforeEnd || !endsAfterStart;
+        } catch {
+          return false;
+        }
+      }
+      return false;
+    });
+    
+    if (!hasChildBlockInRange) {
+      blocks.push(element);
+    }
+  }
+  
+  // If we didn't find any blocks through the walker, fall back to start and end blocks
+  if (blocks.length === 0) {
+    if (startBlock === endBlock) {
+      blocks.push(startBlock);
+    } else {
+      blocks.push(startBlock);
+      // Find siblings between start and end
+      let current: Element | null = startBlock;
+      while (current && current !== endBlock) {
+        current = current.nextElementSibling;
+        if (current && BLOCK_ELEMENTS.has(current.tagName)) {
+          blocks.push(current as HTMLElement);
+        }
+      }
+    }
+  }
+  
+  return blocks;
+}
+
+/**
+ * Create a styled wrapper span element for underlining
+ * @param primaryColor - The primary color for the underline
+ * @returns A styled span element
+ */
+function createWrapperSpan(primaryColor: string): HTMLSpanElement {
+  const wrapper = document.createElement('span');
+  
+  wrapper.style.textDecoration = 'underline';
+  wrapper.style.textDecorationStyle = 'dashed';
+  wrapper.style.textDecorationColor = primaryColor;
+  wrapper.style.textDecorationThickness = '1px';
+  wrapper.style.textUnderlineOffset = '2px';
+  wrapper.style.textDecorationSkipInk = 'auto';
+  wrapper.style.position = 'relative';
+  wrapper.style.display = 'inline';
+  wrapper.style.padding = '0';
+  wrapper.style.paddingBottom = '0';
+  wrapper.style.margin = '0';
+  wrapper.style.marginBottom = '0';
+  wrapper.setAttribute('data-text-explanation-wrapper', 'true');
+  
+  return wrapper;
+}
+
+/**
+ * Wrap text content within a single block element based on the range
+ * @param block - The block element to wrap text in
+ * @param range - The original selection range
+ * @param primaryColor - The color for the underline
+ * @returns The wrapper element, or null if wrapping failed
+ */
+function wrapTextInBlock(block: HTMLElement, range: Range, primaryColor: string): HTMLElement | null {
+  try {
+    // Create a range for just this block's portion of the selection
+    const blockRange = document.createRange();
+    
+    // Determine the start point
+    const startBlock = getBlockAncestor(range.startContainer);
+    if (startBlock === block) {
+      blockRange.setStart(range.startContainer, range.startOffset);
+    } else {
+      // Start at the beginning of this block's content
+      blockRange.setStart(block, 0);
+    }
+    
+    // Determine the end point
+    const endBlock = getBlockAncestor(range.endContainer);
+    if (endBlock === block) {
+      blockRange.setEnd(range.endContainer, range.endOffset);
+    } else {
+      // End at the end of this block's content
+      blockRange.setEndAfter(block.lastChild || block);
+    }
+    
+    // Skip if the range is collapsed or empty
+    if (blockRange.collapsed || blockRange.toString().trim() === '') {
+      return null;
+    }
+    
+    const wrapper = createWrapperSpan(primaryColor);
+    
+    try {
+      blockRange.surroundContents(wrapper);
+      return wrapper;
+    } catch {
+      // If surroundContents fails within a single block, use extractContents
+      // This is safer within a single block since we're not crossing block boundaries
+      const contents = blockRange.extractContents();
+      if (contents.textContent?.trim()) {
+        wrapper.appendChild(contents);
+        blockRange.insertNode(wrapper);
+        return wrapper;
+      }
+      return null;
+    }
+  } catch (error) {
+    console.error('[textSelectionUnderline] Error wrapping text in block:', error);
+    return null;
+  }
 }
 
 /**
@@ -27,45 +259,43 @@ export async function addTextUnderline(range: Range, _color: 'green' | 'primary'
   }
 
   try {
-    // Clone the range to avoid modifying the original
-    const clonedRange = range.cloneRange();
-    
-    // Create a wrapper span element
-    // Note: We intentionally do NOT set any font properties (color, size, weight, etc.)
-    // to preserve the original styling of all child elements (links, bold, italic, etc.)
-    const wrapper = document.createElement('span');
-    
-    // Use text-decoration underline - only add the underline, don't modify original styles
     // Get theme-aware primary color
     const theme = await getCurrentTheme();
     const primaryColor = theme === 'dark' ? COLORS.DARK_PRIMARY : COLORS.PRIMARY;
     
-    wrapper.style.textDecoration = 'underline';
-    wrapper.style.textDecorationStyle = 'dashed';
-    wrapper.style.textDecorationColor = primaryColor;
-    wrapper.style.textDecorationThickness = '1px';
-    wrapper.style.textUnderlineOffset = '2px';
-    wrapper.style.textDecorationSkipInk = 'auto';
+    // Check if this is a multi-block selection
+    if (isMultiBlockSelection(range)) {
+      // Handle multi-block selection by wrapping text in each block separately
+      const blocks = getBlocksInRange(range);
+      const wrapperElements: HTMLElement[] = [];
+      
+      for (const block of blocks) {
+        const wrapper = wrapTextInBlock(block, range, primaryColor);
+        if (wrapper) {
+          wrapperElements.push(wrapper);
+        }
+      }
+      
+      if (wrapperElements.length === 0) {
+        return null;
+      }
+      
+      return {
+        wrapperElement: wrapperElements[0], // Primary wrapper for backward compatibility
+        wrapperElements, // All wrappers for multi-block
+        originalRange: range,
+      };
+    }
     
-    // Make wrapper position relative so icon can be absolutely positioned within it
-    wrapper.style.position = 'relative';
-    wrapper.style.display = 'inline';
-    
-    // Add minimal padding and margin - ensure no bottom padding
-    wrapper.style.padding = '0';
-    wrapper.style.paddingBottom = '0';
-    wrapper.style.margin = '0';
-    wrapper.style.marginBottom = '0';
-    
-    // Add a data attribute to identify this wrapper for icon insertion
-    wrapper.setAttribute('data-text-explanation-wrapper', 'true');
+    // Single-block selection - use original approach
+    const clonedRange = range.cloneRange();
+    const wrapper = createWrapperSpan(primaryColor);
     
     // Wrap the selected content
     try {
       clonedRange.surroundContents(wrapper);
-    } catch (error) {
-      // If surroundContents fails (e.g., range spans multiple elements),
-      // use an alternative approach
+    } catch {
+      // If surroundContents fails, use alternative approach
       const contents = clonedRange.extractContents();
       wrapper.appendChild(contents);
       clonedRange.insertNode(wrapper);
@@ -86,27 +316,32 @@ export async function addTextUnderline(range: Range, _color: 'green' | 'primary'
  * @param underlineState - The underline state returned from addTextUnderline
  */
 export function removeTextUnderline(underlineState: UnderlineState | null): void {
-  if (!underlineState || !underlineState.wrapperElement) {
+  if (!underlineState) {
     return;
   }
 
-  try {
-    const wrapper = underlineState.wrapperElement;
-    const parent = wrapper.parentNode;
-    
-    if (!parent) {
-      return;
+  // Get all wrapper elements (handle both single and multi-block)
+  const wrappers = underlineState.wrapperElements || 
+    (underlineState.wrapperElement ? [underlineState.wrapperElement] : []);
+  
+  for (const wrapper of wrappers) {
+    try {
+      const parent = wrapper.parentNode;
+      
+      if (!parent) {
+        continue;
+      }
+      
+      // Replace the wrapper with its contents
+      while (wrapper.firstChild) {
+        parent.insertBefore(wrapper.firstChild, wrapper);
+      }
+      
+      // Remove the wrapper
+      parent.removeChild(wrapper);
+    } catch (error) {
+      console.error('[textSelectionUnderline] Error removing underline:', error);
     }
-    
-    // Replace the wrapper with its contents
-    while (wrapper.firstChild) {
-      parent.insertBefore(wrapper.firstChild, wrapper);
-    }
-    
-    // Remove the wrapper
-    parent.removeChild(wrapper);
-  } catch (error) {
-    console.error('[textSelectionUnderline] Error removing underline:', error);
   }
 }
 
@@ -161,19 +396,23 @@ export function findAllUnderlinedElements(): HTMLElement[] {
  * @param color - The new color for the underline ('green', 'primary', or 'teal')
  */
 export function changeUnderlineColor(underlineState: UnderlineState | null, color: 'green' | 'primary' | 'teal'): void {
-  if (!underlineState || !underlineState.wrapperElement) {
+  if (!underlineState) {
     return;
   }
 
-  const wrapper = underlineState.wrapperElement;
+  // Get all wrapper elements (handle both single and multi-block)
+  const wrappers = underlineState.wrapperElements || 
+    (underlineState.wrapperElement ? [underlineState.wrapperElement] : []);
   
-  // Update text-decoration color
-  if (color === 'primary') {
-    wrapper.style.textDecorationColor = colorWithOpacity(COLORS.PRIMARY, 0.8);
-  } else if (color === 'teal') {
-    wrapper.style.textDecorationColor = COLORS.PRIMARY;
-  } else {
-    wrapper.style.textDecorationColor = colorWithOpacity(COLORS.SUCCESS_GREEN, 0.8);
+  for (const wrapper of wrappers) {
+    // Update text-decoration color
+    if (color === 'primary') {
+      wrapper.style.textDecorationColor = colorWithOpacity(COLORS.PRIMARY, 0.8);
+    } else if (color === 'teal') {
+      wrapper.style.textDecorationColor = COLORS.PRIMARY;
+    } else {
+      wrapper.style.textDecorationColor = colorWithOpacity(COLORS.SUCCESS_GREEN, 0.8);
+    }
   }
 }
 
@@ -255,7 +494,7 @@ export function isRangeOverlappingUnderlinedText(range: Range): boolean {
         if (rangeStartBeforeSpanStart && rangeEndAfterSpanEnd) {
           return true;
         }
-      } catch (error) {
+      } catch {
         // If range comparison fails, try a simpler approach
         // Check if the range's start or end container is within the span
         const startContainer = range.startContainer;
@@ -280,18 +519,28 @@ export function isRangeOverlappingUnderlinedText(range: Range): boolean {
  * @param underlineState - The underline state containing the wrapper element
  */
 export function pulseTextBackground(underlineState: UnderlineState | null): void {
-  if (!underlineState || !underlineState.wrapperElement) {
+  if (!underlineState) {
     return;
   }
 
-  const wrapper = underlineState.wrapperElement;
+  // Get all wrapper elements (handle both single and multi-block)
+  const wrappers = underlineState.wrapperElements || 
+    (underlineState.wrapperElement ? [underlineState.wrapperElement] : []);
   
-  // Store original transition to restore later
-  const originalTransition = wrapper.style.transition || '';
-  const originalBackground = wrapper.style.backgroundColor || '';
+  if (wrappers.length === 0) {
+    return;
+  }
   
-  // Set transition for smooth color changes
-  wrapper.style.transition = 'background-color 0.3s ease';
+  // Store original styles for all wrappers
+  const originalStyles = wrappers.map(wrapper => ({
+    transition: wrapper.style.transition || '',
+    background: wrapper.style.backgroundColor || ''
+  }));
+  
+  // Set transition for smooth color changes on all wrappers
+  for (const wrapper of wrappers) {
+    wrapper.style.transition = 'background-color 0.3s ease';
+  }
   
   // Pulse exactly 3 times with very light teal color
   let pulseCount = 0;
@@ -300,17 +549,23 @@ export function pulseTextBackground(underlineState: UnderlineState | null): void
   const pulse = () => {
     if (pulseCount >= maxPulses) {
       // Restore to original state after animation completes
-      wrapper.style.backgroundColor = originalBackground || 'transparent';
-      wrapper.style.transition = originalTransition || '';
+      wrappers.forEach((wrapper, index) => {
+        wrapper.style.backgroundColor = originalStyles[index].background || 'transparent';
+        wrapper.style.transition = originalStyles[index].transition || '';
+      });
       return;
     }
     
-    // Pulse to very light teal color
-    wrapper.style.backgroundColor = COLORS.PRIMARY_VERY_LIGHT;
+    // Pulse to very light teal color on all wrappers
+    for (const wrapper of wrappers) {
+      wrapper.style.backgroundColor = COLORS.PRIMARY_VERY_LIGHT;
+    }
     
     setTimeout(() => {
       // Fade back to transparent
-      wrapper.style.backgroundColor = 'transparent';
+      for (const wrapper of wrappers) {
+        wrapper.style.backgroundColor = 'transparent';
+      }
       pulseCount++;
       
       if (pulseCount < maxPulses) {
@@ -319,8 +574,10 @@ export function pulseTextBackground(underlineState: UnderlineState | null): void
       } else {
         // Restore original state after final pulse fades
         setTimeout(() => {
-          wrapper.style.backgroundColor = originalBackground || 'transparent';
-          wrapper.style.transition = originalTransition || '';
+          wrappers.forEach((wrapper, index) => {
+            wrapper.style.backgroundColor = originalStyles[index].background || 'transparent';
+            wrapper.style.transition = originalStyles[index].transition || '';
+          });
         }, 300);
       }
     }, 300);
@@ -329,4 +586,3 @@ export function pulseTextBackground(underlineState: UnderlineState | null): void
   // Start first pulse immediately
   pulse();
 }
-
