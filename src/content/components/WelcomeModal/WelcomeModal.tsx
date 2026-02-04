@@ -1,5 +1,5 @@
 // src/content/components/WelcomeModal/WelcomeModal.tsx
-import React, { useCallback, useState, useEffect, useRef } from 'react';
+import React, { useCallback, useState, useEffect } from 'react';
 import { getCurrentTheme } from '@/constants/theme';
 
 export interface WelcomeModalProps {
@@ -16,9 +16,7 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({
   onOk,
   onDontShowAgain,
 }) => {
-  const [isClosing, setIsClosing] = useState(false);
   const [brandImageUrl, setBrandImageUrl] = useState<string>('');
-  const containerRef = useRef<HTMLDivElement>(null);
 
   // Detect theme and set appropriate brand image
   useEffect(() => {
@@ -35,28 +33,17 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({
   }, []);
 
   const handleOk = useCallback(() => {
-    setIsClosing(true);
-    setTimeout(() => {
-      onOk?.();
-      setIsClosing(false);
-    }, 300); // Match animation duration
+    onOk?.();
   }, [onOk]);
 
   const handleDontShowAgain = useCallback(() => {
-    setIsClosing(true);
-    setTimeout(() => {
-      onDontShowAgain?.();
-      setIsClosing(false);
-    }, 300); // Match animation duration
+    onDontShowAgain?.();
   }, [onDontShowAgain]);
 
-  if (!visible && !isClosing) return null;
+  if (!visible) return null;
 
   return (
-    <div 
-      ref={containerRef}
-      className={`welcomeModalContainer ${isClosing ? 'closing' : ''}`}
-    >
+    <div className="welcomeModalContainer">
       <div className="welcomeModalContent">
         {/* Brand Image */}
         <div className="welcomeModalImageContainer">
