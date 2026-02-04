@@ -7997,6 +7997,8 @@ function updateTextExplanationIconContainer(): void {
       id: state.id,
       position: state.iconPosition,
       selectionRange: state.range,
+      // Use wrapper element for scroll tracking (more reliable than Range on some websites)
+      wrapperElement: state.underlineState?.wrapperElement || null,
       isSpinning: state.isSpinning,
       onTogglePanel: () => toggleTextExplanationPanel(id),
       // Green border logic: only show border if this is the active explanation AND panel is open
