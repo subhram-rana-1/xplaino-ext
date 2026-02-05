@@ -217,8 +217,8 @@
 
 /* Action Button Icons */
 .contentActionButton svg {
-  width: 22px !important;
-  height: 22px !important;
+  width: 18px !important;
+  height: 18px !important;
   color: var(--color-primary-light) !important;
   stroke: var(--color-primary-light) !important;
   stroke-width: 2.5 !important;
