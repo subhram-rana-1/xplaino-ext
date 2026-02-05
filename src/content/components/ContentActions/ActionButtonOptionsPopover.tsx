@@ -19,7 +19,7 @@ export interface ActionButtonOptionsPopoverProps {
   /** Callback when mouse enters popover (to cancel close timer) */
   onPopoverMouseEnter?: () => void;
   /** Callback when mouse leaves popover (to start close timer) */
-  onPopoverMouseLeave?: () => void;
+  onPopoverMouseLeave?: (e: React.MouseEvent) => void;
 }
 
 export const ActionButtonOptionsPopover: React.FC<ActionButtonOptionsPopoverProps> = ({

@@ -1,8 +1,8 @@
 // src/content/components/SubscriptionModal/SubscriptionModal.tsx
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { useAtom } from 'jotai';
+import { useAtom, useAtomValue } from 'jotai';
 import { Crown } from 'lucide-react';
-import { showSubscriptionModalAtom } from '@/store/uiAtoms';
+import { showSubscriptionModalAtom, currentThemeAtom } from '@/store/uiAtoms';
 import { ENV } from '@/config/env';
 
 export interface SubscriptionModalProps {
@@ -16,9 +16,17 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ useShadowD
   const [isVisible, setIsVisible] = useAtom(showSubscriptionModalAtom);
   const [isClosing, setIsClosing] = useState(false);
   const modalRef = useRef<HTMLDivElement>(null);
+  const currentTheme = useAtomValue(currentThemeAtom);
+  const [brandImageUrl, setBrandImageUrl] = useState('');
   
-  // Get the brand image URL using chrome.runtime.getURL
-  const brandImageUrl = chrome.runtime.getURL('src/assets/photos/brand-name.png');
+  // Load theme-aware brand image when theme changes
+  useEffect(() => {
+    const imageName = currentTheme === 'dark' 
+      ? 'brand-name-turquoise.png' 
+      : 'brand-name.png';
+    const imageUrl = chrome.runtime.getURL(`src/assets/photos/${imageName}`);
+    setBrandImageUrl(imageUrl);
+  }, [currentTheme]);
 
   const getClassName = useCallback((baseClass: string) => {
     // For Shadow DOM, use plain class names

@@ -150,8 +150,65 @@ function extractIdTokenFromUrl(url: string): string | null {
   }
 }
 
-// Message listener for handling OAuth flow
+/**
+ * Convert blob to base64 data URL
+ */
+function blobToBase64(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      if (typeof reader.result === 'string') {
+        resolve(reader.result);
+      } else {
+        reject(new Error('Failed to convert blob to base64'));
+      }
+    };
+    reader.onerror = () => reject(new Error('FileReader error'));
+    reader.readAsDataURL(blob);
+  });
+}
+
+// Message listener for handling OAuth flow and image fetching
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+  // Handle image fetch from content script (bypasses CORS)
+  if (message.type === 'FETCH_IMAGE') {
+    const { imageUrl } = message;
+    
+    if (!imageUrl || typeof imageUrl !== 'string') {
+      sendResponse({ success: false, error: 'Invalid image URL' });
+      return true;
+    }
+
+    console.log('[Background] Fetching image:', imageUrl);
+
+    fetch(imageUrl)
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        return response.blob();
+      })
+      .then((blob) => blobToBase64(blob).then((base64) => ({ base64, mimeType: blob.type })))
+      .then(({ base64, mimeType }) => {
+        console.log('[Background] Image fetched successfully, mimeType:', mimeType);
+        sendResponse({
+          success: true,
+          base64,
+          mimeType: mimeType || 'image/png',
+        });
+      })
+      .catch((error) => {
+        console.error('[Background] Failed to fetch image:', error);
+        sendResponse({
+          success: false,
+          error: error instanceof Error ? error.message : 'Unknown error',
+        });
+      });
+
+    // Return true to indicate we'll send response asynchronously
+    return true;
+  }
+
   // Handle Google OAuth login from content script
   if (message.type === 'GOOGLE_LOGIN') {
     const authUrl = message.authUrl;
