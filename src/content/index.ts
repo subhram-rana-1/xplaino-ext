@@ -5919,45 +5919,151 @@ const imageHideTimeouts = new Map<HTMLImageElement, ReturnType<typeof setTimeout
 const iconHoverStates = new Map<string, boolean>();
 
 /**
+ * Convert base64 data URL to File
+ * Used after fetching image via background script
+ */
+function base64ToFile(base64DataUrl: string, mimeType: string): File {
+  // Extract base64 data from data URL
+  const base64Data = base64DataUrl.split(',')[1];
+  const byteCharacters = atob(base64Data);
+  const byteNumbers = new Array(byteCharacters.length);
+  
+  for (let i = 0; i < byteCharacters.length; i++) {
+    byteNumbers[i] = byteCharacters.charCodeAt(i);
+  }
+  
+  const byteArray = new Uint8Array(byteNumbers);
+  const blob = new Blob([byteArray], { type: mimeType });
+  
+  // Determine file extension from mimeType
+  let extension = 'png';
+  if (mimeType.includes('jpeg') || mimeType.includes('jpg')) {
+    extension = 'jpg';
+  } else if (mimeType.includes('webp')) {
+    extension = 'webp';
+  } else if (mimeType.includes('gif')) {
+    extension = 'gif';
+  }
+  
+  return new File([blob], `image.${extension}`, { type: mimeType });
+}
+
+/**
+ * Convert data URL directly to File (for data: URLs in img src)
+ */
+function dataUrlToFile(dataUrl: string): File {
+  // Extract mime type and base64 data
+  const matches = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
+  
+  if (!matches) {
+    // Fallback for non-base64 data URLs
+    const mimeMatch = dataUrl.match(/^data:([^;,]+)/);
+    const mimeType = mimeMatch ? mimeMatch[1] : 'image/png';
+    return new File([dataUrl], 'image.png', { type: mimeType });
+  }
+  
+  const mimeType = matches[1];
+  const base64Data = matches[2];
+  
+  const byteCharacters = atob(base64Data);
+  const byteNumbers = new Array(byteCharacters.length);
+  
+  for (let i = 0; i < byteCharacters.length; i++) {
+    byteNumbers[i] = byteCharacters.charCodeAt(i);
+  }
+  
+  const byteArray = new Uint8Array(byteNumbers);
+  const blob = new Blob([byteArray], { type: mimeType });
+  
+  // Determine file extension from mimeType
+  let extension = 'png';
+  if (mimeType.includes('jpeg') || mimeType.includes('jpg')) {
+    extension = 'jpg';
+  } else if (mimeType.includes('webp')) {
+    extension = 'webp';
+  } else if (mimeType.includes('gif')) {
+    extension = 'gif';
+  }
+  
+  return new File([blob], `image.${extension}`, { type: mimeType });
+}
+
+/**
  * Convert image element to File/Blob
- * Handles CORS issues by trying fetch first, then canvas for same-origin images
+ * Uses background script to bypass CORS restrictions for cross-origin images
  */
 async function convertImageToFile(imageElement: HTMLImageElement): Promise<File | null> {
-  // Determine MIME type from image source or default to PNG
-  let mimeType = 'image/png';
-  if (imageElement.src) {
-    if (imageElement.src.includes('.jpg') || imageElement.src.includes('.jpeg')) {
-      mimeType = 'image/jpeg';
-    } else if (imageElement.src.includes('.webp')) {
-      mimeType = 'image/webp';
-    } else if (imageElement.src.includes('.gif')) {
-      mimeType = 'image/gif';
+  const imageUrl = imageElement.src;
+  
+  // Handle data URLs directly (no fetch needed)
+  if (imageUrl.startsWith('data:')) {
+    console.log('[Content Script] Converting data URL directly');
+    try {
+      return dataUrlToFile(imageUrl);
+    } catch (error) {
+      console.error('[Content Script] Failed to convert data URL:', error);
+      return null;
     }
   }
   
-  // First, try fetching the image directly (works if CORS is properly configured)
+  // Handle blob URLs - these need special handling as they're same-origin
+  if (imageUrl.startsWith('blob:')) {
+    console.log('[Content Script] Handling blob URL via fetch');
+    try {
+      const response = await fetch(imageUrl);
+      if (response.ok) {
+        const blob = await response.blob();
+        const mimeType = blob.type || 'image/png';
+        return new File([blob], 'image.png', { type: mimeType });
+      }
+    } catch (error) {
+      console.error('[Content Script] Failed to fetch blob URL:', error);
+      return null;
+    }
+  }
+  
+  // Primary method: Fetch via background script (bypasses CORS)
   try {
-    const response = await fetch(imageElement.src, {
+    console.log('[Content Script] Fetching image via background script:', imageUrl);
+    const response = await chrome.runtime.sendMessage({
+      type: 'FETCH_IMAGE',
+      imageUrl: imageUrl,
+    });
+    
+    if (response?.success && response.base64) {
+      const file = base64ToFile(response.base64, response.mimeType || 'image/png');
+      console.log('[Content Script] Successfully fetched image via background script');
+      return file;
+    } else if (response?.error) {
+      console.log('[Content Script] Background fetch failed:', response.error);
+      // Fall through to fallback methods
+    }
+  } catch (error) {
+    console.log('[Content Script] Background fetch error:', error);
+    // Fall through to fallback methods
+  }
+  
+  // Fallback: Try direct fetch (works for same-origin or CORS-enabled servers)
+  try {
+    const response = await fetch(imageUrl, {
       mode: 'cors',
       credentials: 'omit',
     });
     
     if (response.ok) {
       const blob = await response.blob();
-      const fetchedMimeType = blob.type || mimeType;
-      const file = new File([blob], 'image.png', { type: fetchedMimeType });
-      console.log('[Content Script] Successfully fetched image via fetch API');
+      const mimeType = blob.type || 'image/png';
+      const file = new File([blob], 'image.png', { type: mimeType });
+      console.log('[Content Script] Successfully fetched image via direct fetch');
       return file;
     }
   } catch (fetchError) {
-    console.log('[Content Script] Fetch failed (CORS issue), trying canvas approach:', fetchError);
-    // Continue to canvas approach
+    console.log('[Content Script] Direct fetch failed:', fetchError);
   }
   
-  // If fetch fails, try canvas approach (works for same-origin images)
-  // Note: Canvas will be tainted for cross-origin images, so we catch that error
+  // Last resort: Canvas approach (works for same-origin images only)
   try {
-    // Create canvas
+    console.log('[Content Script] Trying canvas approach as last resort');
     const canvas = document.createElement('canvas');
     canvas.width = imageElement.naturalWidth || imageElement.width;
     canvas.height = imageElement.naturalHeight || imageElement.height;
@@ -5968,10 +6074,18 @@ async function convertImageToFile(imageElement: HTMLImageElement): Promise<File 
       return null;
     }
     
-    // Draw image to canvas
     ctx.drawImage(imageElement, 0, 0);
     
-    // Convert to blob - this will throw SecurityError if canvas is tainted
+    // Determine MIME type from image source
+    let mimeType = 'image/png';
+    if (imageUrl.includes('.jpg') || imageUrl.includes('.jpeg')) {
+      mimeType = 'image/jpeg';
+    } else if (imageUrl.includes('.webp')) {
+      mimeType = 'image/webp';
+    } else if (imageUrl.includes('.gif')) {
+      mimeType = 'image/gif';
+    }
+    
     return new Promise<File | null>((resolve) => {
       try {
         canvas.toBlob((blob) => {
@@ -5981,23 +6095,20 @@ async function convertImageToFile(imageElement: HTMLImageElement): Promise<File 
             return;
           }
           
-          // Convert blob to File
           const file = new File([blob], 'image.png', { type: mimeType });
           console.log('[Content Script] Successfully converted image via canvas');
           resolve(file);
         }, mimeType);
       } catch (toBlobError) {
-        // Canvas is tainted (cross-origin image)
-        console.error('[Content Script] Canvas is tainted (cross-origin image):', toBlobError);
+        console.error('[Content Script] Canvas is tainted:', toBlobError);
         resolve(null);
       }
     });
   } catch (error) {
-    // Catch any errors during canvas operations
     if (error instanceof Error && error.name === 'SecurityError') {
-      console.error('[Content Script] SecurityError: Cannot export tainted canvas (cross-origin image)');
+      console.error('[Content Script] SecurityError: Cannot export tainted canvas');
     } else {
-      console.error('[Content Script] Error converting image to file via canvas:', error);
+      console.error('[Content Script] Canvas conversion error:', error);
     }
     return null;
   }

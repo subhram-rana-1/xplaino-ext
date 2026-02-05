@@ -82,8 +82,42 @@ export const ContentActionsButtonGroup: React.FC<ContentActionsButtonGroupProps>
     onKeepActive?.();
   }, [onKeepActive]);
 
-  // Handle mouse leave from options button - start 500ms close timer
-  const handleOptionsMouseLeave = useCallback(() => {
+  // Handle mouse leave from options button wrapper - start 500ms close timer
+  // Check if moving to a child element (like the popover) before starting timer
+  const handleOptionsMouseLeave = useCallback((e: React.MouseEvent) => {
+    const relatedTarget = e.relatedTarget as Node | null;
+    const wrapper = e.currentTarget as HTMLElement;
+    
+    // Check if moving to a child element (like the popover which is a DOM descendant)
+    const isMovingToChild = relatedTarget && wrapper.contains(relatedTarget);
+    
+    // Don't start close timer if moving to a child element
+    if (isMovingToChild) {
+      return;
+    }
+    
+    optionsHoverTimeoutRef.current = setTimeout(() => {
+      setShowOptionsPopover(false);
+    }, 500);
+  }, []);
+
+  // Handle mouse leave from popover - start 500ms close timer
+  // Check if moving back to the wrapper before starting timer
+  const handlePopoverMouseLeave = useCallback((e: React.MouseEvent) => {
+    const relatedTarget = e.relatedTarget as Node | null;
+    const popover = e.currentTarget as HTMLElement;
+    
+    // Find the wrapper (parent of the popover's ancestor)
+    const wrapper = popover.closest('.optionsButtonWrapper');
+    
+    // Check if moving back to the wrapper or any of its children
+    const isMovingToWrapper = relatedTarget && wrapper && wrapper.contains(relatedTarget);
+    
+    // Don't start close timer if moving back to the wrapper
+    if (isMovingToWrapper) {
+      return;
+    }
+    
     optionsHoverTimeoutRef.current = setTimeout(() => {
       setShowOptionsPopover(false);
     }, 500);
@@ -254,7 +288,7 @@ export const ContentActionsButtonGroup: React.FC<ContentActionsButtonGroupProps>
             onOpposite={onOpposite}
             onHideButtonGroup={handleHideButtonGroup}
             onPopoverMouseEnter={handleOptionsMouseEnter}
-            onPopoverMouseLeave={handleOptionsMouseLeave}
+            onPopoverMouseLeave={handlePopoverMouseLeave}
           />
         </ContentActionButton>
       </div>
