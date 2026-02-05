@@ -55,6 +55,8 @@ export const ContentActionsButtonGroup: React.FC<ContentActionsButtonGroupProps>
   const buttonGroupRef = useRef<HTMLDivElement>(null);
   const lastMeasuredWidth = useRef<number>(0); // Store the last measured width for closing animation
   const optionsHoverTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null); // Track 500ms close delay for options popover
+  const isPopoverOpeningRef = useRef(false); // Track if popover is in opening phase to prevent premature close
+  const openingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null); // Track opening timeout
 
   // Cleanup timeouts on unmount
   useEffect(() => {
@@ -68,6 +70,9 @@ export const ContentActionsButtonGroup: React.FC<ContentActionsButtonGroupProps>
       if (optionsHoverTimeoutRef.current) {
         clearTimeout(optionsHoverTimeoutRef.current);
       }
+      if (openingTimeoutRef.current) {
+        clearTimeout(openingTimeoutRef.current);
+      }
     };
   }, []);
 
@@ -78,13 +83,31 @@ export const ContentActionsButtonGroup: React.FC<ContentActionsButtonGroupProps>
       clearTimeout(optionsHoverTimeoutRef.current);
       optionsHoverTimeoutRef.current = null;
     }
+    
+    // Clear any previous opening timeout
+    if (openingTimeoutRef.current) {
+      clearTimeout(openingTimeoutRef.current);
+    }
+    
+    // Mark as opening to prevent premature close during animation
+    isPopoverOpeningRef.current = true;
     setShowOptionsPopover(true);
     onKeepActive?.();
+    
+    // Clear opening flag after animation completes (300ms animation + 50ms buffer)
+    openingTimeoutRef.current = setTimeout(() => {
+      isPopoverOpeningRef.current = false;
+    }, 350);
   }, [onKeepActive]);
 
   // Handle mouse leave from options button wrapper - start 500ms close timer
   // Check if moving to a child element (like the popover) before starting timer
   const handleOptionsMouseLeave = useCallback((e: React.MouseEvent) => {
+    // Don't start close timer if popover is still in opening phase
+    if (isPopoverOpeningRef.current) {
+      return;
+    }
+    
     const relatedTarget = e.relatedTarget;
     const wrapper = e.currentTarget as HTMLElement;
     
@@ -105,6 +128,11 @@ export const ContentActionsButtonGroup: React.FC<ContentActionsButtonGroupProps>
   // Handle mouse leave from popover - start 500ms close timer
   // Check if moving back to the wrapper before starting timer
   const handlePopoverMouseLeave = useCallback((e: React.MouseEvent) => {
+    // Don't start close timer if popover is still in opening phase
+    if (isPopoverOpeningRef.current) {
+      return;
+    }
+    
     const relatedTarget = e.relatedTarget;
     const popover = e.currentTarget as HTMLElement;
     
