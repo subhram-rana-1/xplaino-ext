@@ -204,17 +204,17 @@ export const ExplanationIconButton: React.FC<ExplanationIconButtonProps> = ({
 
   // Bookmark button style (same dimensions as book icon button)
   const bookmarkButtonStyle: React.CSSProperties = {
-    width: '14px',
-    height: '14px',
+    width: imageMode ? '20px' : '14px',
+    height: imageMode ? '20px' : '14px',
     padding: '0',
-    border: 'none',
-    background: 'transparent',
+    border: imageMode ? '1px solid #FFFFFF' : 'none',
+    background: imageMode && !isDarkMode ? '#FFFFFF' : 'transparent',
     cursor: 'pointer',
     pointerEvents: 'auto',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: '0',
+    borderRadius: imageMode ? '3px' : '0',
     outline: 'none',
   };
 

@@ -49,7 +49,12 @@
   width: 20px;
   height: 20px;
   border-radius: 50%;
-  border: 2px solid #FFFFFF;
+  border: 1px solid #FFFFFF;
+  transition: transform 0.2s ease;
+}
+
+.explanationIconButton.imageMode:hover {
+  transform: scale(1.1);
 }
 
 .explanationIconButton.imageMode.lightBg {
@@ -62,6 +67,11 @@
 
 .explanationIconButton.imageMode.lightBg.greenIcon {
   background: #FFFFFF;
+}
+
+/* Book icon and bookmark: rectangle shape with rounded corners */
+.explanationIconButton.imageMode.greenIcon {
+  border-radius: 3px;
 }
 
 .explanationIconButton:active {
