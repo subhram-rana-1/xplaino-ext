@@ -91,7 +91,7 @@ import {
   messageQuestionsAtom,
   pageReadingStateAtom,
 } from '../store/summaryAtoms';
-import { showLoginModalAtom, showSubscriptionModalAtom, showFeatureRequestModalAtom, userAuthInfoAtom, currentThemeAtom, subscriptionStatusAtom } from '../store/uiAtoms';
+import { showLoginModalAtom, showSubscriptionModalAtom, showFeatureRequestModalAtom, userAuthInfoAtom, currentThemeAtom, subscriptionStatusAtom, isUserLoggedInAtom } from '../store/uiAtoms';
 import {
   textExplanationsAtom,
   activeTextExplanationIdAtom,
@@ -824,6 +824,12 @@ async function handleTranslateClick(): Promise<void> {
 
     if (!nativeLanguage) {
       console.error('[Content Script] No native language set');
+      const isLoggedIn = store.get(isUserLoggedInAtom);
+      if (!isLoggedIn) {
+        showToast('Login and set your native language to translate', 'error');
+        setSidePanelOpen(true, 'settings');
+        return;
+      }
       await showWarningToast();
       return;
     }
@@ -859,7 +865,7 @@ async function handleTranslateClick(): Promise<void> {
     // Handle login required
     if (error instanceof Error && error.message === 'LOGIN_REQUIRED') {
       console.log('[Content Script] Login required for translation');
-      store.set(showLoginModalAtom, true);
+      showToast('Login and set your native language to translate', 'error');
     } else if (error instanceof Error && error.message === 'SUBSCRIPTION_REQUIRED') {
       console.log('[Content Script] Subscription required for translation');
       store.set(showSubscriptionModalAtom, true);
@@ -2587,6 +2593,12 @@ async function handleWordTranslateClick(selectedText: string): Promise<void> {
     const nativeLanguage = await ChromeStorage.getUserSettingNativeLanguage();
     if (!nativeLanguage) {
       console.error('[Content Script] No native language set');
+      const isLoggedIn = store.get(isUserLoggedInAtom);
+      if (!isLoggedIn) {
+        showToast('Login and set your native language to translate', 'error');
+        setSidePanelOpen(true, 'settings');
+        return;
+      }
       await showWarningToast();
       return;
     }
@@ -2794,8 +2806,8 @@ async function handleWordTranslateClick(selectedText: string): Promise<void> {
           // Remove word explanation
           removeWordExplanation(wordId);
           
-          // Show login modal
-          store.set(showLoginModalAtom, true);
+          // Show error toast
+          showToast('Login and set your native language to translate', 'error');
         },
         onSubscriptionRequired: () => {
           console.log('[Content Script] Subscription required for translation');
@@ -2836,6 +2848,12 @@ async function handleTextTranslateClick(selectedText: string): Promise<void> {
     const nativeLanguage = await ChromeStorage.getUserSettingNativeLanguage();
     if (!nativeLanguage) {
       console.error('[Content Script] No native language set');
+      const isLoggedIn = store.get(isUserLoggedInAtom);
+      if (!isLoggedIn) {
+        showToast('Login and set your native language to translate', 'error');
+        setSidePanelOpen(true, 'settings');
+        return;
+      }
       await showWarningToast();
       return;
     }
@@ -3118,8 +3136,8 @@ async function handleTextTranslateClick(selectedText: string): Promise<void> {
             removeTextExplanationIconContainer();
           }
           
-          // Show login modal
-          store.set(showLoginModalAtom, true);
+          // Show error toast
+          showToast('Login and set your native language to translate', 'error');
         },
         onSubscriptionRequired: () => {
           console.log('[Content Script] Subscription required for text translation');
@@ -4250,6 +4268,12 @@ async function handleTranslateWord(wordId: string, _languageCode?: string): Prom
   const nativeLanguage = await ChromeStorage.getUserSettingNativeLanguage();
   if (!nativeLanguage) {
     console.error('[Content Script] No native language set');
+    const isLoggedIn = store.get(isUserLoggedInAtom);
+    if (!isLoggedIn) {
+      showToast('Login and set your native language to translate', 'error');
+      setSidePanelOpen(true, 'settings');
+      return;
+    }
     await showWarningToast();
     return;
   }
@@ -4322,7 +4346,7 @@ async function handleTranslateWord(wordId: string, _languageCode?: string): Prom
       },
       onLoginRequired: () => {
         console.log('[Content Script] Translation requires login');
-        store.set(showLoginModalAtom, true);
+        showToast('Login and set your native language to translate', 'error');
         
         const currentState = store.get(wordExplanationsAtom).get(wordId);
         if (!currentState) return;
@@ -5696,7 +5720,7 @@ function updateTextExplanationPanel(): void {
             onLoginRequired: () => {
               // Set translating state to false
               isTranslating = false;
-              store.set(showLoginModalAtom, true);
+              showToast('Login and set your native language to translate', 'error');
               updateTextExplanationPanel();
             },
             onSubscriptionRequired: () => {
