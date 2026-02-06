@@ -71,7 +71,7 @@
 
 /* Book icon and bookmark: rectangle shape with rounded corners */
 .explanationIconButton.imageMode.greenIcon {
-  border-radius: 3px;
+  border-radius: 5px;
 }
 
 .explanationIconButton:active {
