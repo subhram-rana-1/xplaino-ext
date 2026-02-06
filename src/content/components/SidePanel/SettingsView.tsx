@@ -1,16 +1,18 @@
 // src/content/components/SidePanel/SettingsView.tsx
 import React, { useEffect, useState, useCallback } from 'react';
-import { Settings, LayoutDashboard, LogOut } from 'lucide-react';
+import { Settings, LayoutDashboard, LogOut, RefreshCw, Layers } from 'lucide-react';
 import { useAtomValue, useSetAtom } from 'jotai';
 import { userAuthInfoAtom, showLoginModalAtom } from '@/store/uiAtoms';
 import { ChromeStorage } from '@/storage/chrome-local/ChromeStorage';
 import { DomainStatus } from '@/types/domain';
 import { extractDomain } from '@/utils/domain';
-import { Dropdown } from './Dropdown';
+import { Dropdown, type DropdownOption } from './Dropdown';
+import { IconTabGroup } from '@/components/ui/IconTabGroup/IconTabGroup';
 import { showDisableModal } from '@/content/index';
 import { ENV } from '@/config/env';
 import { AuthService } from '@/api-services/AuthService';
 import { UserSettingsService } from '@/api-services/UserSettingsService';
+import type { UpdateSettingsRequest } from '@/api-services/UserSettingsService';
 import styles from './SettingsView.module.css';
 
 export interface SettingsViewProps {
@@ -54,6 +56,13 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ useShadowDom = false
   const [currentDomain, setCurrentDomain] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(true);
 
+  // Account settings state (populated from GET /api/user-settings)
+  const [nativeLanguage, setNativeLanguage] = useState<string | null>(null);
+  const [pageTranslationView, setPageTranslationView] = useState<'REPLACE' | 'APPEND'>('REPLACE');
+  const [backendTheme, setBackendTheme] = useState<'LIGHT' | 'DARK'>('LIGHT');
+  const [languageOptions, setLanguageOptions] = useState<DropdownOption[]>([]);
+  const [settingsUpdating, setSettingsUpdating] = useState<boolean>(false);
+
   useEffect(() => {
     loadSettings();
   }, [isLoggedIn]);
@@ -88,6 +97,35 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ useShadowDom = false
 
       setGlobalDisabled(gDisabled);
       if (dStatus) setDomainStatus(dStatus);
+
+      // Load account settings and languages (only when logged in)
+      if (isLoggedIn) {
+        try {
+          // Fetch user account settings from storage (already synced on page load)
+          const accountSettings = await ChromeStorage.getUserAccountSettings();
+          if (accountSettings?.settings) {
+            setNativeLanguage(accountSettings.settings.nativeLanguage ?? null);
+            setPageTranslationView(accountSettings.settings.pageTranslationView || 'REPLACE');
+            setBackendTheme(accountSettings.settings.theme || 'LIGHT');
+          }
+
+          // Fetch languages list (public endpoint)
+          const langResponse = await UserSettingsService.getAllLanguages();
+          const sortedLanguages = [...langResponse.languages].sort((a, b) =>
+            a.languageNameInEnglish.localeCompare(b.languageNameInEnglish)
+          );
+          const dropdownOptions: DropdownOption[] = [
+            { value: '', label: 'None' },
+            ...sortedLanguages.map((lang) => ({
+              value: lang.languageCode,
+              label: `${lang.languageNameInEnglish} (${lang.languageNameInNative})`,
+            })),
+          ];
+          setLanguageOptions(dropdownOptions);
+        } catch (accountError) {
+          console.error('[SettingsView] Error loading account settings / languages:', accountError);
+        }
+      }
     } catch (error) {
       console.error('[SettingsView] Error loading settings:', error);
     } finally {
@@ -124,6 +162,43 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ useShadowDom = false
     } catch (error) {
       console.error('[SettingsView] Error updating theme:', error);
     }
+  };
+
+  // Helper to call updateUserSettings API with current state
+  const saveAccountSettings = async (settings: {
+    nativeLanguage: string | null;
+    pageTranslationView: 'REPLACE' | 'APPEND';
+  }) => {
+    try {
+      setSettingsUpdating(true);
+      const body: UpdateSettingsRequest = {
+        nativeLanguage: settings.nativeLanguage,
+        pageTranslationView: settings.pageTranslationView,
+        theme: backendTheme, // Always pass through the backend theme value
+      };
+      const updatedData = await UserSettingsService.updateUserSettings(body);
+      // Keep backendTheme in sync with what the server returned
+      if (updatedData?.settings?.theme) {
+        setBackendTheme(updatedData.settings.theme);
+      }
+      console.log('[SettingsView] Account settings updated successfully');
+    } catch (error) {
+      console.error('[SettingsView] Error updating account settings:', error);
+    } finally {
+      setSettingsUpdating(false);
+    }
+  };
+
+  const handleNativeLanguageChange = async (value: string) => {
+    const newValue = value || null; // empty string => null (i.e. "None")
+    setNativeLanguage(newValue);
+    await saveAccountSettings({ nativeLanguage: newValue, pageTranslationView });
+  };
+
+  const handlePageTranslationViewChange = async (tabId: string) => {
+    const newValue = tabId as 'REPLACE' | 'APPEND';
+    setPageTranslationView(newValue);
+    await saveAccountSettings({ nativeLanguage, pageTranslationView: newValue });
   };
 
   const handleGlobalToggle = async (checked: boolean) => {
@@ -288,6 +363,42 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ useShadowDom = false
       {/* Extension Settings Section */}
       <div className={getClassName('section')}>
         <div className={getClassName('sectionContent')}>
+          {/* Native Language Dropdown (logged-in only) */}
+          {isLoggedIn && languageOptions.length > 0 && (
+            <div className={getClassName('settingItem')}>
+              <div className={getClassName('languageSettingRow')}>
+                <label className={getClassName('settingLabel')}>Native Language</label>
+                <Dropdown
+                  options={languageOptions}
+                  value={nativeLanguage || ''}
+                  onChange={handleNativeLanguageChange}
+                  placeholder="None"
+                  useShadowDom={useShadowDom}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Page Translation View Toggle (logged-in only) */}
+          {isLoggedIn && (
+            <div className={getClassName('settingItem')}>
+              <div className={getClassName('translationViewRow')}>
+                <label className={getClassName('settingLabel')}>Page Translation View</label>
+                <IconTabGroup
+                  tabs={[
+                    { id: 'REPLACE', icon: RefreshCw, label: 'Replace' },
+                    { id: 'APPEND', icon: Layers, label: 'Append' },
+                  ]}
+                  activeTabId={pageTranslationView}
+                  onTabChange={handlePageTranslationViewChange}
+                  useShadowDom={useShadowDom}
+                  iconSize={16}
+                  tabSize={32}
+                />
+              </div>
+            </div>
+          )}
+
           {/* Theme Dropdown */}
           {currentDomain && (
             <div className={getClassName('settingItem')}>

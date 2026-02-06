@@ -8786,6 +8786,9 @@ async function showWarningToast(): Promise<void> {
   
   await injectWarningToast();
   updateWarningToast();
+
+  // Auto-open the settings side panel so the user can set their native language
+  setSidePanelOpen(true, 'settings');
 }
 
 /**
@@ -8864,31 +8867,6 @@ function updateWarningToast(): void {
       }, 300);
     };
 
-    const settingsUrl = `${ENV.XPLAINO_WEBSITE_BASE_URL}/user/account/settings`;
-    
-    const handleLinkClick = (e: MouseEvent) => {
-      e.preventDefault();
-      window.open(settingsUrl, '_blank');
-    };
-
-    // Create Settings icon SVG (from lucide-react Settings icon)
-    const settingsIcon = React.createElement(
-      'svg',
-      {
-        width: '16',
-        height: '16',
-        viewBox: '0 0 24 24',
-        fill: 'none',
-        stroke: 'currentColor',
-        strokeWidth: '2.5',
-        strokeLinecap: 'round',
-        strokeLinejoin: 'round',
-        style: { display: 'inline-block', verticalAlign: 'middle', marginRight: '4px' }
-      },
-      React.createElement('path', { d: 'M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z' }),
-      React.createElement('circle', { cx: '12', cy: '12', r: '3' })
-    );
-
     // Create X icon for close button
     const closeIcon = React.createElement(
       'svg',
@@ -8941,59 +8919,7 @@ function updateWarningToast(): void {
         React.createElement(
           'div',
           { style: { flex: '1', lineHeight: '1.5' } },
-          'Please set your native language in ',
-          React.createElement(
-            'a',
-            {
-              href: settingsUrl,
-              onClick: handleLinkClick,
-              style: {
-                color: yellowColor,
-                textDecoration: 'underline',
-                fontWeight: '600',
-                display: 'inline-flex',
-                alignItems: 'center',
-                cursor: 'pointer',
-                gap: '4px',
-              },
-              onMouseEnter: (e: React.MouseEvent<HTMLAnchorElement>) => {
-                e.currentTarget.style.opacity = '0.8';
-              },
-              onMouseLeave: (e: React.MouseEvent<HTMLAnchorElement>) => {
-                e.currentTarget.style.opacity = '1';
-              },
-            },
-            settingsIcon,
-            'settings'
-          ),
-          '. If done, please ',
-          React.createElement(
-            'a',
-            {
-              href: '#',
-              onClick: (e: React.MouseEvent) => {
-                e.preventDefault();
-                // Close the warning toast
-                handleClose();
-                // Open settings side panel
-                setSidePanelOpen(true, 'settings');
-              },
-              style: {
-                color: yellowColor,
-                textDecoration: 'underline',
-                fontWeight: '600',
-                cursor: 'pointer',
-              },
-              onMouseEnter: (e: React.MouseEvent<HTMLAnchorElement>) => {
-                e.currentTarget.style.opacity = '0.8';
-              },
-              onMouseLeave: (e: React.MouseEvent<HTMLAnchorElement>) => {
-                e.currentTarget.style.opacity = '1';
-              },
-            },
-            'login'
-          ),
-          ' and refresh the page'
+          'Set your native language'
         ),
         React.createElement(
           'button',
@@ -9208,7 +9134,7 @@ async function handleFolderModalSave(folderId: string | null): Promise<void> {
         }
         
         showToast('Text saved successfully!', 'success');
-        showBookmarkToast('paragraph', '/user/saved-paragraphs');
+        showBookmarkToast('paragraph', '/user/dashboard/bookmark');
         
         // Preserve folderModalText, folderModalRange, and folderModalParagraphSource before closing modal (which clears them)
         const savedText = folderModalText;

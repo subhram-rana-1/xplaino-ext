@@ -378,29 +378,31 @@ export class PageTranslationManager {
       return; // Already appended
     }
 
-    // Get computed styles from the original element to preserve font properties
+    // Get computed styles from the original element to preserve font properties and color
     const computedStyle = window.getComputedStyle(element.element);
     const fontStyle = computedStyle.fontStyle;
     const fontWeight = computedStyle.fontWeight;
     const fontSize = computedStyle.fontSize;
+    const originalColor = computedStyle.color;
 
     // Create translation div
     const translationDiv = document.createElement('div');
     translationDiv.className = 'xplaino-translation-appended';
     translationDiv.textContent = element.translatedText;
     
-    // Theme-aware color: detect page theme from background luminance
+    // Use the same color as the original text for a seamless reading experience
+    // Use primary color only for the border-left accent
     const isDarkMode = this.isElementInDarkMode(element.element);
-    const primaryColor = isDarkMode ? COLORS.DARK_PRIMARY : COLORS.PRIMARY;
+    const accentColor = isDarkMode ? COLORS.DARK_PRIMARY : COLORS.PRIMARY;
     
     translationDiv.style.cssText = `
-      color: ${primaryColor};
+      color: ${originalColor};
       font-style: ${fontStyle};
       font-weight: ${fontWeight};
       font-size: ${fontSize};
       margin-top: 4px;
       padding-left: 8px;
-      border-left: 2px solid ${colorWithOpacity(primaryColor, 0.3)};
+      border-left: 2px solid ${colorWithOpacity(accentColor, 0.3)};
       line-height: inherit;
     `;
 
