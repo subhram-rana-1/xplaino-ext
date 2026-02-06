@@ -20,6 +20,22 @@ export interface ContentActionsButtonGroupProps {
   onSynonym?: () => void;
   /** Callback when Opposite is clicked */
   onOpposite?: () => void;
+  /** Callback when Ask AI is clicked */
+  onAskAI?: () => void;
+  /** Callback when Etymology is clicked */
+  onEtymology?: () => void;
+  /** Callback when Mnemonic is clicked */
+  onMnemonic?: () => void;
+  /** Callback when Quiz is clicked */
+  onQuiz?: () => void;
+  /** Callback when Common Mistakes is clicked */
+  onCommonMistakes?: () => void;
+  /** Callback when Better Alternative (formal) is clicked */
+  onBetterFormal?: () => void;
+  /** Callback when Better Alternative (casual) is clicked */
+  onBetterCasual?: () => void;
+  /** Callback when Better Alternative (academic) is clicked */
+  onBetterAcademic?: () => void;
   /** Callback when mouse enters (to keep container active) */
   onMouseEnter?: () => void;
   /** Callback when mouse leaves (to hide container) */
@@ -41,6 +57,14 @@ export const ContentActionsButtonGroup: React.FC<ContentActionsButtonGroupProps>
   onBookmark,
   onSynonym,
   onOpposite,
+  onAskAI,
+  onEtymology,
+  onMnemonic,
+  onQuiz,
+  onCommonMistakes,
+  onBetterFormal,
+  onBetterCasual,
+  onBetterAcademic,
   onMouseEnter,
   onMouseLeave,
   onKeepActive,
@@ -316,6 +340,14 @@ export const ContentActionsButtonGroup: React.FC<ContentActionsButtonGroupProps>
             onTranslate={onTranslate}
             onSynonym={onSynonym}
             onOpposite={onOpposite}
+            onAskAI={onAskAI}
+            onEtymology={onEtymology}
+            onMnemonic={onMnemonic}
+            onQuiz={onQuiz}
+            onCommonMistakes={onCommonMistakes}
+            onBetterFormal={onBetterFormal}
+            onBetterCasual={onBetterCasual}
+            onBetterAcademic={onBetterAcademic}
             onHideButtonGroup={handleHideButtonGroup}
             onPopoverMouseEnter={handleOptionsMouseEnter}
             onPopoverMouseLeave={handlePopoverMouseLeave}

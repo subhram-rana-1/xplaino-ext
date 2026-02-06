@@ -20,6 +20,22 @@ export interface ContentActionsTriggerProps {
   onSynonym?: (selectedText: string) => void;
   /** Callback when Opposite is clicked */
   onOpposite?: (selectedText: string) => void;
+  /** Callback when Ask AI is clicked */
+  onAskAI?: (selectedText: string) => void;
+  /** Callback when Etymology is clicked */
+  onEtymology?: (selectedText: string) => void;
+  /** Callback when Mnemonic is clicked */
+  onMnemonic?: (selectedText: string) => void;
+  /** Callback when Quiz is clicked */
+  onQuiz?: (selectedText: string) => void;
+  /** Callback when Common Mistakes is clicked */
+  onCommonMistakes?: (selectedText: string) => void;
+  /** Callback when Better Alternative (formal) is clicked */
+  onBetterFormal?: (selectedText: string) => void;
+  /** Callback when Better Alternative (casual) is clicked */
+  onBetterCasual?: (selectedText: string) => void;
+  /** Callback when Better Alternative (academic) is clicked */
+  onBetterAcademic?: (selectedText: string) => void;
   /** Callback to show disable notification modal */
   onShowModal?: () => void;
   /** Callback to show toast message */
@@ -42,6 +58,14 @@ export const ContentActionsTrigger: React.FC<ContentActionsTriggerProps> = ({
   onBookmark,
   onSynonym,
   onOpposite,
+  onAskAI,
+  onEtymology,
+  onMnemonic,
+  onQuiz,
+  onCommonMistakes,
+  onBetterFormal,
+  onBetterCasual,
+  onBetterAcademic,
   onShowModal,
   onShowToast,
 }) => {
@@ -468,6 +492,62 @@ export const ContentActionsTrigger: React.FC<ContentActionsTriggerProps> = ({
     }
   }, [selection, onOpposite]);
 
+  const handleAskAI = useCallback(() => {
+    if (selection) {
+      console.log('[ContentActions] Ask AI:', selection.text);
+      onAskAI?.(selection.text);
+    }
+  }, [selection, onAskAI]);
+
+  const handleEtymology = useCallback(() => {
+    if (selection) {
+      console.log('[ContentActions] Etymology:', selection.text);
+      onEtymology?.(selection.text);
+    }
+  }, [selection, onEtymology]);
+
+  const handleMnemonic = useCallback(() => {
+    if (selection) {
+      console.log('[ContentActions] Mnemonic:', selection.text);
+      onMnemonic?.(selection.text);
+    }
+  }, [selection, onMnemonic]);
+
+  const handleQuiz = useCallback(() => {
+    if (selection) {
+      console.log('[ContentActions] Quiz:', selection.text);
+      onQuiz?.(selection.text);
+    }
+  }, [selection, onQuiz]);
+
+  const handleCommonMistakes = useCallback(() => {
+    if (selection) {
+      console.log('[ContentActions] Common Mistakes:', selection.text);
+      onCommonMistakes?.(selection.text);
+    }
+  }, [selection, onCommonMistakes]);
+
+  const handleBetterFormal = useCallback(() => {
+    if (selection) {
+      console.log('[ContentActions] Better Alternative (formal):', selection.text);
+      onBetterFormal?.(selection.text);
+    }
+  }, [selection, onBetterFormal]);
+
+  const handleBetterCasual = useCallback(() => {
+    if (selection) {
+      console.log('[ContentActions] Better Alternative (casual):', selection.text);
+      onBetterCasual?.(selection.text);
+    }
+  }, [selection, onBetterCasual]);
+
+  const handleBetterAcademic = useCallback(() => {
+    if (selection) {
+      console.log('[ContentActions] Better Alternative (academic):', selection.text);
+      onBetterAcademic?.(selection.text);
+    }
+  }, [selection, onBetterAcademic]);
+
   // Handle action completion - clear selection and hide all UI
   const handleActionComplete = useCallback(() => {
     // Clear window selection
@@ -526,6 +606,14 @@ export const ContentActionsTrigger: React.FC<ContentActionsTriggerProps> = ({
         onBookmark={handleBookmark}
         onSynonym={handleSynonym}
         onOpposite={handleOpposite}
+        onAskAI={handleAskAI}
+        onEtymology={handleEtymology}
+        onMnemonic={handleMnemonic}
+        onQuiz={handleQuiz}
+        onCommonMistakes={handleCommonMistakes}
+        onBetterFormal={handleBetterFormal}
+        onBetterCasual={handleBetterCasual}
+        onBetterAcademic={handleBetterAcademic}
         onMouseEnter={handleContainerMouseEnter}
         onMouseLeave={handleContainerMouseLeave}
         onKeepActive={handleKeepActive}

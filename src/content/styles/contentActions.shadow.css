@@ -351,9 +351,9 @@
 /* Action Button Options Popover */
 .actionButtonOptionsPopover {
   position: absolute !important;
-  top: calc(100% + 8px) !important;
+  top: 100% !important;
   left: 50% !important;
-  margin-left: -60px !important;
+  margin-left: -80px !important;
   display: flex !important;
   flex-direction: column !important;
   gap: 2px !important;
@@ -365,32 +365,21 @@
   z-index: 20 !important;
   width: fit-content !important;
   min-width: 120px !important;
+  max-height: 420px !important;
+  overflow-y: auto !important;
   /* Initial hidden state - prevents flash before animation starts */
   /* No !important so inline styles and Web Animations API can override */
   transform: scale(0);
   transform-origin: top center;
 }
 
-/* Triangle arrow - outer border layer */
+/* Triangle arrow - hidden since popover is flush with button group */
 .actionButtonOptionsPopover::before {
-  content: '' !important;
-  position: absolute !important;
-  bottom: 100% !important;
-  left: 50% !important;
-  transform: translateX(-50%) !important;
-  border: 8px solid transparent !important;
-  border-bottom-color: var(--color-border-default-theme) !important;
+  content: none !important;
 }
 
-/* Triangle arrow - inner fill layer */
 .actionButtonOptionsPopover::after {
-  content: '' !important;
-  position: absolute !important;
-  bottom: 100% !important;
-  left: 50% !important;
-  transform: translateX(-50%) translateY(1.5px) !important;
-  border: 7px solid transparent !important;
-  border-bottom-color: var(--color-bg-primary-theme) !important;
+  content: none !important;
 }
 
 /* Action Button Option Button */
@@ -433,6 +422,14 @@
 
 .actionButtonOption span {
   flex: 1 !important;
+}
+
+/* Options Popover Separator */
+.optionsPopoverSeparator {
+  height: 1px !important;
+  background: var(--color-border-default-theme) !important;
+  margin: 3px 8px !important;
+  flex-shrink: 0 !important;
 }
 
 /* Disable Popover */
