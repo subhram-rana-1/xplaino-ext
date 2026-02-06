@@ -1,6 +1,6 @@
 // src/content/components/ContentActions/ActionButtonOptionsPopover.tsx
 import React, { useCallback, useEffect, useRef } from 'react';
-import { Languages, Replace, ArrowLeftRight } from 'lucide-react';
+import { Languages, Replace, ArrowLeftRight, Sparkles, BookOpen, Lightbulb, HelpCircle, AlertTriangle, GraduationCap, MessageSquare, PenLine } from 'lucide-react';
 import { useEmergeAnimation } from '../../../hooks';
 
 export interface ActionButtonOptionsPopoverProps {
@@ -14,6 +14,22 @@ export interface ActionButtonOptionsPopoverProps {
   onSynonym?: () => void;
   /** Callback when Opposite is clicked */
   onOpposite?: () => void;
+  /** Callback when Ask AI is clicked */
+  onAskAI?: () => void;
+  /** Callback when Etymology is clicked */
+  onEtymology?: () => void;
+  /** Callback when Mnemonic is clicked */
+  onMnemonic?: () => void;
+  /** Callback when Quiz is clicked */
+  onQuiz?: () => void;
+  /** Callback when Common Mistakes is clicked */
+  onCommonMistakes?: () => void;
+  /** Callback when Better Alternative (formal) is clicked */
+  onBetterFormal?: () => void;
+  /** Callback when Better Alternative (casual) is clicked */
+  onBetterCasual?: () => void;
+  /** Callback when Better Alternative (academic) is clicked */
+  onBetterAcademic?: () => void;
   /** Callback to hide the action button group */
   onHideButtonGroup?: () => void;
   /** Callback when mouse enters popover (to cancel close timer) */
@@ -28,6 +44,14 @@ export const ActionButtonOptionsPopover: React.FC<ActionButtonOptionsPopoverProp
   onTranslate,
   onSynonym,
   onOpposite,
+  onAskAI,
+  onEtymology,
+  onMnemonic,
+  onQuiz,
+  onCommonMistakes,
+  onBetterFormal,
+  onBetterCasual,
+  onBetterAcademic,
   onHideButtonGroup,
   onPopoverMouseEnter,
   onPopoverMouseLeave,
@@ -103,6 +127,46 @@ export const ActionButtonOptionsPopover: React.FC<ActionButtonOptionsPopoverProp
     onHideButtonGroup?.();
   }, [onOpposite, onHideButtonGroup]);
 
+  const handleAskAIClick = useCallback(() => {
+    onAskAI?.();
+    onHideButtonGroup?.();
+  }, [onAskAI, onHideButtonGroup]);
+
+  const handleEtymologyClick = useCallback(() => {
+    onEtymology?.();
+    onHideButtonGroup?.();
+  }, [onEtymology, onHideButtonGroup]);
+
+  const handleMnemonicClick = useCallback(() => {
+    onMnemonic?.();
+    onHideButtonGroup?.();
+  }, [onMnemonic, onHideButtonGroup]);
+
+  const handleQuizClick = useCallback(() => {
+    onQuiz?.();
+    onHideButtonGroup?.();
+  }, [onQuiz, onHideButtonGroup]);
+
+  const handleCommonMistakesClick = useCallback(() => {
+    onCommonMistakes?.();
+    onHideButtonGroup?.();
+  }, [onCommonMistakes, onHideButtonGroup]);
+
+  const handleBetterFormalClick = useCallback(() => {
+    onBetterFormal?.();
+    onHideButtonGroup?.();
+  }, [onBetterFormal, onHideButtonGroup]);
+
+  const handleBetterCasualClick = useCallback(() => {
+    onBetterCasual?.();
+    onHideButtonGroup?.();
+  }, [onBetterCasual, onHideButtonGroup]);
+
+  const handleBetterAcademicClick = useCallback(() => {
+    onBetterAcademic?.();
+    onHideButtonGroup?.();
+  }, [onBetterAcademic, onHideButtonGroup]);
+
   // Don't render if animation is complete and not visible
   if (!shouldRender && !visible) return null;
 
@@ -115,6 +179,24 @@ export const ActionButtonOptionsPopover: React.FC<ActionButtonOptionsPopoverProp
       onMouseEnter={onPopoverMouseEnter}
       onMouseLeave={onPopoverMouseLeave}
     >
+      {/* Ask AI - only for word selection, at the top */}
+      {isWordSelection && (
+        <button
+          className="actionButtonOption"
+          onMouseDown={(e) => e.stopPropagation()}
+          onClick={(e) => {
+            e.stopPropagation();
+            handleAskAIClick();
+          }}
+        >
+          <Sparkles size={14} strokeWidth={2.5} />
+          <span>Ask AI</span>
+        </button>
+      )}
+
+      {/* Separator after Ask AI - only for word selection */}
+      {isWordSelection && <div className="optionsPopoverSeparator" />}
+
       {/* Translate - always visible */}
       <button
         className="actionButtonOption"
@@ -155,6 +237,117 @@ export const ActionButtonOptionsPopover: React.FC<ActionButtonOptionsPopoverProp
         >
           <ArrowLeftRight size={14} strokeWidth={2.5} />
           <span>Opposite</span>
+        </button>
+      )}
+
+      {/* Etymology - only for word selection */}
+      {isWordSelection && (
+        <button
+          className="actionButtonOption"
+          onMouseDown={(e) => e.stopPropagation()}
+          onClick={(e) => {
+            e.stopPropagation();
+            handleEtymologyClick();
+          }}
+        >
+          <BookOpen size={14} strokeWidth={2.5} />
+          <span>Etymology</span>
+        </button>
+      )}
+
+      {/* Separator - Learning aids group */}
+      {isWordSelection && <div className="optionsPopoverSeparator" />}
+
+      {/* Mnemonic - only for word selection */}
+      {isWordSelection && (
+        <button
+          className="actionButtonOption"
+          onMouseDown={(e) => e.stopPropagation()}
+          onClick={(e) => {
+            e.stopPropagation();
+            handleMnemonicClick();
+          }}
+        >
+          <Lightbulb size={14} strokeWidth={2.5} />
+          <span>Memory trick (Mnemonic)</span>
+        </button>
+      )}
+
+      {/* Quiz - only for word selection */}
+      {isWordSelection && (
+        <button
+          className="actionButtonOption"
+          onMouseDown={(e) => e.stopPropagation()}
+          onClick={(e) => {
+            e.stopPropagation();
+            handleQuizClick();
+          }}
+        >
+          <HelpCircle size={14} strokeWidth={2.5} />
+          <span>Quiz me on this word</span>
+        </button>
+      )}
+
+      {/* Common Mistakes - only for word selection */}
+      {isWordSelection && (
+        <button
+          className="actionButtonOption"
+          onMouseDown={(e) => e.stopPropagation()}
+          onClick={(e) => {
+            e.stopPropagation();
+            handleCommonMistakesClick();
+          }}
+        >
+          <AlertTriangle size={14} strokeWidth={2.5} />
+          <span>Common mistakes</span>
+        </button>
+      )}
+
+      {/* Separator - Better alternatives group */}
+      {isWordSelection && <div className="optionsPopoverSeparator" />}
+
+      {/* Better alternative (formal) - only for word selection */}
+      {isWordSelection && (
+        <button
+          className="actionButtonOption"
+          onMouseDown={(e) => e.stopPropagation()}
+          onClick={(e) => {
+            e.stopPropagation();
+            handleBetterFormalClick();
+          }}
+        >
+          <PenLine size={14} strokeWidth={2.5} />
+          <span>Better alternative (formal)</span>
+        </button>
+      )}
+
+      {/* Better alternative (casual) - only for word selection */}
+      {isWordSelection && (
+        <button
+          className="actionButtonOption"
+          onMouseDown={(e) => e.stopPropagation()}
+          onClick={(e) => {
+            e.stopPropagation();
+            handleBetterCasualClick();
+          }}
+        >
+          <MessageSquare size={14} strokeWidth={2.5} />
+          <span>Better alternative (casual)</span>
+        </button>
+      )}
+
+      {/* Better alternative (academic) - only for word selection */}
+      {isWordSelection && (
+        <button
+          className="actionButtonOption"
+          onMouseDown={(e) => e.stopPropagation()}
+          onClick={(e) => {
+            e.stopPropagation();
+            handleBetterAcademicClick();
+          }}
+        >
+          <GraduationCap size={14} strokeWidth={2.5} />
+          <span>Better alternative (academic)</span>
         </button>
       )}
     </div>

@@ -1186,6 +1186,14 @@ async function injectContentActions(): Promise<void> {
         onBookmark: handleContentActionsBookmarkClick,
         onSynonym: handleSynonymClick,
         onOpposite: handleAntonymClick,
+        onAskAI: handleAskAIFromContentActions,
+        onEtymology: handleEtymologyClick,
+        onMnemonic: handleMnemonicClick,
+        onQuiz: handleQuizClick,
+        onCommonMistakes: handleCommonMistakesClick,
+        onBetterFormal: handleBetterFormalClick,
+        onBetterCasual: handleBetterCasualClick,
+        onBetterAcademic: handleBetterAcademicClick,
         onShowModal: showDisableModal,
         onShowToast: showToast,
       })
@@ -2566,6 +2574,304 @@ async function handleAntonymClick(selectedText: string): Promise<void> {
   }
 }
 
+// =============================================================================
+// WORD ASK AI ACTION HANDLERS (from 3-dot menu)
+// =============================================================================
+
+/**
+ * Helper: Create word span + initialize word explanation state for Ask AI actions.
+ * Returns the wordId if successful, null otherwise.
+ */
+async function initWordSpanForAskAI(selectedText: string): Promise<string | null> {
+  // Get current selection range
+  const windowSelection = window.getSelection();
+  if (!windowSelection || windowSelection.rangeCount === 0) {
+    console.warn('[Content Script] No selection available for Ask AI action');
+    return null;
+  }
+
+  const range = windowSelection.getRangeAt(0);
+
+  // Clear selection immediately
+  windowSelection.removeAllRanges();
+
+  // Create unique ID for this word explanation
+  const wordId = `word-${Date.now()}`;
+
+  // Inject word span styles into main DOM (one-time operation)
+  injectWordSpanStyles();
+
+  // Create word span wrapper with loading state
+  const wordSpan = createWordSpan(selectedText, range);
+  if (!wordSpan) {
+    console.error('[Content Script] Failed to create word span');
+    return null;
+  }
+
+  // Create spinner near the word
+  const spinner = await createSpinner(wordSpan);
+
+  // Create source ref for animation
+  const sourceRef: React.MutableRefObject<HTMLElement | null> = { current: wordSpan };
+
+  // Initialize word explanation state
+  const wordState: WordExplanationLocalState = {
+    word: selectedText,
+    wordSpanElement: wordSpan,
+    spinnerElement: spinner,
+    popoverVisible: false,
+    streamedContent: '',
+    activeTab: 'grammar',
+    abortController: null,
+    firstEventReceived: false,
+    isLoading: false,
+    errorMessage: null,
+    range: range.cloneRange(),
+    sourceRef,
+  };
+
+  wordExplanationsMap.set(wordId, wordState);
+
+  // Initialize atom state for this word
+  const atomState: WordExplanationAtomState = {
+    id: wordId,
+    word: selectedText,
+    meaning: '',
+    examples: [],
+    synonyms: [],
+    antonyms: [],
+    translations: [],
+    shouldAllowFetchMoreExamples: true,
+    askAI: {
+      chatHistory: [],
+      streamingText: '',
+      messageQuestions: {},
+      isRequesting: false,
+      abortController: null,
+      firstChunkReceived: false,
+    },
+    popoverVisible: false,
+    askAIPopoverVisible: false,
+    activeTab: 'grammar',
+    wordSpanElement: wordSpan,
+    sourceRef,
+    askAIButtonRef: null,
+    isLoadingExamples: false,
+    isLoadingSynonyms: false,
+    isLoadingAntonyms: false,
+    isLoadingTranslation: false,
+    examplesError: null,
+    synonymsError: null,
+    antonymsError: null,
+    translationError: null,
+    range: range.cloneRange(),
+    spinnerElement: spinner,
+    isLoading: false,
+    errorMessage: null,
+    streamedContent: '',
+    firstEventReceived: false,
+    abortController: null,
+    isSaved: false,
+    savedWordId: null,
+    isSavingWord: false,
+  };
+
+  const atomsMap = new Map(store.get(wordExplanationsAtom));
+  atomsMap.set(wordId, atomState);
+  store.set(wordExplanationsAtom, atomsMap);
+  store.set(activeWordIdAtom, wordId);
+
+  return wordId;
+}
+
+/**
+ * Helper: Finalize word span styling after initialization (remove spinner, apply green style).
+ */
+async function finalizeWordSpanForAskAI(wordId: string): Promise<void> {
+  const localState = wordExplanationsMap.get(wordId);
+  if (!localState) return;
+
+  // Remove spinner
+  if (localState.spinnerElement) {
+    localState.spinnerElement.remove();
+    localState.spinnerElement = null;
+  }
+
+  // Convert span to green with scale animation
+  if (localState.wordSpanElement) {
+    localState.wordSpanElement.classList.remove('word-explanation-loading');
+    localState.wordSpanElement.classList.add('word-explanation-active');
+
+    // Get bookmark state from atom
+    const atomState = store.get(wordExplanationsAtom).get(wordId);
+    const isSaved = atomState?.isSaved || false;
+
+    // Update inline styles - no background, only bottom border
+    localState.wordSpanElement.style.background = 'transparent';
+    localState.wordSpanElement.style.cursor = 'pointer';
+    localState.wordSpanElement.style.transition = 'none';
+
+    // Apply styling with bottom border, bookmark icon, and close button
+    await applyGreenWordSpanStyling(localState.wordSpanElement, wordId, isSaved);
+
+    // Add scale bounce animation
+    localState.wordSpanElement.style.animation = 'none';
+    void localState.wordSpanElement.offsetHeight;
+    localState.wordSpanElement.style.animation = 'word-explanation-scale-bounce 0.8s ease';
+    setTimeout(() => {
+      if (localState.wordSpanElement) {
+        localState.wordSpanElement.style.animation = '';
+      }
+    }, 800);
+
+    // Add hover effect with very light theme color
+    localState.wordSpanElement.addEventListener('mouseenter', () => {
+      if (localState.wordSpanElement) {
+        localState.wordSpanElement.style.background = COLORS.PRIMARY_OPACITY_10;
+      }
+    });
+    localState.wordSpanElement.addEventListener('mouseleave', () => {
+      if (localState.wordSpanElement) {
+        localState.wordSpanElement.style.background = 'transparent';
+      }
+    });
+
+    // Add click handler to toggle popover
+    localState.wordSpanElement.addEventListener('click', () => {
+      toggleWordPopover(wordId);
+    });
+
+    // Add double-click handler to remove word explanation and show icon
+    localState.wordSpanElement.addEventListener('dblclick', async (e) => {
+      e.stopPropagation();
+      e.preventDefault();
+      if (localState.wordSpanElement) {
+        await showXplainoIconForWordRemoval(localState.wordSpanElement, wordId);
+      }
+      removeWordExplanation(wordId);
+    });
+  }
+}
+
+/**
+ * Handle "Ask AI" button click from ContentActions 3-dot menu.
+ * Creates word span, opens Ask AI side panel, and focuses the input bar (no question sent).
+ */
+async function handleAskAIFromContentActions(selectedText: string): Promise<void> {
+  console.log('[Content Script] Ask AI from content actions clicked:', selectedText);
+
+  try {
+    const wordId = await initWordSpanForAskAI(selectedText);
+    if (!wordId) return;
+
+    // Finalize word span styling (remove spinner, apply green)
+    await finalizeWordSpanForAskAI(wordId);
+
+    // Open Ask AI side panel (this will focus the input automatically)
+    handleAskAI(wordId);
+  } catch (error) {
+    console.error('[Content Script] Ask AI from content actions exception:', error);
+    showToast('An error occurred', 'error');
+  }
+}
+
+/**
+ * Generic handler for word Ask AI actions from the 3-dot menu.
+ * Creates word span, opens Ask AI side panel, and auto-sends the crafted question.
+ */
+async function handleWordAskAIAction(selectedText: string, question: string): Promise<void> {
+  console.log('[Content Script] Word Ask AI action:', { selectedText, question });
+
+  try {
+    const wordId = await initWordSpanForAskAI(selectedText);
+    if (!wordId) return;
+
+    // Finalize word span styling (remove spinner, apply green)
+    await finalizeWordSpanForAskAI(wordId);
+
+    // Open Ask AI side panel
+    handleAskAI(wordId);
+
+    // Auto-send the crafted question after a small delay to let the panel mount
+    setTimeout(() => {
+      handleAskAISendMessage(wordId, question);
+    }, 100);
+  } catch (error) {
+    console.error('[Content Script] Word Ask AI action exception:', error);
+    showToast('An error occurred', 'error');
+  }
+}
+
+/**
+ * Handle Etymology button click from ContentActions 3-dot menu.
+ */
+async function handleEtymologyClick(selectedText: string): Promise<void> {
+  await handleWordAskAIAction(
+    selectedText,
+    `What is the etymology and origin of the word '${selectedText}'? Trace its roots, original language, and how its meaning has evolved.`
+  );
+}
+
+/**
+ * Handle Mnemonic button click from ContentActions 3-dot menu.
+ */
+async function handleMnemonicClick(selectedText: string): Promise<void> {
+  await handleWordAskAIAction(
+    selectedText,
+    `Create a creative and memorable memory trick (mnemonic) to help remember the meaning and usage of the word '${selectedText}'.`
+  );
+}
+
+/**
+ * Handle Quiz button click from ContentActions 3-dot menu.
+ */
+async function handleQuizClick(selectedText: string): Promise<void> {
+  await handleWordAskAIAction(
+    selectedText,
+    `Create 2-3 multiple choice questions to quiz me on the word '${selectedText}'. Include correct answers with brief explanations.`
+  );
+}
+
+/**
+ * Handle Common Mistakes button click from ContentActions 3-dot menu.
+ */
+async function handleCommonMistakesClick(selectedText: string): Promise<void> {
+  await handleWordAskAIAction(
+    selectedText,
+    `What are the most common mistakes people make when using the word '${selectedText}'? Show how it is often misused and the correct usage.`
+  );
+}
+
+/**
+ * Handle Better Alternative (formal) button click from ContentActions 3-dot menu.
+ */
+async function handleBetterFormalClick(selectedText: string): Promise<void> {
+  await handleWordAskAIAction(
+    selectedText,
+    `Suggest a more formal or professional alternative to the word '${selectedText}' and explain when to use it.`
+  );
+}
+
+/**
+ * Handle Better Alternative (casual) button click from ContentActions 3-dot menu.
+ */
+async function handleBetterCasualClick(selectedText: string): Promise<void> {
+  await handleWordAskAIAction(
+    selectedText,
+    `Suggest a more casual or conversational alternative to the word '${selectedText}' and explain when it fits better.`
+  );
+}
+
+/**
+ * Handle Better Alternative (academic) button click from ContentActions 3-dot menu.
+ */
+async function handleBetterAcademicClick(selectedText: string): Promise<void> {
+  await handleWordAskAIAction(
+    selectedText,
+    `Suggest a more academic or scholarly alternative to the word '${selectedText}' for research papers and explain its precise usage.`
+  );
+}
+
 /**
  * Handle Translate button click from ContentActions 3-dot menu for WORD selection
  * Creates word span, shows loading animation, calls API, then opens popover with grammar tab
@@ -3610,11 +3916,38 @@ async function toggleWordPopover(wordId: string): Promise<void> {
     hasSourceRef: !!state.sourceRef.current,
   });
 
+  // Check if this word has Ask AI chat history
+  const atomState = store.get(wordExplanationsAtom).get(wordId);
+  const hasAskAIContent = atomState && atomState.askAI.chatHistory.length > 0;
+
   if (state.popoverVisible) {
     console.log('[Content Script] toggleWordPopover - opening popover, calling injectWordExplanationPopover');
     await injectWordExplanationPopover();
+
+    // If this word has Ask AI chat history, also open the Ask AI side panel
+    if (hasAskAIContent) {
+      const isAskAIOpen = store.get(wordAskAISidePanelOpenAtom);
+      const currentAskAIWordId = store.get(wordAskAISidePanelWordIdAtom);
+      // Only open if not already open for this word (handleAskAI would toggle/close it otherwise)
+      if (!(isAskAIOpen && currentAskAIWordId === wordId)) {
+        console.log('[Content Script] toggleWordPopover - word has Ask AI content, also opening side panel');
+        handleAskAI(wordId);
+      }
+    }
   } else {
     console.log('[Content Script] toggleWordPopover - closing popover');
+
+    // If the Ask AI side panel is open for this word, close it too
+    const isAskAIOpen = store.get(wordAskAISidePanelOpenAtom);
+    const currentAskAIWordId = store.get(wordAskAISidePanelWordIdAtom);
+    if (isAskAIOpen && currentAskAIWordId === wordId) {
+      console.log('[Content Script] toggleWordPopover - closing Ask AI side panel for this word');
+      if (wordAskAICloseHandler) {
+        wordAskAICloseHandler();
+      } else {
+        handleAskAIClose();
+      }
+    }
   }
 
   console.log('[Content Script] toggleWordPopover - calling updateWordExplanationPopover');

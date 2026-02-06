@@ -1,7 +1,7 @@
 // src/content/components/WordAskAISidePanel/WordAskAISidePanel.tsx
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import type { RefObject } from 'react';
-import { ArrowUp, Square, Trash2, Plus } from 'lucide-react';
+import { ArrowUp, Square, Trash2, Plus, MoreVertical, BookOpen, Lightbulb, HelpCircle, AlertTriangle, GraduationCap, MessageSquare, PenLine } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { MinimizeIcon } from '../ui/MinimizeIcon';
 import styles from './WordAskAISidePanel.module.css';
@@ -119,16 +119,31 @@ export const WordAskAISidePanel: React.FC<WordAskAISidePanelProps> = ({
   const [inputValue, setInputValue] = useState('');
   const [loadingDotCount, setLoadingDotCount] = useState(1);
   const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
+  const [showMorePromptsPopover, setShowMorePromptsPopover] = useState(false);
   const hasEmergedRef = useRef(false);
   const isUnmountingRef = useRef(false);
   const isAnimatingRef = useRef(false);
   const previousIsOpenRef = useRef(false);
   const chatContainerRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const morePromptsTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   
   // Reset isUnmountingRef when component is open
   if (isOpen) {
     isUnmountingRef.current = false;
   }
+
+  // Close more prompts popover and cleanup timeout when panel closes or unmounts
+  useEffect(() => {
+    if (!isOpen) {
+      setShowMorePromptsPopover(false);
+    }
+    return () => {
+      if (morePromptsTimeoutRef.current) {
+        clearTimeout(morePromptsTimeoutRef.current);
+      }
+    };
+  }, [isOpen]);
 
   // Animation hook - merge and shrink animations use 400ms duration
   const {
@@ -380,6 +395,17 @@ export const WordAskAISidePanel: React.FC<WordAskAISidePanelProps> = ({
     }
   }, [isOpen, emerge, isWordPopoverOpen, askAIButtonRef, buttonRef, animationSourceRef]);
 
+  // Auto-focus input when panel opens (after emerge animation completes)
+  useEffect(() => {
+    if (isOpen && inputRef.current) {
+      // Delay to allow emerge animation (300ms) to complete + buffer
+      const focusTimeout = setTimeout(() => {
+        inputRef.current?.focus();
+      }, 400);
+      return () => clearTimeout(focusTimeout);
+    }
+  }, [isOpen]);
+
   // Scroll detection logic
   const SCROLL_THRESHOLD = 5; // pixels from bottom to consider "at bottom"
   
@@ -438,6 +464,37 @@ export const WordAskAISidePanel: React.FC<WordAskAISidePanelProps> = ({
   // Built-in prompts
   const builtInPrompts = ['Explain more', 'Give examples', 'How to use?'];
 
+  // More prompt options for the 3-dot popover
+  const morePromptOptions = [
+    { icon: BookOpen, label: 'Etymology', question: `What is the etymology and origin of the word '${word}'? Trace its roots, original language, and how its meaning has evolved.` },
+    { icon: Lightbulb, label: 'Memory trick (Mnemonic)', question: `Create a creative and memorable memory trick (mnemonic) to help remember the meaning and usage of the word '${word}'.` },
+    { icon: HelpCircle, label: 'Quiz me on this word', question: `Create 2-3 multiple choice questions to quiz me on the word '${word}'. Include correct answers with brief explanations.` },
+    { icon: AlertTriangle, label: 'Common mistakes', question: `What are the most common mistakes people make when using the word '${word}'? Show how it is often misused and the correct usage.` },
+    { icon: PenLine, label: 'Better alternative (formal)', question: `Suggest a more formal or professional alternative to the word '${word}' and explain when to use it.` },
+    { icon: MessageSquare, label: 'Better alternative (casual)', question: `Suggest a more casual or conversational alternative to the word '${word}' and explain when it fits better.` },
+    { icon: GraduationCap, label: 'Better alternative (academic)', question: `Suggest a more academic or scholarly alternative to the word '${word}' for research papers and explain its precise usage.` },
+  ];
+
+  const handleMorePromptsMouseEnter = useCallback(() => {
+    if (morePromptsTimeoutRef.current) {
+      clearTimeout(morePromptsTimeoutRef.current);
+      morePromptsTimeoutRef.current = null;
+    }
+    setShowMorePromptsPopover(true);
+  }, []);
+
+  const handleMorePromptsMouseLeave = useCallback(() => {
+    morePromptsTimeoutRef.current = setTimeout(() => {
+      setShowMorePromptsPopover(false);
+    }, 300);
+  }, []);
+
+  const handleMorePromptClick = useCallback((question: string) => {
+    if (isRequesting) return;
+    setShowMorePromptsPopover(false);
+    onSendMessage(question);
+  }, [isRequesting, onSendMessage]);
+
   // Class names
   const sidePanelClass = getClassName(
     `wordAskAISidePanel ${isOpen ? 'open' : ''} ${isVerticallyExpanded ? 'verticallyExpanded' : ''}`,
@@ -460,6 +517,11 @@ export const WordAskAISidePanel: React.FC<WordAskAISidePanelProps> = ({
   const builtInPromptsContainerClass = getClassName('builtInPromptsContainer', styles.builtInPromptsContainer);
   const promptsWrapperClass = getClassName('promptsWrapper', styles.promptsWrapper);
   const promptButtonClass = getClassName('promptButton', styles.promptButton);
+  const morePromptsWrapperClass = getClassName('morePromptsWrapper', styles.morePromptsWrapper);
+  const morePromptsDotButtonClass = getClassName('morePromptsDotButton', styles.morePromptsDotButton);
+  const morePromptsPopoverClass = getClassName('morePromptsPopover', styles.morePromptsPopover);
+  const morePromptsOptionClass = getClassName('morePromptsOption', styles.morePromptsOption);
+  const morePromptsSeparatorClass = getClassName('morePromptsSeparator', styles.morePromptsSeparator);
   const suggestedQuestionsClass = getClassName('suggestedQuestions', styles.suggestedQuestions);
   const questionItemClass = getClassName('questionItem', styles.questionItem);
   const questionIconClass = getClassName('questionIcon', styles.questionIcon);
@@ -566,6 +628,39 @@ export const WordAskAISidePanel: React.FC<WordAskAISidePanelProps> = ({
         {/* Built-in Prompts - Always visible */}
         <div className={builtInPromptsContainerClass}>
           <span className={promptsWrapperClass}>
+            {/* 3-dot more prompts button */}
+            <div
+              className={morePromptsWrapperClass}
+              onMouseEnter={handleMorePromptsMouseEnter}
+              onMouseLeave={handleMorePromptsMouseLeave}
+            >
+              <button
+                className={morePromptsDotButtonClass}
+                disabled={isRequesting}
+                aria-label="More prompt options"
+              >
+                <MoreVertical size={16} />
+              </button>
+              {/* Popover with more prompt options */}
+              {showMorePromptsPopover && (
+                <div className={morePromptsPopoverClass}>
+                  {morePromptOptions.map((option, index) => (
+                    <React.Fragment key={index}>
+                      {/* Separator before "Better alternative" group (index 4) */}
+                      {index === 4 && <div className={morePromptsSeparatorClass} />}
+                      <button
+                        className={morePromptsOptionClass}
+                        onClick={() => handleMorePromptClick(option.question)}
+                        disabled={isRequesting}
+                      >
+                        <option.icon size={14} />
+                        <span>{option.label}</span>
+                      </button>
+                    </React.Fragment>
+                  ))}
+                </div>
+              )}
+            </div>
             {builtInPrompts.map((prompt, index) => (
               <button
                 key={index}
@@ -582,6 +677,7 @@ export const WordAskAISidePanel: React.FC<WordAskAISidePanelProps> = ({
         {/* Input Container */}
         <div className={inputContainerClass}>
           <input
+            ref={inputRef}
             type="text"
             className={inputClass}
             placeholder="Ask a question..."

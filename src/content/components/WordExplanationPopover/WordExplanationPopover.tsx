@@ -1020,51 +1020,54 @@ export const WordExplanationPopover: React.FC<WordExplanationPopoverProps> = ({
       {/* Utility Actions */}
       <div className={getClassName('utilityActions')}>
         {activeTab === 'contextual' ? (
-          // Only show utility buttons if there's content
-          content ? (
-            <>
-              {isLoadingExamples ? (
-                <Spinner size="md" useShadowDom={useShadowDom} />
-              ) : shouldAllowFetchMoreExamples ? (
-                <div className={getClassName('utilityButtonWrapper')}>
-                  <button 
-                    ref={moreExamplesButtonRef}
-                    className={getClassName('utilityButton')}
-                    onClick={handleGetMoreExamples}
-                    aria-label="Get more examples"
-                  >
-                    <Lightbulb size={20} strokeWidth={2.5} />
-                  </button>
-                  {utilityButtonsMounted && moreExamplesButtonRef.current && (
-                    <OnHoverMessage
-                      message="Get more examples"
-                      targetRef={moreExamplesButtonRef}
-                      position="bottom"
-                      offset={8}
-                    />
-                  )}
-                </div>
-              ) : null}
-              <div className={getClassName('utilityButtonWrapper')}>
-                <button 
-                  ref={askAIButtonRef}
-                  className={getClassName('utilityButton')} 
-                  onClick={handleAskAI}
-                  aria-label="Ask AI"
-                >
-                  <MessageCircle size={20} strokeWidth={2.5} />
-                </button>
-                {utilityButtonsMounted && askAIButtonRef.current && (
-                  <OnHoverMessage
-                    message="Ask AI"
-                    targetRef={askAIButtonRef}
-                    position="bottom"
-                    offset={8}
-                  />
-                )}
-              </div>
-            </>
-          ) : null
+          <>
+            {/* Show utility buttons when there's content */}
+            {content && (
+              <>
+                {isLoadingExamples ? (
+                  <Spinner size="md" useShadowDom={useShadowDom} />
+                ) : shouldAllowFetchMoreExamples ? (
+                  <div className={getClassName('utilityButtonWrapper')}>
+                    <button 
+                      ref={moreExamplesButtonRef}
+                      className={getClassName('utilityButton')}
+                      onClick={handleGetMoreExamples}
+                      aria-label="Get more examples"
+                    >
+                      <Lightbulb size={20} strokeWidth={2.5} />
+                    </button>
+                    {utilityButtonsMounted && moreExamplesButtonRef.current && (
+                      <OnHoverMessage
+                        message="Get more examples"
+                        targetRef={moreExamplesButtonRef}
+                        position="bottom"
+                        offset={8}
+                      />
+                    )}
+                  </div>
+                ) : null}
+              </>
+            )}
+            {/* Ask AI button - always visible in contextual tab */}
+            <div className={getClassName('utilityButtonWrapper')}>
+              <button 
+                ref={askAIButtonRef}
+                className={getClassName('utilityButton')} 
+                onClick={handleAskAI}
+                aria-label="Ask AI"
+              >
+                <MessageCircle size={20} strokeWidth={2.5} />
+              </button>
+              {utilityButtonsMounted && askAIButtonRef.current && (
+                <OnHoverMessage
+                  message="Ask AI"
+                  targetRef={askAIButtonRef}
+                  position="bottom"
+                  offset={8}
+                />
+              )}
+            </div>
+          </>
         ) : (
           <>
             {synonyms.length === 0 && (
@@ -1142,6 +1145,25 @@ export const WordExplanationPopover: React.FC<WordExplanationPopoverProps> = ({
                 )}
               </div>
             )}
+            {/* Ask AI button - also visible in vocabulary tab */}
+            <div className={getClassName('utilityButtonWrapper')}>
+              <button 
+                ref={askAIButtonRef}
+                className={getClassName('utilityButton')} 
+                onClick={handleAskAI}
+                aria-label="Ask AI"
+              >
+                <MessageCircle size={20} strokeWidth={2.5} />
+              </button>
+              {utilityButtonsMounted && askAIButtonRef.current && (
+                <OnHoverMessage
+                  message="Ask AI"
+                  targetRef={askAIButtonRef}
+                  position="bottom"
+                  offset={8}
+                />
+              )}
+            </div>
           </>
         )}
       </div>
