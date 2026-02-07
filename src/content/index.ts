@@ -63,7 +63,7 @@ import { getCurrentTheme } from '../constants/theme';
 import { SummariseService } from '../api-services/SummariseService';
 import { SimplifyService } from '../api-services/SimplifyService';
 import { SimplifyImageService } from '../api-services/SimplifyImageService';
-import { TranslateService, getLanguageCode, TranslateTextItem } from '../api-services/TranslateService';
+import { getLanguageCode, TranslateTextItem, translateWithFallback } from '../api-services/TranslateService';
 import { AskService } from '../api-services/AskService';
 import { AskImageService } from '../api-services/AskImageService';
 import { ApiErrorHandler } from '../api-services/ApiErrorHandler';
@@ -3603,8 +3603,8 @@ async function handleWordTranslateClick(selectedText: string): Promise<void> {
     store.set(wordExplanationsAtom, atomsMap);
     store.set(activeWordIdAtom, wordId);
     
-    // Call translate API
-    await TranslateService.translate(
+    // Call translate API (Chrome Translator API with backend fallback)
+    await translateWithFallback(
       {
         targetLangugeCode: targetLanguageCode,
         texts: [{ id: '1', text: selectedText }],
@@ -3852,8 +3852,8 @@ async function handleTextTranslateClick(selectedText: string): Promise<void> {
     // Track first progress event (similar to isFirstChunk in text explanation)
     let isFirstProgress = true;
     
-    // Call translate API
-    await TranslateService.translate(
+    // Call translate API (Chrome Translator API with backend fallback)
+    await translateWithFallback(
       {
         targetLangugeCode: targetLanguageCode,
         texts: [{ id: '1', text: selectedText }],
@@ -5238,13 +5238,13 @@ async function handleTranslateWord(wordId: string, _languageCode?: string): Prom
   store.set(wordExplanationsAtom, newMap);
   updateWordExplanationPopover();
 
-  // Call API with streaming
+  // Call API with streaming (Chrome Translator API with backend fallback)
   const abortController = new AbortController();
   let streamedTranslation = '';
 
-  await TranslateService.translate(
+  await translateWithFallback(
     {
-      targetLangugeCode: targetLanguageCode, // Note: API uses "Languge" (typo)
+      targetLangugeCode: targetLanguageCode,
       texts: [{ id: '1', text: wordAtomState.word }],
     },
     {
@@ -6702,7 +6702,7 @@ function updateTextExplanationPanel(): void {
           text: selectedText
         };
 
-        await TranslateService.translate(
+        await translateWithFallback(
           {
             targetLangugeCode: languageCode,
             texts: [textItem],
@@ -10447,7 +10447,7 @@ async function handleFolderModalSaveForLink(folderId: string | null, name?: stri
         }
         
         showToast('Link saved successfully!', 'success');
-        showBookmarkToast('link', '/user/saved-links');
+        showBookmarkToast('link', '/user/dashboard/bookmark');
         
         // Update bookmark icon state based on source
         if (folderModalMode === 'link') {
@@ -10611,7 +10611,7 @@ async function handleFolderModalSaveForImage(folderId: string | null): Promise<v
         }
         
         showToast('Image saved successfully!', 'success');
-        showBookmarkToast('image', '/user/saved-images');
+        showBookmarkToast('image', '/user/dashboard/bookmark');
         
         closeFolderListModal();
       },
@@ -10733,7 +10733,7 @@ async function handleFolderModalSaveForWord(folderId: string | null): Promise<vo
         }
         
         showToast('Word saved successfully!', 'success');
-        showBookmarkToast('word', '/user/saved-words');
+        showBookmarkToast('word', '/user/dashboard/bookmark');
         
         closeFolderListModal();
       },
