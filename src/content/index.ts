@@ -21,6 +21,7 @@ import { WordAskAISidePanel } from './components/WordAskAISidePanel';
 import { FolderListModal } from './components/FolderListModal';
 import { SavedParagraphIcon } from './components/SavedParagraphIcon';
 import { WelcomeModal } from './components/WelcomeModal/WelcomeModal';
+import { ReviewPromptModal } from './components/ReviewPromptModal/ReviewPromptModal';
 import { BookmarkSavedToast } from './components/BookmarkSavedToast';
 import { Spinner } from './components/ui/Spinner';
 import bookmarkSavedToastStyles from './styles/bookmarkSavedToast.shadow.css?inline';
@@ -51,6 +52,7 @@ import wordAskAISidePanelStyles from './styles/wordAskAISidePanel.shadow.css?inl
 import folderListModalStyles from './styles/folderListModal.shadow.css?inline';
 import savedParagraphIconStyles from './styles/savedParagraphIcon.shadow.css?inline';
 import welcomeModalStyles from './styles/welcomeModal.shadow.css?inline';
+import reviewPromptModalStyles from './styles/reviewPromptModal.shadow.css?inline';
 import baseSidePanelStyles from './styles/baseSidePanel.shadow.css?inline';
 import spinnerStyles from './styles/spinner.shadow.css?inline';
 
@@ -83,6 +85,7 @@ import type { FolderWithSubFoldersResponse } from '../api-services/dto/FolderDTO
 import { extractAndStorePageContent, getStoredPageContent } from './utils/pageContentExtractor';
 import { addTextUnderline, removeTextUnderline, pulseTextBackground, changeUnderlineColor, type UnderlineState } from './utils/textSelectionUnderline';
 import { PageTranslationManager } from './utils/pageTranslationManager';
+import { incrementApiCounterAndShouldShowReview } from './utils/reviewPromptTracker';
 import {
   summariseStateAtom,
   streamingTextAtom,
@@ -141,6 +144,7 @@ const BOOKMARK_TOAST_HOST_ID = 'xplaino-bookmark-toast-host';
 const WARNING_TOAST_HOST_ID = 'xplaino-warning-toast-host';
 const FOLDER_LIST_MODAL_HOST_ID = 'xplaino-folder-list-modal-host';
 const WELCOME_MODAL_HOST_ID = 'xplaino-welcome-modal-host';
+const REVIEW_PROMPT_MODAL_HOST_ID = 'xplaino-review-prompt-modal-host';
 const YOUTUBE_ASK_AI_BUTTON_HOST_ID = 'xplaino-youtube-ask-ai-button-host';
 
 /**
@@ -174,10 +178,12 @@ let wordAskAISidePanelRoot: ReactDOM.Root | null = null;
 let wordAskAICloseHandler: (() => void) | null = null;
 let toastRoot: ReactDOM.Root | null = null;
 let welcomeModalRoot: ReactDOM.Root | null = null;
+let reviewPromptModalRoot: ReactDOM.Root | null = null;
 
 // Modal state
 let modalVisible = false;
 let welcomeModalVisible = false;
+let reviewPromptModalVisible = false;
 
 // Shared state for side panel
 let sidePanelOpen = false;
@@ -669,6 +675,9 @@ async function handleSummariseClick(): Promise<void> {
     // Get language code from user settings
     const nativeLanguage = await ChromeStorage.getUserSettingNativeLanguage();
     const languageCode = nativeLanguage ? (getLanguageCode(nativeLanguage) || undefined) : undefined;
+
+    // Increment API counter for review prompt tracking
+    incrementApiCounterAndCheckReview();
 
     // Call summarise API
     await SummariseService.summarise(
@@ -1531,6 +1540,9 @@ async function handleExplainClick(
   const languageCode = nativeLanguage ? (getLanguageCode(nativeLanguage) || undefined) : undefined;
 
   try {
+    // Increment API counter for review prompt tracking
+    incrementApiCounterAndCheckReview();
+
     // Call v2/simplify API
     await SimplifyService.simplify(
       [
@@ -1891,6 +1903,9 @@ async function handleWordExplain(
     // Get language code from user settings
     const nativeLanguage = await ChromeStorage.getUserSettingNativeLanguage();
     const languageCode = nativeLanguage ? (getLanguageCode(nativeLanguage) || undefined) : undefined;
+
+    // Increment API counter for review prompt tracking
+    incrementApiCounterAndCheckReview();
 
     // Call words_explanation_v2 API
     await WordsExplanationV2Service.explainWord(
@@ -3084,6 +3099,9 @@ async function handleTextAskAIAction(
     const nativeLanguage = await ChromeStorage.getUserSettingNativeLanguage();
     const languageCode = nativeLanguage ? (getLanguageCode(nativeLanguage) || undefined) : undefined;
 
+    // Increment API counter for review prompt tracking
+    incrementApiCounterAndCheckReview();
+
     // Call AskService directly - panel opens on first chunk
     await AskService.ask(
       {
@@ -3603,6 +3621,9 @@ async function handleWordTranslateClick(selectedText: string): Promise<void> {
     store.set(wordExplanationsAtom, atomsMap);
     store.set(activeWordIdAtom, wordId);
     
+    // Increment API counter for review prompt tracking
+    incrementApiCounterAndCheckReview();
+
     // Call translate API (Chrome Translator API with backend fallback)
     await translateWithFallback(
       {
@@ -3852,6 +3873,9 @@ async function handleTextTranslateClick(selectedText: string): Promise<void> {
     // Track first progress event (similar to isFirstChunk in text explanation)
     let isFirstProgress = true;
     
+    // Increment API counter for review prompt tracking
+    incrementApiCounterAndCheckReview();
+
     // Call translate API (Chrome Translator API with backend fallback)
     await translateWithFallback(
       {
@@ -4790,6 +4814,9 @@ async function handleGetContextualMeaning(wordId: string): Promise<void> {
   const nativeLanguageForWord = await ChromeStorage.getUserSettingNativeLanguage();
   const languageCodeForWord = nativeLanguageForWord ? (getLanguageCode(nativeLanguageForWord) || undefined) : undefined;
 
+  // Increment API counter for review prompt tracking
+  incrementApiCounterAndCheckReview();
+
   // Call words_explanation_v2 API
   await WordsExplanationV2Service.explainWord(
     wordAtomState.word,
@@ -5238,6 +5265,9 @@ async function handleTranslateWord(wordId: string, _languageCode?: string): Prom
   store.set(wordExplanationsAtom, newMap);
   updateWordExplanationPopover();
 
+  // Increment API counter for review prompt tracking
+  incrementApiCounterAndCheckReview();
+
   // Call API with streaming (Chrome Translator API with backend fallback)
   const abortController = new AbortController();
   let streamedTranslation = '';
@@ -5588,6 +5618,9 @@ async function handleAskAISendMessage(wordId: string, question: string): Promise
   // Get language code from user settings
   const nativeLanguageForAsk = await ChromeStorage.getUserSettingNativeLanguage();
   const languageCodeForAsk = nativeLanguageForAsk ? (getLanguageCode(nativeLanguageForAsk) || undefined) : undefined;
+
+  // Increment API counter for review prompt tracking
+  incrementApiCounterAndCheckReview();
 
   try {
     await WordAskService.ask(
@@ -6134,6 +6167,9 @@ function updateTextExplanationPanel(): void {
       const nativeLanguageForTextAsk = await ChromeStorage.getUserSettingNativeLanguage();
       const languageCodeForTextAsk = nativeLanguageForTextAsk ? (getLanguageCode(nativeLanguageForTextAsk) || undefined) : undefined;
       
+      // Increment API counter for review prompt tracking
+      incrementApiCounterAndCheckReview();
+
       try {
         await AskService.ask(
           {
@@ -6322,6 +6358,9 @@ function updateTextExplanationPanel(): void {
       const nativeLanguageForSimplifyMore = await ChromeStorage.getUserSettingNativeLanguage();
       const languageCodeForSimplifyMore = nativeLanguageForSimplifyMore ? (getLanguageCode(nativeLanguageForSimplifyMore) || undefined) : undefined;
       
+      // Increment API counter for review prompt tracking
+      incrementApiCounterAndCheckReview();
+
       try {
         await SimplifyService.simplify(
           [
@@ -6502,6 +6541,9 @@ function updateTextExplanationPanel(): void {
       const nativeLanguageForFollowUp = await ChromeStorage.getUserSettingNativeLanguage();
       const languageCodeForFollowUp = nativeLanguageForFollowUp ? (getLanguageCode(nativeLanguageForFollowUp) || undefined) : undefined;
       
+      // Increment API counter for review prompt tracking
+      incrementApiCounterAndCheckReview();
+
       try {
         await AskService.ask(
           {
@@ -6695,6 +6737,9 @@ function updateTextExplanationPanel(): void {
       // Update panel to show loading state
       updateTextExplanationPanel();
       
+      // Increment API counter for review prompt tracking
+      incrementApiCounterAndCheckReview();
+
       try {
         // Generate unique ID for the translation request
         const textItem: TranslateTextItem = {
@@ -7695,6 +7740,9 @@ async function handleImageIconClick(imageElement: HTMLImageElement): Promise<voi
   const nativeLanguage = await ChromeStorage.getUserSettingNativeLanguage();
   const languageCode = nativeLanguage ? (getLanguageCode(nativeLanguage) || undefined) : undefined;
   
+  // Increment API counter for review prompt tracking
+  incrementApiCounterAndCheckReview();
+
   // Call simplify_image_v2 API
   try {
     await SimplifyImageService.simplify(
@@ -7883,6 +7931,9 @@ async function handleImageAsk(explanationId: string, question: string): Promise<
   const nativeLanguage = await ChromeStorage.getUserSettingNativeLanguage();
   const languageCode = nativeLanguage ? (getLanguageCode(nativeLanguage) || undefined) : undefined;
   
+  // Increment API counter for review prompt tracking
+  incrementApiCounterAndCheckReview();
+
   try {
     await AskImageService.ask(
       explanation.imageFile,
@@ -8023,6 +8074,9 @@ async function handleImageSimplifyMore(explanationId: string): Promise<void> {
   const nativeLanguage = await ChromeStorage.getUserSettingNativeLanguage();
   const languageCode = nativeLanguage ? (getLanguageCode(nativeLanguage) || undefined) : undefined;
   
+  // Increment API counter for review prompt tracking
+  incrementApiCounterAndCheckReview();
+
   try {
     await SimplifyImageService.simplify(
       explanation.imageFile,
@@ -11398,6 +11452,108 @@ async function handleWelcomeModalDontShowAgain(): Promise<void> {
 }
 
 // =============================================================================
+// REVIEW PROMPT MODAL INJECTION
+// =============================================================================
+
+/**
+ * Inject Review Prompt Modal into the page with Shadow DOM
+ */
+async function injectReviewPromptModal(): Promise<void> {
+  // Check if already injected
+  if (shadowHostExists(REVIEW_PROMPT_MODAL_HOST_ID)) {
+    console.log('[Content Script] Review Prompt Modal already injected');
+    updateReviewPromptModal();
+    return;
+  }
+
+  // Create Shadow DOM host
+  const { host, shadow, mountPoint } = createShadowHost({
+    id: REVIEW_PROMPT_MODAL_HOST_ID,
+    zIndex: 2147483647, // Highest z-index for modal
+  });
+
+  // Inject color CSS variables first - get theme-aware variables
+  const colorVariables = await getAllColorVariables();
+  injectStyles(shadow, colorVariables, true);
+
+  // Inject component styles
+  injectStyles(shadow, reviewPromptModalStyles);
+
+  // Append to document
+  document.documentElement.appendChild(host);
+
+  // Render React component
+  reviewPromptModalRoot = ReactDOM.createRoot(mountPoint);
+  updateReviewPromptModal();
+
+  console.log('[Content Script] Review Prompt Modal injected successfully');
+}
+
+/**
+ * Update review prompt modal visibility based on state
+ */
+function updateReviewPromptModal(): void {
+  if (!reviewPromptModalRoot) return;
+
+  reviewPromptModalRoot.render(
+    React.createElement(ReviewPromptModal, {
+      visible: reviewPromptModalVisible,
+      onReviewClick: handleReviewClick,
+      onMaybeLater: handleReviewMaybeLater,
+    })
+  );
+}
+
+/**
+ * Remove Review Prompt Modal from the page
+ */
+function removeReviewPromptModal(): void {
+  removeShadowHost(REVIEW_PROMPT_MODAL_HOST_ID, reviewPromptModalRoot);
+  reviewPromptModalRoot = null;
+  console.log('[Content Script] Review Prompt Modal removed');
+}
+
+/**
+ * Handle "Write a Review" button click
+ */
+async function handleReviewClick(): Promise<void> {
+  await ChromeStorage.setHasUserReviewSubmissionAttempted(true);
+  reviewPromptModalVisible = false;
+  updateReviewPromptModal();
+}
+
+/**
+ * Handle "Maybe Later" button click
+ */
+function handleReviewMaybeLater(): void {
+  reviewPromptModalVisible = false;
+  updateReviewPromptModal();
+}
+
+/**
+ * Increment the API counter and check whether the review prompt modal should be shown.
+ *
+ * Trigger rules:
+ *  - First trigger at counter == 20
+ *  - Then every 30 calls after that (50, 80, 110, …)
+ *  - Only when has_user_review_submission_attempted === false
+ */
+async function incrementApiCounterAndCheckReview(): Promise<void> {
+  try {
+    const shouldShow = await incrementApiCounterAndShouldShowReview();
+
+    if (shouldShow) {
+      console.log('[Content Script] Showing review prompt modal');
+      reviewPromptModalVisible = true;
+      await injectReviewPromptModal();
+    }
+  } catch (error) {
+    // Silently fail — review prompt is non-critical
+    console.warn('[Content Script] Error in incrementApiCounterAndCheckReview:', error);
+  }
+}
+
+// =============================================================================
 // YOUTUBE WATCH PAGE INITIALIZATION
 // =============================================================================
 
@@ -11528,6 +11684,7 @@ async function initContentScript(): Promise<void> {
   // This also ensures extension settings exist with default value
   await UserSettingsService.syncUserAccountSettings();
   await ChromeStorage.ensureUserExtensionSettings();
+  await ChromeStorage.ensureReviewPromptFields();
 
   // Sync subscription status from backend API (after user settings are available)
   // This requires userId from user account settings, so must come after settings sync
@@ -11565,6 +11722,7 @@ async function initContentScript(): Promise<void> {
     teardownImageHoverDetection();
     removeToast();
     removeWelcomeModal();
+    removeReviewPromptModal();
     
     // For watch pages, inject the Ask AI button
     if (isYouTubeWatchPage()) {
@@ -11637,6 +11795,7 @@ async function initContentScript(): Promise<void> {
     teardownImageHoverDetection();
     removeToast();
     removeWelcomeModal();
+    removeReviewPromptModal();
     removeYouTubeAskAIButton();
     removeUserSelectOverride();
   }
@@ -11644,6 +11803,45 @@ async function initContentScript(): Promise<void> {
 
 // Setup global auth listener (runs once at script initialization)
 setupGlobalAuthListener();
+
+// =============================================================================
+// KEYBOARD SHORTCUTS
+// =============================================================================
+
+/**
+ * Setup global keyboard shortcuts:
+ * - Ctrl/Cmd + M → Summarise page
+ * - Ctrl/Cmd + K → Translate page
+ */
+function setupKeyboardShortcuts(): void {
+  document.addEventListener('keydown', (e: KeyboardEvent) => {
+    const modifier = e.metaKey || e.ctrlKey;
+    if (!modifier) return;
+
+    // Ignore if user is typing in an input/textarea/contenteditable
+    const target = e.target as HTMLElement;
+    if (
+      target.tagName === 'INPUT' ||
+      target.tagName === 'TEXTAREA' ||
+      target.isContentEditable
+    ) {
+      return;
+    }
+
+    if (e.key === 'm' || e.key === 'M') {
+      e.preventDefault();
+      e.stopPropagation();
+      handleSummariseClick();
+    } else if (e.key === 'k' || e.key === 'K') {
+      e.preventDefault();
+      e.stopPropagation();
+      handleTranslateClick();
+    }
+  });
+}
+
+// Setup keyboard shortcuts (runs once at script initialization)
+setupKeyboardShortcuts();
 
 // =============================================================================
 // SAVED PARAGRAPH ICONS INJECTION
