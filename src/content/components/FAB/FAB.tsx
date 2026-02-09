@@ -1,5 +1,5 @@
 // src/content/components/FAB/FAB.tsx
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { Loader2 } from 'lucide-react';
 import { ActionButton } from './ActionButton';
 import { FABDisablePopover } from './FABDisablePopover';
@@ -78,6 +78,11 @@ export const FAB: React.FC<FABProps> = ({
   const isHoveringRef = useRef(false);
   const isDisablingRef = useRef(false);
   const disableButtonClickedRef = useRef(false); // Track if disable button was just clicked
+
+  // Detect Mac vs Windows/Linux for keyboard shortcut labels
+  const isMac = useMemo(() => /Mac|iPod|iPhone|iPad/.test(navigator.platform), []);
+  const summariseShortcut = isMac ? '⌘M' : 'Ctrl+M';
+  const translateShortcut = isMac ? '⌘K' : 'Ctrl+K';
 
   // Get class names based on context
   const getClassName = useCallback((shadowClass: string, moduleClass: string) => {
@@ -372,6 +377,7 @@ export const FAB: React.FC<FABProps> = ({
         <ActionButton
           icon="summarise"
           tooltip={hasSummary ? 'View summary' : 'Summarise page'}
+          shortcut={summariseShortcut}
           onClick={handleSummarise}
           className={actionButtonClass}
           isLoading={isSummarising}
@@ -384,6 +390,7 @@ export const FAB: React.FC<FABProps> = ({
               translationState === 'translating' ? 'Stop Translation' :
               'Translation Controls'
             }
+            shortcut={translateShortcut}
             onClick={handleTranslate}
             className={`${actionButtonClass} ${translationState === 'translating' ? 'stopTranslating' : ''}`}
             disabled={false}

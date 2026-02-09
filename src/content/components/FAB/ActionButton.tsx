@@ -7,6 +7,8 @@ import { Spinner } from '../ui/Spinner';
 export interface ActionButtonProps {
   /** Tooltip text shown on hover */
   tooltip: string;
+  /** Optional keyboard shortcut text shown below the tooltip */
+  shortcut?: string;
   /** Click handler */
   onClick: () => void;
   /** Icon to display */
@@ -43,6 +45,7 @@ const iconMap = {
 
 export const ActionButton: React.FC<ActionButtonProps> = ({
   tooltip,
+  shortcut,
   onClick,
   icon,
   className = '',
@@ -88,6 +91,7 @@ export const ActionButton: React.FC<ActionButtonProps> = ({
       {!hideTooltip && (
         <OnHoverMessage
           message={tooltip}
+          shortcut={shortcut}
           targetRef={buttonRef}
           position="left"
           offset={10}

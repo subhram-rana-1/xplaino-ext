@@ -23,6 +23,22 @@
               transform 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
 }
 
+/* Tooltip with keyboard shortcut on the right */
+.onHoverMessage.hasShortcut {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  gap: 8px !important;
+  padding: 4px 12px !important;
+}
+
+.onHoverMessageShortcut {
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  opacity: 0.9 !important;
+  letter-spacing: 0.3px !important;
+}
+
 .onHoverMessage.visible {
   opacity: 1 !important;
   visibility: visible !important;
