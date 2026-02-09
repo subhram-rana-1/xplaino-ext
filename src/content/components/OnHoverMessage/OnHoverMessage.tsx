@@ -7,6 +7,8 @@ import { FAB_COLOR_VARIABLES } from '../../../constants/colors.css';
 export interface OnHoverMessageProps {
   /** The message text to display */
   message: string;
+  /** Optional keyboard shortcut text shown below the message */
+  shortcut?: string;
   /** Reference to the target element to show tooltip for */
   targetRef: React.RefObject<HTMLElement>;
   /** Position relative to target element */
@@ -19,6 +21,7 @@ export interface OnHoverMessageProps {
 
 export const OnHoverMessage: React.FC<OnHoverMessageProps> = ({
   message,
+  shortcut,
   targetRef,
   position = 'top',
   offset = 8,
@@ -176,12 +179,15 @@ export const OnHoverMessage: React.FC<OnHoverMessageProps> = ({
   const tooltipContent = (
     <div
       ref={tooltipRef}
-      className={`onHoverMessage ${isVisible ? 'visible' : ''} ${position} ${className}`}
+      className={`onHoverMessage ${isVisible ? 'visible' : ''} ${position} ${shortcut ? 'hasShortcut' : ''} ${className}`}
       style={tooltipStyle}
       role="tooltip"
       aria-live="polite"
     >
       {message}
+      {shortcut && (
+        <span className="onHoverMessageShortcut">{shortcut}</span>
+      )}
     </div>
   );
 

@@ -11824,7 +11824,10 @@ setupGlobalAuthListener();
  * - Ctrl/Cmd + K → Translate page
  */
 function setupKeyboardShortcuts(): void {
-  document.addEventListener('keydown', (e: KeyboardEvent) => {
+  // Register on window in the capture phase so our handler fires before
+  // any other extension's listener. Using stopImmediatePropagation()
+  // prevents other listeners on the same target from running.
+  window.addEventListener('keydown', (e: KeyboardEvent) => {
     const modifier = e.metaKey || e.ctrlKey;
     if (!modifier) return;
 
@@ -11841,13 +11844,15 @@ function setupKeyboardShortcuts(): void {
     if (e.key === 'm' || e.key === 'M') {
       e.preventDefault();
       e.stopPropagation();
+      e.stopImmediatePropagation();
       handleSummariseClick();
     } else if (e.key === 'k' || e.key === 'K') {
       e.preventDefault();
       e.stopPropagation();
+      e.stopImmediatePropagation();
       handleTranslateClick();
     }
-  });
+  }, true); // capture phase for highest priority
 }
 
 // Setup keyboard shortcuts (runs once at script initialization)
