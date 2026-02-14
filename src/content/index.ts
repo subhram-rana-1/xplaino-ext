@@ -11724,6 +11724,41 @@ function handleXplainoTextSearch(): void {
   }
 }
 
+/**
+ * Handle xplaino_image query parameter for auto-scroll to image
+ */
+function handleXplainoImageSearch(): void {
+  const urlParams = new URLSearchParams(window.location.search);
+  const searchImage = urlParams.get('xplaino_image');
+
+  if (searchImage) {
+    // Wait for DOM + images to load, then search
+    setTimeout(() => {
+      const images = document.querySelectorAll('img');
+      let found = false;
+
+      for (const img of images) {
+        const imgSrc = img.src || img.currentSrc;
+        if (imgSrc && (imgSrc === searchImage || decodeURIComponent(imgSrc) === decodeURIComponent(searchImage))) {
+          // Scroll the image into view
+          img.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+          // Trigger image hover to show the explanation icon
+          handleImageHover(img);
+
+          console.log(`[Content Script] Found and scrolled to image: "${searchImage}"`);
+          found = true;
+          break;
+        }
+      }
+
+      if (!found) {
+        console.log(`[Content Script] Image not found: "${searchImage}"`);
+      }
+    }, 500); // slightly longer delay than text to allow images to load
+  }
+}
+
 // =============================================================================
 // USER-SELECT OVERRIDE
 // =============================================================================
@@ -11811,6 +11846,9 @@ async function initContentScript(): Promise<void> {
   
   // Handle xplaino_text query parameter for auto-search
   handleXplainoTextSearch();
+
+  // Handle xplaino_image query parameter for auto-scroll to image
+  handleXplainoImageSearch();
   
   // Handle YouTube pages separately
   if (isYouTubePage()) {
@@ -12522,6 +12560,7 @@ if (isYouTubePage()) {
       lastUrl = window.location.href;
       initContentScript();
       handleXplainoTextSearch();
+      handleXplainoImageSearch();
     }
   });
   
@@ -12536,6 +12575,7 @@ if (isYouTubePage()) {
         lastUrl = window.location.href;
         initContentScript();
         handleXplainoTextSearch();
+        handleXplainoImageSearch();
       }
     }, 100);
   };
@@ -12547,6 +12587,7 @@ if (isYouTubePage()) {
         lastUrl = window.location.href;
         initContentScript();
         handleXplainoTextSearch();
+        handleXplainoImageSearch();
       }
     }, 100);
   };
@@ -12560,6 +12601,7 @@ if (isYouTubePage()) {
     setTimeout(() => {
       initContentScript();
       handleXplainoTextSearch();
+      handleXplainoImageSearch();
     }, 500);
   });
 }

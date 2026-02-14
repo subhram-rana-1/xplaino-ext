@@ -8,6 +8,9 @@ import styles from './FAB.module.css';
 import { ENV } from '@/config/env';
 import { useAtomValue } from 'jotai';
 import { currentThemeAtom, isPanelVerticallyExpandedAtom, activePanelWidthAtom } from '@/store/uiAtoms';
+import { textExplanationPanelOpenAtom } from '@/store/textExplanationAtoms';
+import { wordAskAISidePanelOpenAtom } from '@/store/wordExplanationAtoms';
+import { imageExplanationPanelOpenAtom } from '@/store/imageExplanationAtoms';
 
 export interface FABProps {
   /** Callback when Summarise is clicked */
@@ -96,10 +99,18 @@ export const FAB: React.FC<FABProps> = ({
   // Subscribe to theme changes
   const currentTheme = useAtomValue(currentThemeAtom);
 
+  // Read panel-open atoms so FAB reacts to ALL panels, not just the main one
+  const textPanelOpen = useAtomValue(textExplanationPanelOpenAtom);
+  const wordPanelOpen = useAtomValue(wordAskAISidePanelOpenAtom);
+  const imagePanelOpen = useAtomValue(imageExplanationPanelOpenAtom);
+
+  // isPanelOpen prop covers the main side panel; combine with atoms for others
+  const isAnyPanelOpen = isPanelOpen || textPanelOpen || wordPanelOpen || imagePanelOpen;
+
   // Read panel expansion state for FAB positioning
   const isPanelVerticallyExpanded = useAtomValue(isPanelVerticallyExpandedAtom);
   const activePanelWidth = useAtomValue(activePanelWidthAtom);
-  const isPanelMaximized = isPanelOpen && isPanelVerticallyExpanded;
+  const isPanelMaximized = isAnyPanelOpen && isPanelVerticallyExpanded;
 
   // Load icon URL based on theme
   useEffect(() => {
@@ -164,10 +175,10 @@ export const FAB: React.FC<FABProps> = ({
 
   // Hide actions immediately when any panel opens
   useEffect(() => {
-    if (isPanelOpen) {
+    if (isAnyPanelOpen) {
       setActionsVisible(false);
     }
-  }, [isPanelOpen]);
+  }, [isAnyPanelOpen]);
 
   // Hide actions immediately when page translation starts
   useEffect(() => {
@@ -358,8 +369,8 @@ export const FAB: React.FC<FABProps> = ({
 
   // Class names for Shadow DOM vs CSS Modules
   const fabParentClass = getClassName(
-    `fabParent${isPanelOpen ? ' panelOpen' : ''}${isPanelMaximized ? ' panelMaximized' : ''}`,
-    `${styles.fabParent}${isPanelOpen ? ` ${styles.panelOpen}` : ''}${isPanelMaximized ? ` ${styles.panelMaximized}` : ''}`
+    `fabParent${isAnyPanelOpen ? ' panelOpen' : ''}${isPanelMaximized ? ' panelMaximized' : ''}`,
+    `${styles.fabParent}${isAnyPanelOpen ? ` ${styles.panelOpen}` : ''}${isPanelMaximized ? ` ${styles.panelMaximized}` : ''}`
   );
   // Dynamic CSS variable for panel width when panel is vertically maximized
   const fabParentStyle: React.CSSProperties | undefined = isPanelMaximized
