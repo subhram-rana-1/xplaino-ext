@@ -85,7 +85,7 @@ export const FAB: React.FC<FABProps> = ({
   // Detect Mac vs Windows/Linux for keyboard shortcut labels
   const isMac = useMemo(() => /Mac|iPod|iPhone|iPad/.test(navigator.platform), []);
   const summariseShortcut = isMac ? '⌘M' : 'Ctrl+M';
-  const askAboutPageShortcut = isMac ? '⌘b' : 'Ctrl+b';
+  const askAboutPageShortcut = isMac ? '⌘B' : 'Ctrl+B';
   const translateShortcut = isMac ? '⌘K' : 'Ctrl+K';
 
   // Get class names based on context
@@ -99,10 +99,7 @@ export const FAB: React.FC<FABProps> = ({
   // Load icon URL based on theme
   useEffect(() => {
     if (useShadowDom) {
-      const iconName = currentTheme === 'dark' 
-        ? 'xplaino-turquoise-icon.ico' 
-        : 'xplaino-purple-icon.ico';
-      const url = chrome.runtime.getURL(`src/assets/icons/${iconName}`);
+      const url = chrome.runtime.getURL('src/assets/icons/xplaino-white-icon.ico');
       setIconUrl(url);
     } else {
       setIconUrl('');
@@ -367,7 +364,10 @@ export const FAB: React.FC<FABProps> = ({
     `${styles.actionsContainer} ${actionsVisible ? styles.visible : ''}`
   );
   const actionButtonClass = getClassName('actionButton', styles.actionButton);
-  const fabContainerClass = getClassName('fabContainer', styles.fabContainer);
+  const fabContainerClass = getClassName(
+    `fabContainer ${actionsVisible ? 'actionsVisible' : ''}`,
+    `${styles.fabContainer} ${actionsVisible ? styles.actionsVisible : ''}`
+  );
   const fabButtonClass = getClassName(
     `fabButton ${showPulse ? 'pulse' : ''} ${actionsVisible ? 'actionsVisible' : ''}`,
     `${styles.fabButton} ${showPulse ? styles.pulse : ''} ${actionsVisible ? styles.actionsVisible : ''}`
@@ -478,8 +478,8 @@ export const FAB: React.FC<FABProps> = ({
             src={iconUrl}
             alt="Xplaino"
             style={{ 
-              width: '27px', 
-              height: '27px',
+              width: '24px', 
+              height: '24px',
               objectFit: 'contain'
             }}
           />

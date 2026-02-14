@@ -50,22 +50,29 @@
   }
 }
 
-/* FAB container */
+/* FAB container - teal pill shape wrapping the circular button */
+/* Slides in from right; slides out to right when actions are visible */
 .fabContainer {
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
   flex-shrink: 0 !important;
+  background: var(--color-primary, #0d8070) !important;
+  opacity: 0.6 !important;
+  border-radius: 999px 0 0 999px !important;
+  padding: 3px 0 3px 3px !important;
+  transform: translateX(0) !important;
+  /* Delay slide-in so it waits for actions slide-out (0.3s) to finish */
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1) 0.3s !important;
 }
 
-/* Main FAB button */
+/* Main FAB button - transparent button inside teal pill */
 .fabButton {
-  width: 30px !important;
+  width: 34px !important;
   height: 30px !important;
-  border-radius: 15px 0 0 15px !important;
-  background: var(--color-bg-primary-theme, #FFFFFF) !important;
-  border: 1.5px solid var(--color-border-default-theme, #E2E8F0) !important;
-  border-right: none !important;
+  border-radius: 999px 0 0 999px !important;
+  background: transparent !important;
+  border: none !important;
   cursor: pointer !important;
   display: flex !important;
   align-items: center !important;
@@ -77,12 +84,12 @@
   position: relative !important;
 }
 
-.fabButton:hover,
-.fabButton.actionsVisible {
-  background: var(--color-bg-primary-theme, #FFFFFF) !important;
-  box-shadow: none !important;
-  opacity: 0 !important;
+/* Slide FAB container out to the right when actions are visible */
+.fabContainer.actionsVisible {
+  transform: translateX(100%) !important;
   pointer-events: none !important;
+  /* Slide out immediately, no delay */
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
 }
 
 .fabButton:active {
@@ -91,8 +98,8 @@
 
 .fabButton img,
 .fabButton svg {
-  width: 18px !important;
-  height: 18px !important;
+  width: 22px !important;
+  height: 22px !important;
   object-fit: contain !important;
   display: block !important;
   pointer-events: none !important;
@@ -100,7 +107,7 @@
 }
 
 /* Actions container - single vertical column, flush to right edge */
-/* Simple fade in/out animation */
+/* Slides in from right edge of screen, slides out to the right */
 .actionsContainer {
   position: absolute !important;
   right: 0 !important;
@@ -115,24 +122,27 @@
   border: 1.5px solid var(--color-primary) !important;
   border-right: none !important;
   padding: 4px !important;
-  opacity: 0 !important;
+  opacity: 1 !important;
   visibility: hidden !important;
+  pointer-events: none !important;
   white-space: nowrap !important;
-  transition: opacity 0.25s ease, visibility 0s ease 0.25s !important;
+  transform: translateX(100%) !important;
+  transition: visibility 0s ease 0.3s, transform 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
 }
 
 .actionsContainer.visible {
-  opacity: 1 !important;
   visibility: visible !important;
-  transition: opacity 0.25s ease, visibility 0s ease !important;
+  pointer-events: auto !important;
+  transform: translateX(0) !important;
+  transition: visibility 0s ease, transform 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
   box-shadow: 0 4px 20px var(--color-shadow-fab-group) !important;
 }
 
-/* Action button styles - right side flush (0 radius), left side rounded */
+/* Action button styles - rounded on both sides */
 .actionButton {
   width: var(--action-size) !important;
   height: var(--action-size) !important;
-  border-radius: 13px 0 0 13px !important;
+  border-radius: 13px !important;
   background: var(--color-bg-primary-theme) !important;
   border: 2.5px solid var(--color-primary-light) !important;
   cursor: pointer !important;
@@ -151,8 +161,11 @@
 .actionButton:hover {
   background: var(--color-bg-primary-theme) !important;
   border-color: var(--color-primary) !important;
-  transform: scale(1.1) !important;
   box-shadow: none !important;
+}
+
+.actionButton:hover svg {
+  transform: scale(1.1) !important;
 }
 
 .actionButton:active {
@@ -345,5 +358,5 @@
 }
 
 .fabButton.pulse {
-  animation: pulse 2s ease-in-out 3 !important;
+  animation: none !important;
 }
