@@ -135,6 +135,13 @@ export const FeatureDiscoveryTooltip: React.FC = () => {
     if (!shouldShowText && !shouldShowWord) return;
 
     const handleMouseMove = (e: MouseEvent) => {
+      // Don't show if there's an active text selection (user already selected text or word)
+      const selection = window.getSelection();
+      if (selection && selection.toString().trim().length > 0) {
+        setIsVisible(false);
+        return;
+      }
+
       if (isOverTextContent(e.target)) {
         setIsVisible(true);
         // Offset tooltip 12px right and 16px below cursor

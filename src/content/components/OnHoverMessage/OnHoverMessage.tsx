@@ -125,14 +125,19 @@ export const OnHoverMessage: React.FC<OnHoverMessageProps> = ({
     });
   }, [targetRef, position, offset]);
 
-  // Auto-show tooltip when forceShow is true
+  // Auto-show tooltip when forceShow is true, fade out when it turns false
   useEffect(() => {
     if (forceShow) {
-      setIsVisible(true);
-      // Small delay to ensure tooltip is rendered before calculating position
-      setTimeout(() => {
+      // Calculate position first while still invisible, then reveal.
+      // The element is in the DOM with opacity:0/visibility:hidden so
+      // getBoundingClientRect() returns correct dimensions.
+      requestAnimationFrame(() => {
         updatePosition();
-      }, 50);
+        setIsVisible(true);
+      });
+    } else {
+      // When forceShow turns off, trigger CSS fade-out transition
+      setIsVisible(false);
     }
   }, [forceShow, updatePosition]);
 
