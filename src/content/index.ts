@@ -66,7 +66,7 @@ import { getCurrentTheme } from '../constants/theme';
 import { SummariseService } from '../api-services/SummariseService';
 import { SimplifyService } from '../api-services/SimplifyService';
 import { SimplifyImageService } from '../api-services/SimplifyImageService';
-import { getLanguageCode, TranslateTextItem, translateWithFallback } from '../api-services/TranslateService';
+import { getLanguageCode, getLanguageName, TranslateTextItem, translateWithFallback } from '../api-services/TranslateService';
 import { AskService } from '../api-services/AskService';
 import { AskImageService } from '../api-services/AskImageService';
 import { ApiErrorHandler } from '../api-services/ApiErrorHandler';
@@ -410,6 +410,8 @@ function setupGlobalAuthListener(): void {
 const REPOSITION_ICONS_EVENT = 'xplaino-reposition-icons';
 
 let lastAppliedPanelWidth: number | null = null;
+/** Timeout ID for the 300ms margin cleanup; cancelled when a new panel width is applied to prevent flicker. */
+let clearMarginTimeoutId: ReturnType<typeof setTimeout> | null = null;
 
 /** Dispatch resize and custom event so all icon components update their position after layout change. */
 function dispatchRepositionIcons(): void {
@@ -425,6 +427,10 @@ function dispatchRepositionIcons(): void {
 function setPageMarginForPanel(panelWidth: number | null): void {
   const html = document.documentElement;
   if (panelWidth && panelWidth > 0) {
+    if (clearMarginTimeoutId != null) {
+      clearTimeout(clearMarginTimeoutId);
+      clearMarginTimeoutId = null;
+    }
     const value = `${panelWidth}px`;
     const isOpening = lastAppliedPanelWidth == null || lastAppliedPanelWidth === 0;
     if (isOpening) {
@@ -447,8 +453,13 @@ function setPageMarginForPanel(panelWidth: number | null): void {
       requestAnimationFrame(() => dispatchRepositionIcons());
     }
   } else {
+    if (clearMarginTimeoutId != null) {
+      clearTimeout(clearMarginTimeoutId);
+      clearMarginTimeoutId = null;
+    }
     html.style.setProperty('margin-right', '0px', 'important');
-    setTimeout(() => {
+    clearMarginTimeoutId = setTimeout(() => {
+      clearMarginTimeoutId = null;
       html.style.removeProperty('margin-right');
       html.style.removeProperty('overflow-x');
       html.style.removeProperty('transition');
@@ -488,6 +499,7 @@ function closeAllSidebars(except?: 'main' | 'text' | 'image' | 'wordAskAI'): voi
   // Close main side panel
   if (except !== 'main' && sidePanelOpen) {
     console.log('[Content Script] Closing main side panel');
+    mainPanelSlidingOut = false; // Ensure FAB uses correct position when closed via closeAllSidebars
     sidePanelOpen = false;
     updateSidePanel();
   }
@@ -6902,11 +6914,11 @@ function updateTextExplanationPanel(): void {
         return;
       }
       
-      // Check if translation already exists for this language
+      // Check if translation already exists for this language (compare by code; selectedLanguage is code)
       const currentState = store.get(textExplanationsAtom).get(explanationId);
       if (currentState) {
         const existingTranslation = currentState.translations.find(
-          t => t.language === selectedLanguage
+          (t) => getLanguageCode(t.language) === languageCode
         );
         if (existingTranslation) {
           console.log('[Content Script] Translation already exists for language:', selectedLanguage);
@@ -6942,10 +6954,10 @@ function updateTextExplanationPanel(): void {
             onProgress: (_index, translatedText) => {
               // For single text translation, update immediately as soon as translation arrives
               console.log('[Content Script] Translation received, updating UI immediately');
-              
+              const displayName = getLanguageName(languageCode) || languageCode;
               updateExplanationInMap(explanationId, (state) => {
                 state.translations.push({
-                  language: selectedLanguage,
+                  language: displayName,
                   translated_content: translatedText,
                 });
                 return state;
@@ -12436,9 +12448,10 @@ store.sub(showFeatureRequestModalAtom, () => {
   updateBackgroundBlur();
 });
 
-// Subscribe to panel-open atoms so page margin updates for side-by-side layout
+// Subscribe to panel-open atoms so page margin and FAB position update for side-by-side layout
 // Double-rAF ensures React has rendered and the panel component has mounted
 store.sub(textExplanationPanelOpenAtom, () => {
+  updateFAB(); // Ensure FAB position updates when text panel opens/closes
   updatePageMarginForPanels();
   requestAnimationFrame(() => {
     updatePageMarginForPanels();
@@ -12446,6 +12459,7 @@ store.sub(textExplanationPanelOpenAtom, () => {
   });
 });
 store.sub(wordAskAISidePanelOpenAtom, () => {
+  updateFAB(); // Ensure FAB position updates when word panel opens/closes
   updatePageMarginForPanels();
   requestAnimationFrame(() => {
     updatePageMarginForPanels();
@@ -12453,6 +12467,7 @@ store.sub(wordAskAISidePanelOpenAtom, () => {
   });
 });
 store.sub(imageExplanationPanelOpenAtom, () => {
+  updateFAB(); // Ensure FAB position updates when image panel opens/closes
   updatePageMarginForPanels();
   requestAnimationFrame(() => {
     updatePageMarginForPanels();

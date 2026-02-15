@@ -7,9 +7,10 @@ import {
   Mic, LayoutList, Table2, GitBranch, Brain,
   Mail, MessageCircle, Linkedin, Twitter, Presentation, PenLine,
 } from 'lucide-react';
-import { Dropdown, type DropdownOption } from '../SidePanel/Dropdown';
+import { Dropdown } from '../SidePanel/Dropdown';
 import { ChromeStorage } from '@/storage/chrome-local/ChromeStorage';
-import { getLanguageName } from '@/api-services/TranslateService';
+import { getLanguageCode } from '@/api-services/TranslateService';
+import { useLanguageOptions } from '@/hooks';
 import styles from './TextExplanationView.module.css';
 
 export interface TextExplanationViewProps {
@@ -153,102 +154,21 @@ export const TextExplanationView: React.FC<TextExplanationViewProps> = ({
     };
   }, []);
 
-  // Language options - same as SettingsView
-  const languageOptions: DropdownOption[] = [
-    { value: 'English', label: 'English' },
-    { value: 'Español', label: 'Español' },
-    { value: 'Français', label: 'Français' },
-    { value: 'Deutsch', label: 'Deutsch' },
-    { value: 'Italiano', label: 'Italiano' },
-    { value: 'Português', label: 'Português' },
-    { value: 'Русский', label: 'Русский' },
-    { value: '中文', label: '中文' },
-    { value: '日本語', label: '日本語' },
-    { value: '한국어', label: '한국어' },
-    { value: 'العربية', label: 'العربية' },
-    { value: 'हिन्दी', label: 'हिन्दी' },
-    { value: 'Nederlands', label: 'Nederlands' },
-    { value: 'Türkçe', label: 'Türkçe' },
-    { value: 'Polski', label: 'Polski' },
-    { value: 'Svenska', label: 'Svenska' },
-    { value: 'Norsk', label: 'Norsk' },
-    { value: 'Dansk', label: 'Dansk' },
-    { value: 'Suomi', label: 'Suomi' },
-    { value: 'Ελληνικά', label: 'Ελληνικά' },
-    { value: 'Čeština', label: 'Čeština' },
-    { value: 'Magyar', label: 'Magyar' },
-    { value: 'Română', label: 'Română' },
-    { value: 'Български', label: 'Български' },
-    { value: 'Hrvatski', label: 'Hrvatski' },
-    { value: 'Srpski', label: 'Srpski' },
-    { value: 'Slovenčina', label: 'Slovenčina' },
-    { value: 'Slovenščina', label: 'Slovenščina' },
-    { value: 'Українська', label: 'Українська' },
-    { value: 'עברית', label: 'עברית' },
-    { value: 'فارسی', label: 'فارسی' },
-    { value: 'اردو', label: 'اردو' },
-    { value: 'বাংলা', label: 'বাংলা' },
-    { value: 'தமிழ்', label: 'தமிழ்' },
-    { value: 'తెలుగు', label: 'తెలుగు' },
-    { value: 'मराठी', label: 'मराठी' },
-    { value: 'ગુજરાતી', label: 'ગુજરાતી' },
-    { value: 'ಕನ್ನಡ', label: 'ಕನ್ನಡ' },
-    { value: 'മലയാളം', label: 'മലയാളം' },
-    { value: 'ਪੰਜਾਬੀ', label: 'ਪੰਜਾਬੀ' },
-    { value: 'ଓଡ଼ିଆ', label: 'ଓଡ଼ିଆ' },
-    { value: 'नेपाली', label: 'नेपाली' },
-    { value: 'සිංහල', label: 'සිංහල' },
-    { value: 'ไทย', label: 'ไทย' },
-    { value: 'Tiếng Việt', label: 'Tiếng Việt' },
-    { value: 'Bahasa Indonesia', label: 'Bahasa Indonesia' },
-    { value: 'Bahasa Melayu', label: 'Bahasa Melayu' },
-    { value: 'Filipino', label: 'Filipino' },
-    { value: 'Tagalog', label: 'Tagalog' },
-    { value: 'မြန်မာ', label: 'မြန်မာ' },
-    { value: 'ភាសាខ្មែរ', label: 'ភាសាខ្មែរ' },
-    { value: 'Lao', label: 'Lao' },
-    { value: 'Монгол', label: 'Монгол' },
-    { value: 'ქართული', label: 'ქართული' },
-    { value: 'Հայերեն', label: 'Հայերեն' },
-    { value: 'Azərbaycan', label: 'Azərbaycan' },
-    { value: 'Қазақ', label: 'Қазақ' },
-    { value: 'Oʻzbek', label: 'Oʻzbek' },
-    { value: 'Türkmen', label: 'Türkmen' },
-    { value: 'Kyrgyz', label: 'Kyrgyz' },
-    { value: 'Afrikaans', label: 'Afrikaans' },
-    { value: 'Swahili', label: 'Swahili' },
-    { value: 'Zulu', label: 'Zulu' },
-    { value: 'Xhosa', label: 'Xhosa' },
-    { value: 'Amharic', label: 'Amharic' },
-    { value: 'Yoruba', label: 'Yoruba' },
-    { value: 'Igbo', label: 'Igbo' },
-    { value: 'Hausa', label: 'Hausa' },
-  ];
+  // Reusable language options (same as Settings): English (regional) labels from API
+  const { languageOptions } = useLanguageOptions({ includeNone: false });
 
-  // Load native language setting when view mode is translation
+  // Load native language setting when view mode is translation (dropdown value = language code)
   useEffect(() => {
     if (viewMode === 'translation') {
       const loadNativeLanguage = async () => {
         try {
           const lang = await ChromeStorage.getUserSettingNativeLanguage();
-          
-          // If native language is set and not "As per website", auto-select it
           if (lang && lang !== 'As per website' && lang.trim() !== '') {
-            // Check if lang is a 2-letter code (from backend API)
-            if (lang.length === 2 && lang === lang.toUpperCase()) {
-              // Convert code to language name (e.g., 'OR' -> 'ଓଡ଼ିଆ')
-              const languageName = getLanguageName(lang);
-              if (languageName) {
-                setSelectedLanguage(languageName);
-                console.log('[TextExplanationView] Converted language code to name:', lang, '->', languageName);
-              } else {
-                console.warn('[TextExplanationView] Could not find language name for code:', lang);
-                setSelectedLanguage(undefined);
-              }
-            } else {
-              // Already a language name, use as-is
-              setSelectedLanguage(lang);
-            }
+            // Storage may hold 2-letter code (from API) or legacy display name
+            const code = lang.length === 2 && lang === lang.toUpperCase()
+              ? lang
+              : getLanguageCode(lang);
+            setSelectedLanguage(code || undefined);
           } else {
             setSelectedLanguage(undefined);
           }
@@ -260,17 +180,16 @@ export const TextExplanationView: React.FC<TextExplanationViewProps> = ({
     }
   }, [viewMode]);
 
-  // Check if translate button should be enabled
-  // Button should be enabled if:
-  // 1. A language is selected
-  // 2. Translation for that language doesn't already exist
-  const translationExists = selectedLanguage 
-    ? translations.some(t => t.language === selectedLanguage)
+  // Check if translate button should be enabled (selectedLanguage is language code)
+  // Compare by code since translations[].language may be display name
+  const translationExists = selectedLanguage
+    ? translations.some((t) => getLanguageCode(t.language) === selectedLanguage)
     : false;
-  const isTranslateEnabled = selectedLanguage !== undefined && 
-                             selectedLanguage !== null && 
-                             selectedLanguage.trim() !== '' && 
-                             !translationExists;
+  const isTranslateEnabled =
+    selectedLanguage !== undefined &&
+    selectedLanguage !== null &&
+    selectedLanguage.trim() !== '' &&
+    !translationExists;
 
   const getClassName = useCallback((baseClass: string) => {
     if (useShadowDom) {
@@ -450,11 +369,12 @@ export const TextExplanationView: React.FC<TextExplanationViewProps> = ({
               <Dropdown
                 key={`translation-dropdown-${viewMode}`}
                 options={languageOptions}
-                value={selectedLanguage}
+                value={selectedLanguage ?? ''}
                 onChange={(value) => setSelectedLanguage(value)}
                 placeholder="Select language"
                 label="Choose target language"
                 useShadowDom={useShadowDom}
+                searchable
               />
             </div>
             <div className={getClassName('translateButtonWrapper')}>

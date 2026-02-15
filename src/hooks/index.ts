@@ -12,3 +12,10 @@ export type {
   EmergeAnimationState,
 } from './useEmergeAnimation';
 
+export { useLanguageOptions } from './useLanguageOptions';
+export type {
+  LanguageDropdownOption,
+  UseLanguageOptionsOptions,
+  UseLanguageOptionsResult,
+} from './useLanguageOptions';
+
