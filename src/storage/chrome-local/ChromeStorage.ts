@@ -56,7 +56,7 @@ export class ChromeStorage {
 
   /** Panel width min/max (px) - must match panel components. Max kept lower so panel doesn’t push page content too far left. */
   static readonly PANEL_WIDTH_MIN = 300;
-  static readonly PANEL_WIDTH_MAX = 650;
+  static readonly PANEL_WIDTH_MAX = 800;
 
   // ============================================
   // GENERIC METHODS

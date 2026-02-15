@@ -61,8 +61,12 @@
   width: 6px !important;
   height: 100% !important;
   cursor: ew-resize !important;
-  z-index: 10 !important;
+  z-index: 10000 !important;
   background: transparent !important;
+  pointer-events: auto !important;
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  touch-action: none !important;
 }
 
 .resizeHandle:hover {

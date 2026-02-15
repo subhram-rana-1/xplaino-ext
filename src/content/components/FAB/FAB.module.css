@@ -63,6 +63,18 @@
   right: var(--active-panel-width, 400px) !important;
 }
 
+/* Sync FAB with main panel slide-out: animate to right edge */
+.fabParent.mainPanelSlidingOut,
+.fabActionsWrapper.mainPanelSlidingOut {
+  right: 0 !important;
+}
+
+/* Sync FAB with main panel slide-in: start at right edge, then transition to panel edge */
+.fabParent.mainPanelSlidingIn,
+.fabActionsWrapper.mainPanelSlidingIn {
+  right: 0 !important;
+}
+
 .fabParent.slideOut {
   animation: slideOutToRight 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards !important;
 }
@@ -87,8 +99,8 @@
   flex-shrink: 0 !important;
   background: var(--color-primary, #0d8070) !important;
   opacity: 0.6 !important;
-  border-radius: 999px 0 0 999px !important;
-  padding: 3px 0 3px 3px !important;
+  border-radius: 15px 0 0 15px !important;
+  padding: 2px 0 2px 2px !important;
   transform: translateX(0) !important;
   /* Delay slide-in so it waits for actions slide-out (0.3s) to finish */
   transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1) 0.3s !important;
@@ -96,9 +108,9 @@
 
 /* Main FAB button - transparent button inside teal pill */
 .fabButton {
-  width: 34px !important;
-  height: 30px !important;
-  border-radius: 999px 0 0 999px !important;
+  width: 29px !important;
+  height: 26px !important;
+  border-radius: 13px 0 0 13px !important;
   background: transparent !important;
   border: none !important;
   cursor: pointer !important;
@@ -126,8 +138,8 @@
 
 .fabButton img,
 .fabButton svg {
-  width: 22px !important;
-  height: 22px !important;
+  width: 19px !important;
+  height: 19px !important;
   object-fit: contain !important;
   display: block !important;
   pointer-events: none !important;

@@ -81,6 +81,7 @@ export const TextExplanationHeader: React.FC<TextExplanationHeaderProps> = ({
           onClick={onClose}
           size={18}
           useShadowDom={useShadowDom}
+          direction="left"
         />
       </div>
 
