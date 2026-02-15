@@ -954,7 +954,7 @@ async function handleTranslateClick(): Promise<void> {
 
   try {
     // Get settings from Chrome storage
-    const translationView = await ChromeStorage.getUserSettingPageTranslationView() || 'append';
+    const translationView = await ChromeStorage.getUserSettingPageTranslationView() || 'replace';
     const nativeLanguage = await ChromeStorage.getUserSettingNativeLanguage();
 
     console.log('[Content Script] Translation settings:', { translationView, nativeLanguage });

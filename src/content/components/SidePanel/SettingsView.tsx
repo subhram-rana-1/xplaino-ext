@@ -123,6 +123,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ useShadowDom = false
         } catch (guestError) {
           console.error('[SettingsView] Error loading guest language:', guestError);
         }
+        // Load page translation view from Chrome storage; default to REPLACE
+        const storedView = await ChromeStorage.getUserSettingPageTranslationView();
+        setPageTranslationView(
+          storedView === 'replace' ? 'REPLACE' : storedView === 'append' ? 'APPEND' : 'REPLACE'
+        );
       }
 
       // Fetch languages list for all users (public endpoint, no auth required)
@@ -227,7 +232,13 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ useShadowDom = false
   const handlePageTranslationViewChange = async (tabId: string) => {
     const newValue = tabId as 'REPLACE' | 'APPEND';
     setPageTranslationView(newValue);
-    await saveAccountSettings({ nativeLanguage, pageTranslationView: newValue });
+    if (isLoggedIn) {
+      await saveAccountSettings({ nativeLanguage, pageTranslationView: newValue });
+    } else {
+      await ChromeStorage.setUserSettingPageTranslationView(
+        newValue === 'REPLACE' ? 'replace' : 'append'
+      );
+    }
   };
 
   const handleGlobalToggle = async (checked: boolean) => {
@@ -489,25 +500,23 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ useShadowDom = false
             </div>
           )}
 
-          {/* Page Translation View Toggle (logged-in only) */}
-          {isLoggedIn && (
-            <div className={getClassName('settingItem')}>
-              <div className={getClassName('translationViewRow')}>
-                <label className={getClassName('settingLabel')}>Page Translation View</label>
-                <IconTabGroup
-                  tabs={[
-                    { id: 'REPLACE', icon: RefreshCw, label: 'Replace' },
-                    { id: 'APPEND', icon: Layers, label: 'Append' },
-                  ]}
-                  activeTabId={pageTranslationView}
-                  onTabChange={handlePageTranslationViewChange}
-                  useShadowDom={useShadowDom}
-                  iconSize={16}
-                  tabSize={32}
-                />
-              </div>
+          {/* Page Translation View Toggle (all users) */}
+          <div className={getClassName('settingItem')}>
+            <div className={getClassName('translationViewRow')}>
+              <label className={getClassName('settingLabel')}>Page Translation View</label>
+              <IconTabGroup
+                tabs={[
+                  { id: 'REPLACE', icon: RefreshCw, label: 'Replace' },
+                  { id: 'APPEND', icon: Layers, label: 'Append' },
+                ]}
+                activeTabId={pageTranslationView}
+                onTabChange={handlePageTranslationViewChange}
+                useShadowDom={useShadowDom}
+                iconSize={16}
+                tabSize={32}
+              />
             </div>
-          )}
+          </div>
 
           {/* Theme Dropdown */}
           {currentDomain && (
