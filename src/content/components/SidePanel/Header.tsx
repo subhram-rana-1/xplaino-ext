@@ -75,6 +75,7 @@ export const Header: React.FC<HeaderProps> = ({
           onClick={handleSlideOut}
           size={18}
           useShadowDom={useShadowDom}
+          direction="right"
         />
       </div>
 

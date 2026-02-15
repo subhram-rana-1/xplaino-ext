@@ -27,6 +27,8 @@ export interface SidePanelProps {
   isOpen: boolean;
   /** Close handler */
   onClose?: () => void;
+  /** Called when slide-out animation starts (e.g. to sync FAB) */
+  onSlideOutStart?: () => void;
   /** Whether component is rendered in Shadow DOM (uses plain class names) */
   useShadowDom?: boolean;
   /** Callback when login is required (401 error) */
@@ -46,11 +48,12 @@ export interface SidePanelProps {
 type TabType = 'summary' | 'settings';
 
 const MIN_WIDTH = 300;
-const MAX_WIDTH = 650;
+const MAX_WIDTH = 800;
 
 export const SidePanel: React.FC<SidePanelProps> = ({
   isOpen,
   onClose,
+  onSlideOutStart,
   useShadowDom = false,
   onLoginRequired,
   initialTab,
@@ -96,8 +99,8 @@ export const SidePanel: React.FC<SidePanelProps> = ({
 
   // Sync local width from atom (e.g. when loaded from storage or another panel resized)
   useEffect(() => {
-    if (width !== globalWidth) setWidth(globalWidth);
-  }, [globalWidth, width]);
+    setWidth(globalWidth);
+  }, [globalWidth]);
 
   // Subscription status for conditional upgrade footer
   const isFreeTrial = useAtomValue(isFreeTrialAtom);
@@ -156,19 +159,18 @@ export const SidePanel: React.FC<SidePanelProps> = ({
       window.addEventListener('mousemove', handleMouseMove);
       window.addEventListener('mouseup', handleMouseUp);
     },
-    [width]
+    [width, setGlobalWidth]
   );
 
-  // Sync width to global atom for FAB positioning - only on open, not during resize
+  // Sync width to global atom when panel opens so page margin is applied correctly
   const prevIsOpenRef = useRef(isOpen);
   useEffect(() => {
     const wasOpen = prevIsOpenRef.current;
     prevIsOpenRef.current = isOpen;
-    // Only update atom when panel opens (false -> true), not during resize
     if (isOpen && !wasOpen) {
       setGlobalWidth(width);
     }
-  }, [isOpen, setGlobalWidth]);
+  }, [isOpen, setGlobalWidth, width]);
 
   // Reset tab and sliding state when panel closes (but keep expanded state)
   useEffect(() => {
@@ -182,11 +184,12 @@ export const SidePanel: React.FC<SidePanelProps> = ({
   }, [isOpen, initialTab]);
 
   const handleSlideOut = useCallback(() => {
+    onSlideOutStart?.();
     setIsSlidingOut(true);
     setTimeout(() => {
       onClose?.();
     }, 300); // Match transition duration
-  }, [onClose]);
+  }, [onClose, onSlideOutStart]);
 
   // Handle remove link
   const handleRemoveLink = useCallback(async () => {

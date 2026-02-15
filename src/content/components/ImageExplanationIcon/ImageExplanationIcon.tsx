@@ -138,9 +138,13 @@ export const ImageExplanationIcon: React.FC<ImageExplanationIconProps> = ({
     // Find all scrollable parents
     scrollableParentsRef.current = findScrollableParents(imageElement);
 
+    // Reposition when side panel opens/closes (custom event from content script)
+    const handleRepositionIcons = (): void => handleResize();
+
     // Add listeners to window, document, and documentElement
     window.addEventListener('scroll', handleScroll, true);
     window.addEventListener('resize', handleResize);
+    window.addEventListener('xplaino-reposition-icons', handleRepositionIcons);
     document.addEventListener('scroll', handleScroll, true);
     if (document.documentElement) {
       document.documentElement.addEventListener('scroll', handleScroll, true);
@@ -170,6 +174,7 @@ export const ImageExplanationIcon: React.FC<ImageExplanationIconProps> = ({
 
       window.removeEventListener('scroll', handleScroll, true);
       window.removeEventListener('resize', handleResize);
+      window.removeEventListener('xplaino-reposition-icons', handleRepositionIcons);
       document.removeEventListener('scroll', handleScroll, true);
       if (document.documentElement) {
         document.documentElement.removeEventListener('scroll', handleScroll, true);

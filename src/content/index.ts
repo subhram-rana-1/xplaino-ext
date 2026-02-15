@@ -191,6 +191,9 @@ let reviewPromptModalVisible = false;
 
 // Shared state for side panel
 let sidePanelOpen = false;
+// Flags for FAB sync with main panel slide animation (only main Summary/Settings panel)
+let mainPanelSlidingOut = false;
+let mainPanelSlidingIn = false;
 
 // Toast state
 let toastMessage: string | null = null;
@@ -403,7 +406,16 @@ function setupGlobalAuthListener(): void {
 // PAGE MARGIN FOR SIDE-BY-SIDE PANEL LAYOUT
 // =============================================================================
 
+/** Custom event dispatched when panel opens/closes so explanation/bookmark icons reposition. */
+const REPOSITION_ICONS_EVENT = 'xplaino-reposition-icons';
+
 let lastAppliedPanelWidth: number | null = null;
+
+/** Dispatch resize and custom event so all icon components update their position after layout change. */
+function dispatchRepositionIcons(): void {
+  window.dispatchEvent(new Event('resize'));
+  window.dispatchEvent(new Event(REPOSITION_ICONS_EVENT));
+}
 
 /**
  * Push the webpage content to the left by setting margin-right on <html> only,
@@ -417,15 +429,23 @@ function setPageMarginForPanel(panelWidth: number | null): void {
     const isOpening = lastAppliedPanelWidth == null || lastAppliedPanelWidth === 0;
     if (isOpening) {
       html.style.setProperty('transition', 'margin-right 0.3s cubic-bezier(0.4, 0, 0.2, 1)');
-      requestAnimationFrame(() => {
-        updatePageMarginForPanels();
-      });
     } else {
       html.style.setProperty('transition', 'none', 'important');
     }
     html.style.setProperty('margin-right', value, 'important');
     html.style.setProperty('overflow-x', 'hidden', 'important');
     lastAppliedPanelWidth = panelWidth;
+
+    // Trigger icons to reposition after margin change (after reflow so getBoundingClientRect is correct)
+    if (isOpening) {
+      // After the 300ms transition animation completes, dispatch in next frame so layout has settled
+      setTimeout(() => {
+        requestAnimationFrame(() => dispatchRepositionIcons());
+      }, 320);
+    } else {
+      // During live resize, reposition in next frame so layout has updated
+      requestAnimationFrame(() => dispatchRepositionIcons());
+    }
   } else {
     html.style.setProperty('margin-right', '0px', 'important');
     setTimeout(() => {
@@ -433,6 +453,8 @@ function setPageMarginForPanel(panelWidth: number | null): void {
       html.style.removeProperty('overflow-x');
       html.style.removeProperty('transition');
       lastAppliedPanelWidth = null;
+      // Trigger icons to reposition after closing transition; use rAF so reflow is committed before icons read layout
+      requestAnimationFrame(() => dispatchRepositionIcons());
     }, 300);
   }
 }
@@ -521,15 +543,30 @@ function setSidePanelOpen(open: boolean, initialTab?: 'summary' | 'settings'): v
   // If opening side panel, close all other sidebars (parallel animations)
   if (open) {
     closeAllSidebars('main');
+  } else {
+    mainPanelSlidingOut = false;
   }
-  
+
   sidePanelOpen = open;
   updateSidePanel(initialTab);
 
-  // Update page margin for side-by-side layout
+  // Update page margin for side-by-side layout (double-rAF ensures React has rendered)
   updatePageMarginForPanels();
-  requestAnimationFrame(() => updatePageMarginForPanels());
-  updateFAB();
+  requestAnimationFrame(() => {
+    updatePageMarginForPanels();
+    requestAnimationFrame(() => updatePageMarginForPanels());
+  });
+
+  if (open) {
+    mainPanelSlidingIn = true;
+    updateFAB();
+    requestAnimationFrame(() => {
+      mainPanelSlidingIn = false;
+      updateFAB();
+    });
+  } else {
+    updateFAB();
+  }
 }
 
 // =============================================================================
@@ -1101,6 +1138,8 @@ function updateFAB(): void {
           canHideActions: canHideFABActions,
           onShowModal: showDisableModal,
           isPanelOpen: isAnyPanelOpen,
+          isMainPanelSlidingOut: mainPanelSlidingOut,
+          isMainPanelSlidingIn: mainPanelSlidingIn,
           translationState: pageTranslationState,
           viewMode: pageViewMode,
           isBookmarked: isBookmarked,
@@ -1206,6 +1245,10 @@ function updateSidePanel(initialTab?: 'summary' | 'settings'): void {
           isOpen: sidePanelOpen,
           useShadowDom: true,
           onClose: () => setSidePanelOpen(false),
+          onSlideOutStart: () => {
+            mainPanelSlidingOut = true;
+            updateFAB();
+          },
           initialTab: initialTab,
           onShowToast: showToast,
           onShowBookmarkToast: showBookmarkToast,
@@ -1257,6 +1300,10 @@ async function injectSidePanel(): Promise<void> {
         isOpen: sidePanelOpen,
         useShadowDom: true,
         onClose: () => setSidePanelOpen(false),
+        onSlideOutStart: () => {
+          mainPanelSlidingOut = true;
+          updateFAB();
+        },
         initialTab: 'summary',
         onShowToast: showToast,
         onShowBookmarkToast: showBookmarkToast,
@@ -12390,17 +12437,27 @@ store.sub(showFeatureRequestModalAtom, () => {
 });
 
 // Subscribe to panel-open atoms so page margin updates for side-by-side layout
+// Double-rAF ensures React has rendered and the panel component has mounted
 store.sub(textExplanationPanelOpenAtom, () => {
   updatePageMarginForPanels();
-  requestAnimationFrame(() => updatePageMarginForPanels());
+  requestAnimationFrame(() => {
+    updatePageMarginForPanels();
+    requestAnimationFrame(() => updatePageMarginForPanels());
+  });
 });
 store.sub(wordAskAISidePanelOpenAtom, () => {
   updatePageMarginForPanels();
-  requestAnimationFrame(() => updatePageMarginForPanels());
+  requestAnimationFrame(() => {
+    updatePageMarginForPanels();
+    requestAnimationFrame(() => updatePageMarginForPanels());
+  });
 });
 store.sub(imageExplanationPanelOpenAtom, () => {
   updatePageMarginForPanels();
-  requestAnimationFrame(() => updatePageMarginForPanels());
+  requestAnimationFrame(() => {
+    updatePageMarginForPanels();
+    requestAnimationFrame(() => updatePageMarginForPanels());
+  });
 });
 
 // Subscribe to panel width changes so margin stays in sync during resize (throttled to once per frame)

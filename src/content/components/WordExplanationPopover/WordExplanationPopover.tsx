@@ -888,6 +888,7 @@ export const WordExplanationPopover: React.FC<WordExplanationPopoverProps> = ({
             onClick={onClose}
             size={18}
             useShadowDom={useShadowDom}
+            direction="left"
           />
         </div>
       </div>

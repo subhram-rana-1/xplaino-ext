@@ -148,10 +148,14 @@ export const SavedParagraphIcon: React.FC<SavedParagraphIconProps> = ({
     // Find all scrollable parents
     scrollableParentsRef.current = findScrollableParents(selectionRange.startContainer);
 
+    // Reposition when side panel opens/closes (custom event from content script)
+    const handleRepositionIcons = (): void => handleScroll();
+
     // Add listeners to window, document, and documentElement
     // Using capture phase (true) to catch all scroll events
     window.addEventListener('scroll', handleScroll, true);
     window.addEventListener('resize', handleScroll);
+    window.addEventListener('xplaino-reposition-icons', handleRepositionIcons);
     document.addEventListener('scroll', handleScroll, true);
     if (document.documentElement) {
       document.documentElement.addEventListener('scroll', handleScroll, true);
@@ -181,6 +185,7 @@ export const SavedParagraphIcon: React.FC<SavedParagraphIconProps> = ({
 
       window.removeEventListener('scroll', handleScroll, true);
       window.removeEventListener('resize', handleScroll);
+      window.removeEventListener('xplaino-reposition-icons', handleRepositionIcons);
       document.removeEventListener('scroll', handleScroll, true);
       if (document.documentElement) {
         document.documentElement.removeEventListener('scroll', handleScroll, true);

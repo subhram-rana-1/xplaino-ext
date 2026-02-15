@@ -79,7 +79,7 @@ export interface TextExplanationSidePanelProps {
 }
 
 const MIN_WIDTH = 300;
-const MAX_WIDTH = 650;
+const MAX_WIDTH = 800;
 
 export const TextExplanationSidePanel: React.FC<TextExplanationSidePanelProps> = ({
   isOpen,
@@ -134,9 +134,10 @@ export const TextExplanationSidePanel: React.FC<TextExplanationSidePanelProps> =
   const setShowLoginModal = useSetAtom(showLoginModalAtom);
 
   // Sync local width from atom (e.g. when loaded from storage or another panel resized)
+  // Sync local width from atom (e.g. when loaded from storage or another panel resized)
   useEffect(() => {
-    if (width !== globalWidth) setWidth(globalWidth);
-  }, [globalWidth, width]);
+    setWidth(globalWidth);
+  }, [globalWidth]);
 
   // Subscription status for conditional upgrade footer
   const isFreeTrial = useAtomValue(isFreeTrialAtom);
@@ -207,19 +208,18 @@ export const TextExplanationSidePanel: React.FC<TextExplanationSidePanelProps> =
       window.addEventListener('mousemove', handleMouseMove);
       window.addEventListener('mouseup', handleMouseUp);
     },
-    [width]
+    [width, setGlobalWidth]
   );
 
-  // Sync width to global atom for FAB positioning - only on open, not during resize
+  // Sync width to global atom when panel opens so page margin is applied correctly
   const prevIsOpenRef = useRef(isOpen);
   useEffect(() => {
     const wasOpen = prevIsOpenRef.current;
     prevIsOpenRef.current = isOpen;
-    // Only update atom when panel opens (false -> true), not during resize
     if (isOpen && !wasOpen) {
       setGlobalWidth(width);
     }
-  }, [isOpen, setGlobalWidth]);
+  }, [isOpen, setGlobalWidth, width]);
 
   // Trigger emerge animation when panel opens (only once)
   // Track previous isOpen state to detect actual state changes

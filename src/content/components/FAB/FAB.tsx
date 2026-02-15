@@ -43,6 +43,10 @@ export interface FABProps {
   onShowModal?: () => void;
   /** Whether any panel (side panel or text explanation panel) is open */
   isPanelOpen?: boolean;
+  /** Main side panel is sliding out (FAB animates to right: 0 in sync) */
+  isMainPanelSlidingOut?: boolean;
+  /** Main side panel is sliding in (FAB starts at right: 0 then animates to panel edge) */
+  isMainPanelSlidingIn?: boolean;
   /** Translation state */
   translationState?: 'idle' | 'translating' | 'partially-translated' | 'fully-translated';
   /** View mode for translations */
@@ -69,6 +73,8 @@ export const FAB: React.FC<FABProps> = ({
   canHideActions = true,
   onShowModal,
   isPanelOpen = false,
+  isMainPanelSlidingOut = false,
+  isMainPanelSlidingIn = false,
   translationState = 'idle',
   viewMode = 'translated',
   isBookmarked = false,
@@ -368,14 +374,14 @@ export const FAB: React.FC<FABProps> = ({
     window.open(`${ENV.XPLAINO_WEBSITE_BASE_URL}/report-issue`, '_blank');
   }, []);
 
-  // Class names for Shadow DOM vs CSS Modules
+  // Class names for Shadow DOM vs CSS Modules (sliding classes sync FAB with main panel animation)
   const fabParentClass = getClassName(
-    `fabParent${isAnyPanelOpen ? ' panelOpen' : ''}`,
-    `${styles.fabParent}${isAnyPanelOpen ? ` ${styles.panelOpen}` : ''}`
+    `fabParent${isAnyPanelOpen ? ' panelOpen' : ''}${isMainPanelSlidingOut ? ' mainPanelSlidingOut' : ''}${isMainPanelSlidingIn ? ' mainPanelSlidingIn' : ''}`,
+    `${styles.fabParent}${isAnyPanelOpen ? ` ${styles.panelOpen}` : ''}${isMainPanelSlidingOut ? ` ${styles.mainPanelSlidingOut}` : ''}${isMainPanelSlidingIn ? ` ${styles.mainPanelSlidingIn}` : ''}`
   );
   const fabActionsWrapperClass = getClassName(
-    `fabActionsWrapper${isAnyPanelOpen ? ' panelOpen' : ''}`,
-    `${styles.fabActionsWrapper}${isAnyPanelOpen ? ` ${styles.panelOpen}` : ''}`
+    `fabActionsWrapper${isAnyPanelOpen ? ' panelOpen' : ''}${isMainPanelSlidingOut ? ' mainPanelSlidingOut' : ''}${isMainPanelSlidingIn ? ' mainPanelSlidingIn' : ''}`,
+    `${styles.fabActionsWrapper}${isAnyPanelOpen ? ` ${styles.panelOpen}` : ''}${isMainPanelSlidingOut ? ` ${styles.mainPanelSlidingOut}` : ''}${isMainPanelSlidingIn ? ` ${styles.mainPanelSlidingIn}` : ''}`
   );
   // Dynamic CSS variable for panel width so FAB sits at the separator line
   const fabParentStyle: React.CSSProperties | undefined = isAnyPanelOpen
@@ -511,8 +517,8 @@ export const FAB: React.FC<FABProps> = ({
               src={iconUrl}
               alt="Xplaino"
               style={{ 
-                width: '24px', 
-                height: '24px',
+                width: '19px', 
+                height: '19px',
                 objectFit: 'contain'
               }}
             />
