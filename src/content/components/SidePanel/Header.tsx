@@ -83,7 +83,7 @@ export const Header: React.FC<HeaderProps> = ({
       <div className={getClassName('headerCenter')}>
         {activeTab === 'summary' ? (
           <div className={getClassName('headerTitle')}>
-            Page summary
+            Ask anything about the page
           </div>
         ) : (
           <>

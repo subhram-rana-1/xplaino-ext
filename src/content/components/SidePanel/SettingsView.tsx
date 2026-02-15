@@ -6,7 +6,8 @@ import { userAuthInfoAtom, showLoginModalAtom, userPlanTypeAtom, userPlanNameAto
 import { ChromeStorage } from '@/storage/chrome-local/ChromeStorage';
 import { DomainStatus } from '@/types/domain';
 import { extractDomain } from '@/utils/domain';
-import { Dropdown, type DropdownOption } from './Dropdown';
+import { Dropdown } from './Dropdown';
+import { useLanguageOptions } from '@/hooks';
 import { IconTabGroup } from '@/components/ui/IconTabGroup/IconTabGroup';
 import { showDisableModal } from '@/content/index';
 import { ENV } from '@/config/env';
@@ -62,7 +63,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ useShadowDom = false
   const [nativeLanguage, setNativeLanguage] = useState<string | null>(null);
   const [pageTranslationView, setPageTranslationView] = useState<'REPLACE' | 'APPEND'>('REPLACE');
   const [backendTheme, setBackendTheme] = useState<'LIGHT' | 'DARK'>('LIGHT');
-  const [languageOptions, setLanguageOptions] = useState<DropdownOption[]>([]);
+  const { languageOptions } = useLanguageOptions({ includeNone: true });
   const [, setSettingsUpdating] = useState<boolean>(false);
 
   useEffect(() => {
@@ -130,23 +131,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ useShadowDom = false
         );
       }
 
-      // Fetch languages list for all users (public endpoint, no auth required)
-      try {
-        const langResponse = await UserSettingsService.getAllLanguages();
-        const sortedLanguages = [...langResponse.languages].sort((a, b) =>
-          a.languageNameInEnglish.localeCompare(b.languageNameInEnglish)
-        );
-        const dropdownOptions: DropdownOption[] = [
-          { value: '', label: 'None' },
-          ...sortedLanguages.map((lang) => ({
-            value: lang.languageCode,
-            label: `${lang.languageNameInEnglish} (${lang.languageNameInNative})`,
-          })),
-        ];
-        setLanguageOptions(dropdownOptions);
-      } catch (langError) {
-        console.error('[SettingsView] Error loading languages:', langError);
-      }
     } catch (error) {
       console.error('[SettingsView] Error loading settings:', error);
     } finally {
