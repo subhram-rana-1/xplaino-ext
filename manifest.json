@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Xplaino AI",
+  "name": "Xplaino AI – Research Assistant, Summarizer & Website Translator",
   "version": "1.0.19",
-  "description": "Learn faster with AI while browsing and save your learning at a single place",
+  "description": "AI research assistant to summarize webpages, translate content, simplify complex text, and save & organize your research in one smart dashboard.",
   "icons": {
     "16": "public/icons/chrome-extension-logo.png",
     "48": "public/icons/chrome-extension-logo.png",
@@ -15,7 +15,7 @@
       "48": "public/icons/chrome-extension-logo.png",
       "128": "public/icons/chrome-extension-logo.png"
     },
-    "default_title": "Xplaino AI"
+    "default_title": "Xplaino AI – Research Assistant, Summarizer & Website Translator"
   },
   "background": {
     "service_worker": "src/background/index.ts",

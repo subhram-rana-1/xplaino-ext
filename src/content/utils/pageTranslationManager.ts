@@ -124,14 +124,25 @@ export class PageTranslationManager {
             translationDiv.style.display = mode === 'original' ? 'none' : '';
           }
         } else {
-          // For replace mode, swap text content (color preserved from original)
+          // For replace mode, swap text content (color preserved from original).
+          // Preserve explanation wrappers so the book icon stays tied to the DOM.
+          const el = element.element;
+          const hasWrapper = el.querySelector?.('[data-text-explanation-wrapper="true"]');
           if (mode === 'original') {
-            const original = element.element.getAttribute('data-xplaino-original');
+            const original = el.getAttribute('data-xplaino-original');
             if (original) {
-              element.element.textContent = original;
+              if (hasWrapper) {
+                PageTranslationManager.replaceElementContentPreservingWrappers(el, original);
+              } else {
+                el.textContent = original;
+              }
             }
           } else {
-            element.element.textContent = element.translatedText;
+            if (hasWrapper) {
+              PageTranslationManager.replaceElementContentPreservingWrappers(el, element.translatedText);
+            } else {
+              el.textContent = element.translatedText;
+            }
           }
         }
       }
@@ -386,6 +397,74 @@ export class PageTranslationManager {
   // DOM manipulation – apply / remove translations
   // -----------------------------------------------------------------------
 
+  /**
+   * Segment of content when walking an element: either a text node or a
+   * wrapper span (data-text-explanation-wrapper). Used to preserve wrappers
+   * when replacing content so the book icon stays tied to the DOM.
+   */
+  private static collectSegments(container: Node): { type: 'text' | 'wrapper'; node: Node; length: number }[] {
+    const segments: { type: 'text' | 'wrapper'; node: Node; length: number }[] = [];
+    for (const child of container.childNodes) {
+      if (child.nodeType === Node.TEXT_NODE) {
+        const len = (child.textContent ?? '').length;
+        if (len > 0) {
+          segments.push({ type: 'text', node: child, length: len });
+        }
+      } else if (child.nodeType === Node.ELEMENT_NODE) {
+        const el = child as HTMLElement;
+        if (el.getAttribute('data-text-explanation-wrapper') === 'true') {
+          segments.push({ type: 'wrapper', node: child, length: (el.textContent ?? '').length });
+        } else {
+          segments.push(...PageTranslationManager.collectSegments(child));
+        }
+      }
+    }
+    return segments;
+  }
+
+  /**
+   * Replace an element's text content with newFullText while preserving any
+   * explanation wrapper nodes ([data-text-explanation-wrapper]). This keeps
+   * the book icon tied to the same DOM element when toggling original/translated.
+   */
+  private static replaceElementContentPreservingWrappers(element: HTMLElement, newFullText: string): void {
+    const wrappers = element.querySelectorAll?.('[data-text-explanation-wrapper="true"]');
+    if (!wrappers?.length) {
+      element.textContent = newFullText;
+      return;
+    }
+
+    const segments = PageTranslationManager.collectSegments(element);
+    if (segments.length === 0) {
+      element.textContent = newFullText;
+      return;
+    }
+
+    const totalLen = segments.reduce((sum, s) => sum + s.length, 0);
+    if (totalLen === 0) {
+      element.textContent = newFullText;
+      return;
+    }
+
+    const newLen = newFullText.length;
+    let runningStart = 0;
+
+    for (const seg of segments) {
+      const ratioStart = runningStart / totalLen;
+      const ratioEnd = (runningStart + seg.length) / totalLen;
+      const newStart = Math.round(ratioStart * newLen);
+      const newEnd = Math.round(ratioEnd * newLen);
+      const slice = newFullText.slice(newStart, newEnd);
+
+      if (seg.type === 'text') {
+        (seg.node as Text).data = slice;
+      } else {
+        (seg.node as HTMLElement).textContent = slice;
+      }
+      runningStart += seg.length;
+    }
+  }
+
   /** Apply translation to an element based on mode. */
   private applyTranslation(element: TranslatableElement): void {
     if (!element.translatedText) return;
@@ -473,6 +552,7 @@ export class PageTranslationManager {
   /**
    * Apply translation in replace mode (swap content).
    * Color and font style are preserved from the original element.
+   * Preserves explanation wrappers so the book icon stays tied to the DOM.
    */
   private applyReplacedTranslation(element: TranslatableElement): void {
     if (!element.translatedText) return;
@@ -482,8 +562,12 @@ export class PageTranslationManager {
       element.element.setAttribute('data-xplaino-original', element.originalText);
     }
 
-    // Replace text content (color and font style are preserved from the original element)
-    element.element.textContent = element.translatedText;
+    const el = element.element;
+    if (el.querySelector?.('[data-text-explanation-wrapper="true"]')) {
+      PageTranslationManager.replaceElementContentPreservingWrappers(el, element.translatedText);
+    } else {
+      el.textContent = element.translatedText;
+    }
 
     element.element.setAttribute('data-xplaino-translated', 'true');
   }
