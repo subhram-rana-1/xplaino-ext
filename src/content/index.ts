@@ -83,7 +83,8 @@ import { SavedImageService } from '../api-services/SavedImageService';
 import { UserSettingsService } from '../api-services/UserSettingsService';
 import { SubscriptionService } from '../api-services/SubscriptionService';
 import type { FolderWithSubFoldersResponse } from '../api-services/dto/FolderDTO';
-import { extractAndStorePageContent, getStoredPageContent } from './utils/pageContentExtractor';
+import { extractPageContent, extractPageContentWithIds } from './utils/pageContentExtractor';
+import { getSummarisePayloadOrWait, registerGetPageContentOrWait, registerGetSummarisePayloadOrWait } from './pageContentBridge';
 import { addTextUnderline, removeTextUnderline, pulseTextBackground, changeUnderlineColor, type UnderlineState } from './utils/textSelectionUnderline';
 import { PageTranslationManager } from './utils/pageTranslationManager';
 import { incrementApiCounterAndShouldShowReview } from './utils/reviewPromptTracker';
@@ -93,8 +94,10 @@ import {
   summaryAtom,
   summaryErrorAtom,
   messageQuestionsAtom,
-  pageReadingStateAtom,
+  pageReadingStatusAtom,
+  pageContentAtom,
   focusAskInputAtom,
+  summaryIdToElementMapAtom,
 } from '../store/summaryAtoms';
 import { showLoginModalAtom, showSubscriptionModalAtom, showFeatureRequestModalAtom, userAuthInfoAtom, currentThemeAtom, subscriptionStatusAtom, isUserLoggedInAtom, shouldShowImageFeatureAtom, shouldShowTextFeatureAtom, shouldShowWordFeatureAtom, activePanelWidthAtom } from '../store/uiAtoms';
 import {
@@ -757,11 +760,11 @@ function removeFAB(): void {
 // UTILITY FUNCTIONS
 // =============================================================================
 
-// Reference link pattern: [[[ ref text ]]]
-const REF_LINK_PATTERN = /\[\[\[\s*(.+?)\s*\]\]\]/g;
+// Reference link pattern from backend: [[[ref:("id1","id2")]]]
+const REF_LINK_PATTERN = /\[\[\[ref:\s*\([^)]*\)\]\]\]/g;
 
 /**
- * Filter out reference links ([[[ text ]]]) from summary text
+ * Filter out reference links from summary text for plain display
  */
 function filterReferenceLinks(summary: string): string {
   return summary.replace(REF_LINK_PATTERN, '').trim();
@@ -828,16 +831,9 @@ async function handleSummariseClick(): Promise<void> {
   updateFAB();
 
   try {
-    // Extract page content if not already available
-    let pageContent = await getStoredPageContent();
-    if (!pageContent) {
-      console.log('[Content Script] Extracting page content...');
-      store.set(pageReadingStateAtom, 'reading');
-      pageContent = await extractAndStorePageContent();
-      if (!pageContent) {
-        throw new Error('Could not extract page content');
-      }
-      store.set(pageReadingStateAtom, 'ready');
+    const { content } = await getSummarisePayloadOrWait();
+    if (!content || Object.keys(content).length === 0) {
+      throw new Error('Page content not available');
     }
 
     // Create abort controller
@@ -853,7 +849,7 @@ async function handleSummariseClick(): Promise<void> {
     // Call summarise API
     await SummariseService.summarise(
       {
-        text: pageContent,
+        content,
         context_type: 'PAGE',
         languageCode,
       },
@@ -12052,7 +12048,34 @@ async function initContentScript(): Promise<void> {
     // from reading any selected text via window.getSelection().
     injectUserSelectOverride();
 
-    // Inject all components in parallel with proper async handling
+    // Page content: create completion promise and register getter so summarise/ask can wait for read
+    let pageContentReadyResolve!: () => void;
+    const pageContentReadyPromise = new Promise<void>((r) => {
+      pageContentReadyResolve = r;
+    });
+    registerGetPageContentOrWait(() =>
+      pageContentReadyPromise.then(() => store.get(pageContentAtom))
+    );
+    registerGetSummarisePayloadOrWait(async () => {
+      await pageContentReadyPromise;
+      const { content, idToElement } = extractPageContentWithIds();
+      store.set(summaryIdToElementMapAtom, idToElement);
+      return { content };
+    });
+
+    const runPageRead = async (): Promise<void> => {
+      store.set(pageReadingStatusAtom, 'PAGE_READING_IN_PROGRESS');
+      try {
+        const content = extractPageContent();
+        store.set(pageContentAtom, content);
+        store.set(pageReadingStatusAtom, 'PAGE_READING_COMPLETED');
+      } catch {
+        store.set(pageReadingStatusAtom, 'PAGE_READING_ERROR');
+      }
+      pageContentReadyResolve();
+    };
+
+    // Inject UI and read page content concurrently
     await Promise.all([
       injectFAB(),
       injectSidePanel(),
@@ -12063,6 +12086,7 @@ async function initContentScript(): Promise<void> {
       injectToast(),
       injectImageExplanationIconContainer(),
       injectImageExplanationPanel(),
+      runPageRead(),
     ]);
     setupImageHoverDetection();
     injectFeatureDiscoveryTooltip();

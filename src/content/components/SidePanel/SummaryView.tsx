@@ -7,12 +7,12 @@ import styles from './SummaryView.module.css';
 import { SummariseService } from '@/api-services/SummariseService';
 import { AskService, ChatMessage } from '@/api-services/AskService';
 import { getLanguageCode } from '@/api-services/TranslateService';
-import { extractAndStorePageContent, getStoredPageContent } from '@/content/utils/pageContentExtractor';
+import { getSummarisePayloadOrWait } from '@/content/pageContentBridge';
 import { ChromeStorage } from '@/storage/chrome-local/ChromeStorage';
 import { OnHoverMessage } from '../OnHoverMessage/OnHoverMessage';
 import { LoadingDots } from './LoadingDots';
 import {
-  pageReadingStateAtom,
+  pageReadingStatusAtom,
   summariseStateAtom,
   askingStateAtom,
   summaryAtom,
@@ -23,8 +23,8 @@ import {
   summaryErrorAtom,
   hasContentAtom,
   focusAskInputAtom,
+  summaryIdToElementMapAtom,
 } from '@/store/summaryAtoms';
-import { findMatchingElement } from '@/content/utils/referenceMatcher';
 import { COLORS, colorWithOpacity } from '@/constants/colors';
 
 export interface SummaryViewProps {
@@ -36,8 +36,10 @@ export interface SummaryViewProps {
   isOpen?: boolean;
 }
 
-// Reference link pattern: [[[ ref text ]]]
-const REF_LINK_PATTERN = /\[\[\[\s*(.+?)\s*\]\]\]/g;
+// Summary ref format: [[[ref:("id1","id2")]]] or [[[ref:("id1")]]]
+const REF_LINK_PATTERN = /\[\[\[ref:\s*\(([^)]*)\)\]\]\]/g;
+// Ask ref format: [[[(N)substring]]] where N is the block number (same as our sequential ID)
+const ASK_REF_PATTERN = /\[\[\[\((\d+)\)[\s\S]*?\]\]\]/g;
 
 export const SummaryView: React.FC<SummaryViewProps> = ({
   useShadowDom = false,
@@ -49,8 +51,8 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
   const [inputValue, setInputValue] = useState('');
   const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
   
-  // Jotai atoms for persistent state
-  const [pageReadingState, setPageReadingState] = useAtom(pageReadingStateAtom);
+  // Jotai atoms for persistent state (page content is in-memory only)
+  const [pageReadingStatus] = useAtom(pageReadingStatusAtom);
   const [summariseState, setSummariseState] = useAtom(summariseStateAtom);
   const [askingState, setAskingState] = useAtom(askingStateAtom);
   const [summary, setSummary] = useAtom(summaryAtom);
@@ -61,18 +63,16 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
   const [errorMessage, setErrorMessage] = useAtom(summaryErrorAtom);
   const [hasContent] = useAtom(hasContentAtom);
   const [focusAskInput, setFocusAskInput] = useAtom(focusAskInputAtom);
+  const [idToElementMap, setIdToElementMap] = useAtom(summaryIdToElementMapAtom);
   
   const abortControllerRef = useRef<AbortController | null>(null);
-  
-  // Store reference link mappings: refText -> HTMLElement
-  const referenceMappingsRef = useRef<Map<string, HTMLElement>>(new Map());
   
   // Store currently highlighted element
   const highlightedElementRef = useRef<HTMLElement | undefined>(undefined);
   const highlightTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   
-  // Track currently active reference (for button highlighting)
-  const [activeRefText, setActiveRefText] = useState<string | null>(null);
+  // Track currently active reference key (e.g. "1" or "1,2") for button highlighting
+  const [activeRefKey, setActiveRefKey] = useState<string | null>(null);
   
   // Track element to keep scrolled to during streaming
   const activeScrollTargetRef = useRef<HTMLElement | null>(null);
@@ -137,16 +137,16 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
     };
   }, [hoveredIcon]);
 
-  // Animate dots for loading state
+  // Animate dots for loading state (page read in progress)
   useEffect(() => {
-    if (pageReadingState !== 'reading') return;
+    if (pageReadingStatus !== 'PAGE_READING_IN_PROGRESS') return;
 
     const interval = setInterval(() => {
       setDotCount((prev) => (prev % 3) + 1);
     }, 400);
 
     return () => clearInterval(interval);
-  }, [pageReadingState]);
+  }, [pageReadingStatus]);
 
   // Animate dots for summarising loading state (before first chunk)
   useEffect(() => {
@@ -217,37 +217,6 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
   }, [summariseState, askingState]);
 
 
-  // Extract page content on mount (only if not already done)
-  useEffect(() => {
-    if (pageReadingState !== 'reading') return;
-
-    const initPageContent = async () => {
-      try {
-        // Check if content already exists
-        const existingContent = await getStoredPageContent();
-        if (existingContent) {
-          setPageReadingState('ready');
-          return;
-        }
-
-        // Extract and store content
-        const content = await extractAndStorePageContent();
-        if (content) {
-          setPageReadingState('ready');
-        } else {
-          setPageReadingState('error');
-          setErrorMessage('Could not extract page content');
-        }
-      } catch (error) {
-        console.error('[SummaryView] Error extracting page content:', error);
-        setPageReadingState('error');
-        setErrorMessage('Failed to read page content');
-      }
-    };
-
-    initPageContent();
-  }, [pageReadingState, setPageReadingState, setErrorMessage]);
-
   // Scroll detection logic
   const SCROLL_THRESHOLD = 5; // pixels from bottom to consider "at bottom"
   
@@ -316,7 +285,7 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
         clearHighlightSmoothly(highlightedElementRef.current);
         highlightedElementRef.current = undefined;
       }
-      setActiveRefText(null);
+      setActiveRefKey(null);
       // Clear scroll target
       activeScrollTargetRef.current = null;
       if (scrollIntervalRef.current) {
@@ -330,32 +299,17 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
     }
   }, [isOpen, clearHighlightSmoothly]);
 
-  // Handle reference link click - scroll and highlight
-  const handleReferenceClick = useCallback((refText: string) => {
-    console.log('========================================');
-    console.log('[SummaryView] ===== REFERENCE LINK CLICKED =====');
-    console.log('[SummaryView] Reference text:', refText);
-    console.log('[SummaryView] Reference text length:', refText.length);
-    console.log('[SummaryView] Reference text trimmed:', refText.trim());
-    console.log('[SummaryView] Currently active ref:', activeRefText);
-    console.log('[SummaryView] Reference mappings size:', referenceMappingsRef.current.size);
-    console.log('[SummaryView] Reference mappings keys:', Array.from(referenceMappingsRef.current.keys()));
-    console.log('[SummaryView] Reference mappings entries:', Array.from(referenceMappingsRef.current.entries()).map(([key, el]) => ({
-      key,
-      keyLength: key.length,
-      tagName: el.tagName,
-      textSnippet: el.textContent?.substring(0, 50),
-    })));
-    
-    // Check if clicking the same ref (toggle off)
-    if (activeRefText === refText && highlightedElementRef.current) {
-      console.log('[SummaryView] Toggling off - same ref clicked');
-      // Clear highlight smoothly
+  // Handle reference link click - scroll and highlight using ID→element map
+  const handleReferenceClick = useCallback((refKey: string) => {
+    // refKey is e.g. "1" or "1,2" (IDs from [[[ref:("1","2")]]])
+    const firstId = refKey.split(',')[0]?.trim() ?? refKey.trim();
+    if (!firstId) return;
+
+    if (activeRefKey === refKey && highlightedElementRef.current) {
       const elementToClear = highlightedElementRef.current;
       clearHighlightSmoothly(elementToClear);
       highlightedElementRef.current = undefined;
-      setActiveRefText(null);
-      // Clear scroll target
+      setActiveRefKey(null);
       activeScrollTargetRef.current = null;
       if (scrollIntervalRef.current) {
         clearInterval(scrollIntervalRef.current);
@@ -365,20 +319,13 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
         clearTimeout(highlightTimeoutRef.current);
         highlightTimeoutRef.current = null;
       }
-      console.log('========================================');
       return;
     }
-    
-    // Clear previous highlight (different ref clicked)
+
     if (highlightedElementRef.current) {
-      console.log('[SummaryView] Step 1: Clearing previous highlight on element:', highlightedElementRef.current.tagName);
-      const elementToClear = highlightedElementRef.current;
-      clearHighlightSmoothly(elementToClear);
+      clearHighlightSmoothly(highlightedElementRef.current);
       highlightedElementRef.current = undefined;
-    } else {
-      console.log('[SummaryView] Step 1: No previous highlight to clear');
     }
-    // Clear previous scroll target
     activeScrollTargetRef.current = null;
     if (scrollIntervalRef.current) {
       clearInterval(scrollIntervalRef.current);
@@ -387,208 +334,61 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
     if (highlightTimeoutRef.current) {
       clearTimeout(highlightTimeoutRef.current);
       highlightTimeoutRef.current = null;
-      console.log('[SummaryView] Step 1: Cleared previous timeout');
     }
 
-    // Find or get stored element
-    console.log('[SummaryView] Step 2: Looking up element in storage...');
-    let element = referenceMappingsRef.current.get(refText);
-    console.log('[SummaryView] Step 2 result - Element from storage:', element ? 'FOUND' : 'NOT FOUND');
-    if (element) {
-      console.log('[SummaryView] Element details from storage:', {
-        tagName: element.tagName,
-        id: element.id,
-        className: element.className,
-        textContentSnippet: element.textContent?.substring(0, 100),
-        isConnected: element.isConnected,
-        offsetParent: element.offsetParent !== null,
-        boundingRect: element.getBoundingClientRect(),
-      });
-    }
-    
-    if (!element) {
-      console.log('[SummaryView] Step 3: Element not in storage, searching for match...');
-      console.log('[SummaryView] Calling findMatchingElement with:', refText);
-      // Try to find it now
-      const foundElement = findMatchingElement(refText);
-      console.log('[SummaryView] Step 3 result - Search result:', foundElement ? 'FOUND' : 'NOT FOUND');
-      if (foundElement) {
-        console.log('[SummaryView] Found element details:', {
-          tagName: foundElement.tagName,
-          id: foundElement.id,
-          className: foundElement.className,
-          textContentSnippet: foundElement.textContent?.substring(0, 100),
-          isConnected: foundElement.isConnected,
-          offsetParent: foundElement.offsetParent !== null,
-          boundingRect: foundElement.getBoundingClientRect(),
-        });
-        referenceMappingsRef.current.set(refText, foundElement);
-        element = foundElement;
-        console.log('[SummaryView] Element stored in mappings');
-      } else {
-        console.warn('[SummaryView] findMatchingElement returned null/undefined');
-      }
-    }
+    const element = idToElementMap?.get(firstId) ?? null;
+    if (!element || !element.isConnected) return;
 
-    if (element) {
-      console.log('[SummaryView] Step 4: Element found, proceeding with scroll and highlight');
-      console.log('[SummaryView] Element final details:', {
-        tagName: element.tagName,
-        id: element.id,
-        className: element.className,
-        textContentSnippet: element.textContent?.substring(0, 100),
-        isConnected: element.isConnected,
-        offsetParent: element.offsetParent !== null,
-        boundingRect: element.getBoundingClientRect(),
-        scrollTop: window.scrollY,
-        scrollLeft: window.scrollX,
-      });
-      
-      // Scroll to element - use requestAnimationFrame to ensure element is ready
-      console.log('[SummaryView] Step 5: Preparing to scroll to element...');
-      requestAnimationFrame(() => {
-        try {
-          // Verify element is still connected
-          if (!element.isConnected) {
-            console.warn('[SummaryView] Element is not connected to DOM, cannot scroll');
-            return;
-          }
-
-          // Get element position
-          const rect = element.getBoundingClientRect();
-          console.log('[SummaryView] Element position before scroll:', {
-            top: rect.top,
-            left: rect.left,
-            windowScrollY: window.scrollY,
-            windowScrollX: window.scrollX,
-            viewportHeight: window.innerHeight,
-          });
-          
-          // Try scrollIntoView first (most reliable)
-          try {
-            element.scrollIntoView({ 
-              behavior: 'smooth', 
-              block: 'center',
-              inline: 'nearest'
-            });
-            console.log('[SummaryView] Step 5: scrollIntoView called successfully');
-          } catch (scrollIntoViewError) {
-            console.warn('[SummaryView] scrollIntoView failed, trying manual scroll:', scrollIntoViewError);
-            // Fallback: manual scroll calculation
-            const scrollY = window.scrollY + rect.top - window.innerHeight / 2;
-            const scrollX = window.scrollX + rect.left - window.innerWidth / 2;
-            
-            // Scroll window
-            window.scrollTo({ 
-              top: Math.max(0, scrollY), 
-              left: Math.max(0, scrollX), 
-              behavior: 'smooth' 
-            });
-            console.log('[SummaryView] Manual window scroll executed');
-            
-            // Also try scrolling document.documentElement if available
-            if (document.documentElement) {
-              document.documentElement.scrollTo({
-                top: Math.max(0, scrollY),
-                left: Math.max(0, scrollX),
-                behavior: 'smooth'
-              });
-            }
-          }
-        } catch (error) {
-          console.error('[SummaryView] Step 5: Error in scroll operation:', error);
-        }
-      });
-
-      // Highlight element
-      console.log('[SummaryView] Step 6: Applying highlight styles...');
+    requestAnimationFrame(() => {
       try {
-        const originalStyles = {
-          backgroundColor: element.style.backgroundColor,
-          borderRadius: element.style.borderRadius,
-          paddingLeft: element.style.paddingLeft,
-          paddingRight: element.style.paddingRight,
-        };
-        console.log('[SummaryView] Original element styles:', originalStyles);
-        
-        element.style.backgroundColor = colorWithOpacity(COLORS.PRIMARY_LIGHT, 0.3);
-        element.style.borderRadius = '5px';
-        element.style.paddingLeft = '4px';
-        element.style.paddingRight = '4px';
-        element.style.transition = 'background-color 0.3s ease, border-radius 0.3s ease, padding 0.3s ease';
-        
-        console.log('[SummaryView] Step 6: Highlight styles applied');
-        console.log('[SummaryView] Element computed styles after highlight:', {
-          backgroundColor: window.getComputedStyle(element).backgroundColor,
-          borderRadius: window.getComputedStyle(element).borderRadius,
-        });
-        
-        highlightedElementRef.current = element;
-        setActiveRefText(refText);
-        // Set as active scroll target for continuous scrolling during streaming
-        activeScrollTargetRef.current = element;
-        console.log('[SummaryView] Step 6: Highlight reference stored, will persist until toggled or another ref clicked');
-        console.log('[SummaryView] Active scroll target set for continuous scrolling during streaming');
-      } catch (error) {
-        console.error('[SummaryView] Step 6: Error applying highlight:', error);
+        if (!element.isConnected) return;
+        const rect = element.getBoundingClientRect();
+        try {
+          element.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+        } catch {
+          const scrollY = window.scrollY + rect.top - window.innerHeight / 2;
+          const scrollX = window.scrollX + rect.left - window.innerWidth / 2;
+          window.scrollTo({ top: Math.max(0, scrollY), left: Math.max(0, scrollX), behavior: 'smooth' });
+          if (document.documentElement) {
+            document.documentElement.scrollTo({ top: Math.max(0, scrollY), left: Math.max(0, scrollX), behavior: 'smooth' });
+          }
+        }
+      } catch {
+        // ignore
       }
-    } else {
-      console.error('[SummaryView] ===== ELEMENT NOT FOUND =====');
-      console.error('[SummaryView] Could not find element for reference:', refText);
-      console.error('[SummaryView] Available mappings:', Array.from(referenceMappingsRef.current.entries()).map(([key, el]) => ({
-        key,
-        keyLength: key.length,
-        keyMatches: key === refText,
-        keyTrimmedMatches: key.trim() === refText.trim(),
-        tagName: el.tagName,
-        textSnippet: el.textContent?.substring(0, 50),
-      })));
-      console.error('[SummaryView] ===== END ERROR =====');
-    }
-    console.log('========================================');
-  }, [activeRefText, clearHighlightSmoothly]);
+    });
 
-  // Parse summary text and replace reference links with numbered buttons
-  // Also stores reference mappings for later use
+    try {
+      element.style.backgroundColor = colorWithOpacity(COLORS.PRIMARY_LIGHT, 0.3);
+      element.style.borderRadius = '5px';
+      element.style.paddingLeft = '4px';
+      element.style.paddingRight = '4px';
+      element.style.transition = 'background-color 0.3s ease, border-radius 0.3s ease, padding 0.3s ease';
+      highlightedElementRef.current = element;
+      setActiveRefKey(refKey);
+      activeScrollTargetRef.current = element;
+    } catch {
+      // ignore
+    }
+  }, [activeRefKey, clearHighlightSmoothly, idToElementMap]);
+
+  // Parse refs: summary [[[ref:("id1","id2")]]] and Ask [[[(N)substring]]] -> ref keys for click-to-scroll
   const parseReferences = useCallback((text: string): { parsedText: string; references: string[] } => {
     const references: string[] = [];
     let refIndex = 0;
-
-    // Replace reference patterns with a unique placeholder that won't break markdown parsing
-    // Using a code-like syntax that ReactMarkdown will render inline
-    const parsedText = text.replace(REF_LINK_PATTERN, (_match, refText) => {
+    let parsed = text.replace(REF_LINK_PATTERN, (_match, inner: string) => {
       refIndex++;
-      const trimmedRefText = refText.trim();
-      references.push(trimmedRefText);
-      
-      console.log(`[SummaryView] Parsing reference ${refIndex}:`, trimmedRefText);
-      
-      // Find and store matching element
-      console.log(`[SummaryView] Searching for element matching: "${trimmedRefText}"`);
-      const element = findMatchingElement(trimmedRefText);
-      if (element) {
-        console.log(`[SummaryView] Found matching element for ref ${refIndex}:`, {
-          tagName: element.tagName,
-          id: element.id,
-          className: element.className,
-          textContentSnippet: element.textContent?.substring(0, 100),
-          isConnected: element.isConnected,
-          offsetParent: element.offsetParent !== null,
-        });
-        referenceMappingsRef.current.set(trimmedRefText, element as HTMLElement);
-        console.log(`[SummaryView] Stored reference mapping: "${trimmedRefText}" -> element`);
-      } else {
-        console.warn(`[SummaryView] No matching element found for reference ${refIndex}: "${trimmedRefText}"`);
-      }
-      
-      // Use a unique placeholder that looks like inline code to ReactMarkdown
+      const ids = inner.split(',').map((s) => s.trim().replace(/^"|"$/g, '')).filter(Boolean);
+      const refKey = ids.join(',');
+      references.push(refKey);
       return `\`REF_${refIndex}_PLACEHOLDER\``;
     });
-    
-    console.log(`[SummaryView] parseReferences completed. Found ${references.length} references.`);
-    console.log(`[SummaryView] Reference mappings stored:`, Array.from(referenceMappingsRef.current.keys()));
-
-    return { parsedText, references };
+    parsed = parsed.replace(ASK_REF_PATTERN, (_match, N: string) => {
+      refIndex++;
+      references.push(String(N));
+      return `\`REF_${refIndex}_PLACEHOLDER\``;
+    });
+    return { parsedText: parsed, references };
   }, []);
 
   // Render summary with markdown and reference links
@@ -610,24 +410,22 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
             strong: ({ children }) => <strong className={getClassName('markdownStrong')}>{children}</strong>,
             em: ({ children }) => <em className={getClassName('markdownEm')}>{children}</em>,
             code: ({ children }) => {
-              // Check if this is a reference placeholder
               const codeText = String(children);
               const refMatch = codeText.match(/^REF_(\d+)_PLACEHOLDER$/);
               if (refMatch) {
                 const refNum = parseInt(refMatch[1], 10);
-                const refText = references[refNum - 1];
-                const isActive = activeRefText === refText;
+                const refKey = references[refNum - 1];
+                const isActive = activeRefKey === refKey;
                 return (
                   <button
                     className={`${getClassName('refButton')} ${isActive ? getClassName('refButtonActive') : ''}`}
-                    title={refText}
-                    onClick={() => handleReferenceClick(refText)}
+                    title={refKey}
+                    onClick={() => handleReferenceClick(refKey)}
                   >
                     {refNum}
                   </button>
                 );
               }
-              // Regular code element
               return <code className={getClassName('markdownCode')}>{children}</code>;
             },
           }}
@@ -637,7 +435,6 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
       );
     }
 
-    // If there are references, render with custom code component handler
     return (
       <ReactMarkdown
         components={{
@@ -651,23 +448,21 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
           strong: ({ children }) => <strong className={getClassName('markdownStrong')}>{children}</strong>,
           em: ({ children }) => <em className={getClassName('markdownEm')}>{children}</em>,
           code: ({ children }) => {
-            // Check if this is a reference placeholder
             const codeText = String(children);
             const refMatch = codeText.match(/^REF_(\d+)_PLACEHOLDER$/);
             if (refMatch) {
               const refNum = parseInt(refMatch[1], 10);
-              const refText = references[refNum - 1];
+              const refKey = references[refNum - 1];
               return (
                 <button
                   className={getClassName('refButton')}
-                  title={refText}
-                  onClick={() => handleReferenceClick(refText)}
+                  title={refKey}
+                  onClick={() => handleReferenceClick(refKey)}
                 >
                   {refNum}
                 </button>
               );
             }
-            // Regular code element
             return <code className={getClassName('markdownCode')}>{children}</code>;
           },
         }}
@@ -678,8 +473,8 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
   };
 
   const handleSummarise = async () => {
-    if (pageReadingState !== 'ready') return;
-    
+    if (pageReadingStatus !== 'PAGE_READING_COMPLETED') return;
+
     // If already summarising, stop the request (this is the "Stop" button)
     if (summariseState === 'summarising') {
       console.log('[SummaryView] Stop button clicked - aborting summarise request');
@@ -720,8 +515,8 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
     abortControllerRef.current = new AbortController();
 
     try {
-      const pageContent = await getStoredPageContent();
-      if (!pageContent) {
+      const { content } = await getSummarisePayloadOrWait();
+      if (!content || Object.keys(content).length === 0) {
         setSummariseState('error');
         setErrorMessage('Page content not available');
         return;
@@ -736,7 +531,7 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
 
       await SummariseService.summarise(
         {
-          text: pageContent,
+          content,
           context_type: 'PAGE',
           languageCode,
         },
@@ -798,7 +593,13 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
     abortControllerRef.current = new AbortController();
 
     try {
-      const pageContent = await getStoredPageContent();
+      const { content } = await getSummarisePayloadOrWait();
+      if (!content || Object.keys(content).length === 0) {
+        setAskingState('idle');
+        setErrorMessage('Page content not available');
+        setChatMessages((prev) => prev.slice(0, -1));
+        return;
+      }
 
       // Get language code from user settings
       const nativeLanguageForAsk = await ChromeStorage.getUserSettingNativeLanguage();
@@ -813,7 +614,7 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
           // Send OLD chat history without the new user message
           // API will add the user message from the 'question' field
           chat_history: chatMessages,
-          initial_context: pageContent || undefined,
+          initial_context: JSON.stringify(content),
           context_type: 'PAGE',
           languageCode: languageCodeForAsk,
         },
@@ -889,15 +690,13 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
     setSummariseState('idle');
     setAskingState('idle');
     setErrorMessage('');
-    // Clear reference mappings
-    referenceMappingsRef.current.clear();
-    // Clear active ref and highlight smoothly
+    setIdToElementMap(null);
     if (highlightedElementRef.current) {
       const elementToClear = highlightedElementRef.current;
       clearHighlightSmoothly(elementToClear);
       highlightedElementRef.current = undefined;
     }
-    setActiveRefText(null);
+    setActiveRefKey(null);
     // Clear scroll target
     activeScrollTargetRef.current = null;
     if (scrollIntervalRef.current) {
@@ -966,7 +765,7 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
 
   // Get button text and icon based on state
   const getButtonContent = () => {
-    if (pageReadingState === 'reading') {
+    if (pageReadingStatus === 'PAGE_READING_IN_PROGRESS') {
       return { text: `Reading page${'.'.repeat(dotCount)}`, icon: null };
     }
     if (summariseState === 'summarising') {
@@ -980,7 +779,7 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
   };
 
   const { text: buttonText, icon: buttonIcon } = getButtonContent();
-  const isButtonDisabled = pageReadingState !== 'ready';
+  const isButtonDisabled = pageReadingStatus !== 'PAGE_READING_COMPLETED';
 
   // Get tooltip message based on hovered icon
   const getTooltipMessage = () => {

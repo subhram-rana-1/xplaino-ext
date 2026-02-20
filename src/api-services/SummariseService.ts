@@ -9,8 +9,8 @@ import { TokenRefreshRetry } from './TokenRefreshRetry';
 
 // Types
 export interface SummariseRequest {
-  text: string;
-  context_type: 'PAGE' | 'TEXT';
+  content: Record<string, string>;
+  context_type?: 'PAGE' | 'TEXT';
   languageCode?: string;
 }
 

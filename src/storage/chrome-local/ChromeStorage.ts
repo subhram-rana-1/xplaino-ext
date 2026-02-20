@@ -26,7 +26,6 @@ export class ChromeStorage {
     EXTENSION_SETTINGS: 'extension_settings',
     DISABLE_MODAL_DISMISSED: 'disable_modal_dismissed',
     XPLAINO_AUTH_INFO: 'xplaino_ext_user_auth_info',
-    PAGE_CONTENT: 'page_content',
     USER_SETTING_GLOBAL_THEME: 'user_setting_global_theme',
     USER_SETTING_PAGE_TRANSLATION_VIEW: 'user_setting_page_translation_view',
     USER_SETTING_THEME_ON_SITE: 'user_setting_theme_on_site',
@@ -365,33 +364,6 @@ export class ChromeStorage {
 
   static async removeAuthInfo(): Promise<void> {
     return this.remove(this.KEYS.XPLAINO_AUTH_INFO);
-  }
-
-  // --- Page Content (per domain) ---
-  static async getPageContent(domain: string): Promise<string | null> {
-    const pageContentMap = await this.get<Record<string, string>>(this.KEYS.PAGE_CONTENT);
-    return pageContentMap?.[domain] ?? null;
-  }
-
-  static async setPageContent(domain: string, content: string): Promise<void> {
-    const pageContentMap = await this.get<Record<string, string>>(this.KEYS.PAGE_CONTENT) ?? {};
-    const updatedMap = {
-      ...pageContentMap,
-      [domain]: content,
-    };
-    return this.set(this.KEYS.PAGE_CONTENT, updatedMap);
-  }
-
-  static async removePageContent(domain: string): Promise<void> {
-    const pageContentMap = await this.get<Record<string, string>>(this.KEYS.PAGE_CONTENT);
-    if (pageContentMap && pageContentMap[domain]) {
-      delete pageContentMap[domain];
-      return this.set(this.KEYS.PAGE_CONTENT, pageContentMap);
-    }
-  }
-
-  static async clearAllPageContent(): Promise<void> {
-    return this.remove(this.KEYS.PAGE_CONTENT);
   }
 
   // ============================================

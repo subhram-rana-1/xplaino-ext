@@ -1,7 +1,5 @@
 // src/content/utils/pageContentExtractor.ts
-// Utility for extracting text content from web pages
-
-import { ChromeStorage } from '@/storage/chrome-local/ChromeStorage';
+// Utility for extracting text content from web pages (in-memory only; no Chrome storage)
 
 /**
  * Tags to exclude when extracting text content
@@ -317,37 +315,85 @@ export function extractPageContent(): string {
   return cleanText(rawText);
 }
 
+/** Max total content length for summarise API (backend validation) */
+const SUMMARISE_MAX_CONTENT_LENGTH = 50_000;
+
 /**
- * Extract page content and store in Chrome storage
- * Returns the extracted content
+ * Block-level tags used for summary extraction (one ID per element).
+ * Aligned with paragraph/block semantics for reference IDs.
  */
-export async function extractAndStorePageContent(): Promise<string> {
-  const domain = window.location.hostname;
-  const content = extractPageContent();
-  
-  if (content) {
-    await ChromeStorage.setPageContent(domain, content);
-    console.log(`[PageContentExtractor] Stored ${content.length} characters for ${domain}`);
+const SUMMARY_BLOCK_TAGS = new Set([
+  'P', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6',
+  'LI', 'BLOCKQUOTE', 'TD', 'TH', 'FIGCAPTION',
+  'DIV', 'SECTION', 'ARTICLE', 'SPAN',
+]);
+
+export interface ExtractPageContentWithIdsResult {
+  content: Record<string, string>;
+  idToElement: Map<string, HTMLElement>;
+}
+
+/**
+ * Extract page content as ID-keyed blocks for the summarise v2 API.
+ * Uses the same content strategy as extractPageContent (main content or body).
+ * Assigns sequential string IDs "1", "2", "3", ... and returns a map from ID to DOM element
+ * for click-to-scroll. Total content length is capped at SUMMARISE_MAX_CONTENT_LENGTH.
+ */
+export function extractPageContentWithIds(): ExtractPageContentWithIdsResult {
+  const content: Record<string, string> = {};
+  const idToElement = new Map<string, HTMLElement>();
+  const body = document.body;
+  if (!body) {
+    return { content, idToElement };
   }
-  
-  return content;
-}
 
-/**
- * Check if page content exists for the current domain
- */
-export async function hasPageContent(): Promise<boolean> {
-  const domain = window.location.hostname;
-  const content = await ChromeStorage.getPageContent(domain);
-  return content !== null && content.length > 0;
-}
+  const root = findMainContentContainer() ?? body;
+  const skipExcludedContainers = root !== body;
 
-/**
- * Get page content for the current domain
- */
-export async function getStoredPageContent(): Promise<string | null> {
-  const domain = window.location.hostname;
-  return ChromeStorage.getPageContent(domain);
+  let totalLength = 0;
+  let nextId = 1;
+
+  const walker = document.createTreeWalker(
+    root,
+    NodeFilter.SHOW_ELEMENT,
+    {
+      acceptNode: (node) => {
+        const el = node as Element;
+        if (EXCLUDED_TAGS.has(el.tagName)) return NodeFilter.FILTER_REJECT;
+        if (skipExcludedContainers && EXCLUDED_CONTAINER_TAGS.has(el.tagName)) return NodeFilter.FILTER_REJECT;
+        if (!isElementVisible(el)) return NodeFilter.FILTER_REJECT;
+        if (skipExcludedContainers && shouldExcludeByPattern(el)) return NodeFilter.FILTER_REJECT;
+        if (isExtensionElement(el)) return NodeFilter.FILTER_REJECT;
+        return NodeFilter.FILTER_ACCEPT;
+      },
+    }
+  );
+
+  let node: Element | null;
+  while ((node = walker.nextNode() as Element | null)) {
+    const element = node as HTMLElement;
+    const tagName = element.tagName.toUpperCase();
+    if (!SUMMARY_BLOCK_TAGS.has(tagName)) continue;
+
+    if (tagName === 'DIV' || tagName === 'SECTION' || tagName === 'ARTICLE' || tagName === 'SPAN') {
+      if (hasTranslatableChildren(element)) continue;
+    }
+
+    const text = cleanText(extractTextFromElement(element, false));
+    if (!text || text.length < 2) continue;
+
+    const remaining = SUMMARISE_MAX_CONTENT_LENGTH - totalLength;
+    if (remaining <= 0) break;
+
+    const textToAdd = text.length > remaining ? text.slice(0, remaining) : text;
+    const id = String(nextId++);
+    content[id] = textToAdd;
+    idToElement.set(id, element);
+    totalLength += textToAdd.length;
+  }
+
+  console.log(`[PageContentExtractor] extractPageContentWithIds: ${Object.keys(content).length} blocks, ${totalLength} chars`);
+  return { content, idToElement };
 }
 
 // =============================================================================
