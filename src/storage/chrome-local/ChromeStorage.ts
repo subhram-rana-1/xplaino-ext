@@ -51,6 +51,7 @@ export class ChromeStorage {
     SHOULD_SHOW_TEXT_FEATURE: 'should-text-image-feature',
     SHOULD_SHOW_WORD_FEATURE: 'should-word-image-feature',
     SIDE_PANEL_WIDTH: 'side_panel_width',
+    TOKEN_REFRESH_LOCK: 'xplaino_token_refresh_lock',
   } as const;
 
   /** Panel width min/max (px) - must match panel components. Max kept lower so panel doesn’t push page content too far left. */
@@ -364,6 +365,17 @@ export class ChromeStorage {
 
   static async removeAuthInfo(): Promise<void> {
     return this.remove(this.KEYS.XPLAINO_AUTH_INFO);
+  }
+
+  static async getTokenRefreshLock(): Promise<{ lockId: string; acquiredAt: number } | null> {
+    return this.get<{ lockId: string; acquiredAt: number }>(this.KEYS.TOKEN_REFRESH_LOCK);
+  }
+
+  static async setTokenRefreshLock(data: { lockId: string; acquiredAt: number } | null): Promise<void> {
+    if (data === null) {
+      return this.remove(this.KEYS.TOKEN_REFRESH_LOCK);
+    }
+    return this.set(this.KEYS.TOKEN_REFRESH_LOCK, data);
   }
 
   // ============================================
