@@ -889,6 +889,7 @@ export const WordExplanationPopover: React.FC<WordExplanationPopoverProps> = ({
             size={18}
             useShadowDom={useShadowDom}
             direction="left"
+            variant="minus"
           />
         </div>
       </div>

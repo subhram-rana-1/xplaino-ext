@@ -1,5 +1,5 @@
 import React from 'react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Minus } from 'lucide-react';
 import styles from './MinimizeIcon.module.css';
 
 export interface MinimizeIconProps {
@@ -9,6 +9,8 @@ export interface MinimizeIconProps {
   useShadowDom?: boolean;
   /** Icon direction: right (>) for settings/summary panel, left (<) for others */
   direction?: 'left' | 'right';
+  /** Icon variant: 'chevron' (default) shows < or >, 'minus' shows — */
+  variant?: 'chevron' | 'minus';
 }
 
 export const MinimizeIcon: React.FC<MinimizeIconProps> = ({
@@ -17,9 +19,12 @@ export const MinimizeIcon: React.FC<MinimizeIconProps> = ({
   className = '',
   useShadowDom = false,
   direction = 'left',
+  variant = 'chevron',
 }) => {
   const buttonClass = useShadowDom ? 'minimizeIcon' : styles.minimizeIcon;
-  const Icon = direction === 'right' ? ChevronRight : ChevronLeft;
+  const Icon = variant === 'minus'
+    ? Minus
+    : direction === 'right' ? ChevronRight : ChevronLeft;
 
   return (
     <button

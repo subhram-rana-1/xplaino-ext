@@ -62,12 +62,13 @@
   box-shadow: none !important;
 }
 
-/* Image mode: circular border, larger button, white bg in light theme */
+/* Image mode: larger button, no border/background */
 .explanationIconButton.imageMode {
   width: 20px !important;
   height: 20px !important;
   border-radius: 50% !important;
-  border: 1px solid #FFFFFF !important;
+  border: none !important;
+  background: transparent !important;
   transition: transform 0.2s ease !important;
 }
 
@@ -76,15 +77,15 @@
 }
 
 .explanationIconButton.imageMode.lightBg {
-  background: #FFFFFF !important;
+  background: transparent !important;
 }
 
 .explanationIconButton.imageMode.lightBg.spinning {
-  background: #FFFFFF !important;
+  background: transparent !important;
 }
 
 .explanationIconButton.imageMode.lightBg.greenIcon {
-  background: #FFFFFF !important;
+  background: transparent !important;
 }
 
 /* Book icon and bookmark: rectangle shape with rounded corners */

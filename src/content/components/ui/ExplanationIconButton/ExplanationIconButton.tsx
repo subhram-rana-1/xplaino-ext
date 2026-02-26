@@ -139,14 +139,8 @@ export const ExplanationIconButton: React.FC<ExplanationIconButtonProps> = ({
   // In dark theme: use turquoise colors (COLORS.DARK_PRIMARY)
   const isDarkMode = currentTheme === 'dark';
 
-  // Compute theme-aware values directly (no useState to avoid timing issues)
-  const brandIconUrl = (() => {
-    const iconName = isDarkMode 
-      ? 'xplaino-turquoise-icon.ico' 
-      : 'xplaino-purple-icon.ico';
-    return chrome.runtime.getURL(`src/assets/icons/${iconName}`);
-  })();
-  
+  const newIconUrl = 'https://bmicorrect.com/extension/icons/extension-tooltip-v2.ico';
+
   // Primary color: turquoise (DARK_PRIMARY) in dark theme, teal (PRIMARY) in light theme
   const primaryColor = isDarkMode ? COLORS.DARK_PRIMARY : COLORS.PRIMARY;
 
@@ -214,8 +208,8 @@ export const ExplanationIconButton: React.FC<ExplanationIconButtonProps> = ({
     width: imageMode ? '20px' : '14px',
     height: imageMode ? '20px' : '14px',
     padding: '0',
-    border: imageMode ? '1px solid #FFFFFF' : 'none',
-    background: imageMode && !isDarkMode ? '#FFFFFF' : 'transparent',
+    border: 'none',
+    background: 'transparent',
     cursor: 'pointer',
     pointerEvents: 'auto',
     display: 'flex',
@@ -234,18 +228,16 @@ export const ExplanationIconButton: React.FC<ExplanationIconButtonProps> = ({
         </div>
       );
     }
-    
-    if (showPurpleIconInitially && !firstChunkReceived) {
-      return (
-        <img
-          src={brandIconUrl}
-          alt="Xplaino"
-          className={getClassName('iconImage')}
-        />
-      );
+    if (firstChunkReceived) {
+      return <TealBookIcon className={getClassName('iconImage')} color={primaryColor} />;
     }
-    
-    return <TealBookIcon className={getClassName('iconImage')} color={primaryColor} />;
+    return (
+      <img
+        src={newIconUrl}
+        alt="Xplaino"
+        className={getClassName('iconImage')}
+      />
+    );
   };
 
   // Use external containerRef if provided, otherwise use internal

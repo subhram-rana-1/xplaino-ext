@@ -16,7 +16,6 @@ import { FeatureRequestModal } from './components/FeatureRequestModal';
 import { TextExplanationSidePanel } from './components/TextExplanationSidePanel';
 import { TextExplanationIconContainer } from './components/TextExplanationIcon';
 import { ImageExplanationIcon } from './components/ImageExplanationIcon/ImageExplanationIcon';
-import { FeatureDiscoveryTooltip } from './components/FeatureDiscoveryTooltip/FeatureDiscoveryTooltip';
 import { WordExplanationPopover, type TabType } from './components/WordExplanationPopover';
 import { WordAskAISidePanel } from './components/WordAskAISidePanel';
 import { FolderListModal } from './components/FolderListModal';
@@ -151,7 +150,6 @@ const FOLDER_LIST_MODAL_HOST_ID = 'xplaino-folder-list-modal-host';
 const WELCOME_MODAL_HOST_ID = 'xplaino-welcome-modal-host';
 const REVIEW_PROMPT_MODAL_HOST_ID = 'xplaino-review-prompt-modal-host';
 const YOUTUBE_ASK_AI_BUTTON_HOST_ID = 'xplaino-youtube-ask-ai-button-host';
-const FEATURE_DISCOVERY_TOOLTIP_HOST_ID = 'xplaino-feature-discovery-tooltip-host';
 
 /**
  * Domain status enum (must match src/types/domain.ts)
@@ -185,7 +183,6 @@ let wordAskAICloseHandler: (() => void) | null = null;
 let toastRoot: ReactDOM.Root | null = null;
 let welcomeModalRoot: ReactDOM.Root | null = null;
 let reviewPromptModalRoot: ReactDOM.Root | null = null;
-let featureDiscoveryTooltipRoot: ReactDOM.Root | null = null;
 
 // Modal state
 let modalVisible = false;
@@ -11715,51 +11712,8 @@ function removeReviewPromptModal(): void {
 }
 
 // =============================================================================
-// FEATURE DISCOVERY TOOLTIP
+// YOUTUBE WATCH PAGE INITIALIZATION
 // =============================================================================
-
-/**
- * Inject FeatureDiscoveryTooltip into the page.
- * Uses a simple hidden div as mount point since the component uses createPortal to document.body.
- */
-function injectFeatureDiscoveryTooltip(): void {
-  // Check if already injected
-  if (document.getElementById(FEATURE_DISCOVERY_TOOLTIP_HOST_ID)) {
-    return;
-  }
-
-  const mountPoint = document.createElement('div');
-  mountPoint.id = FEATURE_DISCOVERY_TOOLTIP_HOST_ID;
-  mountPoint.style.display = 'none';
-  document.documentElement.appendChild(mountPoint);
-
-  featureDiscoveryTooltipRoot = ReactDOM.createRoot(mountPoint);
-  featureDiscoveryTooltipRoot.render(
-    React.createElement(Provider, { store },
-      React.createElement(FeatureDiscoveryTooltip)
-    )
-  );
-
-  console.log('[Content Script] Feature Discovery Tooltip injected');
-}
-
-/**
- * Remove FeatureDiscoveryTooltip from the page.
- */
-function removeFeatureDiscoveryTooltip(): void {
-  const host = document.getElementById(FEATURE_DISCOVERY_TOOLTIP_HOST_ID);
-  if (host) {
-    if (featureDiscoveryTooltipRoot) {
-      featureDiscoveryTooltipRoot.unmount();
-      featureDiscoveryTooltipRoot = null;
-    }
-    host.remove();
-  }
-}
-
-/**
- * Handle "Write a Review" button click
- */
 async function handleReviewClick(): Promise<void> {
   await ChromeStorage.setHasUserReviewSubmissionAttempted(true);
   reviewPromptModalVisible = false;
@@ -12028,7 +11982,6 @@ async function initContentScript(): Promise<void> {
     removeToast();
     removeWelcomeModal();
     removeReviewPromptModal();
-    removeFeatureDiscoveryTooltip();
     
     // For watch pages, inject the Ask AI button
     if (isYouTubeWatchPage()) {
@@ -12089,7 +12042,6 @@ async function initContentScript(): Promise<void> {
       runPageRead(),
     ]);
     setupImageHoverDetection();
-    injectFeatureDiscoveryTooltip();
     
     // Check if welcome modal should be shown
     // Only show if domain is not BANNED or DISABLED
@@ -12131,7 +12083,6 @@ async function initContentScript(): Promise<void> {
     removeToast();
     removeWelcomeModal();
     removeReviewPromptModal();
-    removeFeatureDiscoveryTooltip();
     removeYouTubeAskAIButton();
     removeUserSelectOverride();
   }

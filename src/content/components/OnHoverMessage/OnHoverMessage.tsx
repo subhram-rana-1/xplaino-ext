@@ -5,6 +5,7 @@ import { useAtomValue } from 'jotai';
 import { currentThemeAtom } from '@/store/uiAtoms';
 import onHoverMessageStyles from '../../styles/onHoverMessage.shadow.css?inline';
 import { FAB_COLOR_VARIABLES } from '../../../constants/colors.css';
+import { getOrCreatePortalContainer, PORTAL_ROOT_ID } from '../../utils/portalRoot';
 
 export interface OnHoverMessageProps {
   /** The message text to display */
@@ -52,11 +53,10 @@ export const OnHoverMessage: React.FC<OnHoverMessageProps> = ({
       return;
     }
 
-    // Inject CSS variables with :root selector (not :host) since OnHoverMessage renders outside Shadow DOM
+    // Inject CSS variables scoped to portal container so we don't override page :root theme
     const colorStyle = document.createElement('style');
     colorStyle.id = 'onhovermessage-color-variables';
-    // Replace :host with :root for document.body rendering
-    colorStyle.textContent = FAB_COLOR_VARIABLES.replace(/:host/g, ':root');
+    colorStyle.textContent = FAB_COLOR_VARIABLES.replace(/:host/g, `#${PORTAL_ROOT_ID}`);
     document.head.appendChild(colorStyle);
 
     // Inject component styles
@@ -219,8 +219,8 @@ export const OnHoverMessage: React.FC<OnHoverMessageProps> = ({
     </div>
   );
 
-  // Render outside Shadow DOM using portal to document.body
-  return createPortal(tooltipContent, document.body);
+  // Render into dedicated portal container so CSS variables don't leak to page
+  return createPortal(tooltipContent, getOrCreatePortalContainer());
 };
 
 OnHoverMessage.displayName = 'OnHoverMessage';

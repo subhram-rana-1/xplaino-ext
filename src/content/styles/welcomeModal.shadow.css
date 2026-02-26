@@ -90,7 +90,39 @@
   width: 100% !important;
 }
 
-/* Instruction Text */
+/* Instruction Heading - bolder */
+.welcomeModalHeading {
+  margin: 0 !important;
+  padding: 0 !important;
+  font-family: var(--font-family-primary) !important;
+  font-size: 16px !important;
+  font-weight: 700 !important;
+  color: var(--color-primary-light) !important;
+  text-align: center !important;
+  line-height: 1.5 !important;
+}
+
+/* Instructions list below heading */
+.welcomeModalInstructions {
+  margin: 0 !important;
+  padding: 0 0 0 20px !important;
+  font-family: var(--font-family-primary) !important;
+  font-size: 14px !important;
+  font-weight: 400 !important;
+  color: var(--color-text-secondary) !important;
+  line-height: 1.6 !important;
+  list-style: disc !important;
+}
+
+.welcomeModalInstructions li {
+  margin-bottom: 4px !important;
+}
+
+.welcomeModalInstructions li:last-child {
+  margin-bottom: 0 !important;
+}
+
+/* Instruction Text (legacy - kept for any other use) */
 .welcomeModalText {
   margin: 0 !important;
   padding: 0 !important;
