@@ -12,11 +12,11 @@ import { summaryAtom, summariseStateAtom } from '@/store/summaryAtoms';
 import { SavedLinkService } from '@/api-services/SavedLinkService';
 import { ChromeStorage } from '@/storage/chrome-local/ChromeStorage';
 
-// Reference link pattern: [[[ ref text ]]]
-const REF_LINK_PATTERN = /\[\[\[\s*(.+?)\s*\]\]\]/g;
+// Reference link pattern from backend: [[[ref:("id1","id2")]]]
+const REF_LINK_PATTERN = /\[\[\[ref:\s*\([^)]*\)\]\]\]/g;
 
 /**
- * Filter out reference links ([[[ text ]]]) from summary text
+ * Filter out reference links from summary text for plain display
  */
 function filterReferenceLinks(summary: string): string {
   return summary.replace(REF_LINK_PATTERN, '').trim();

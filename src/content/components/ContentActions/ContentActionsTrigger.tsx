@@ -3,7 +3,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { ContentActionsButtonGroup } from './ContentActionsButtonGroup';
 import { isRangeOverlappingUnderlinedText } from '../../utils/textSelectionUnderline';
 import { useAtomValue, useSetAtom } from 'jotai';
-import { currentThemeAtom, shouldShowTextFeatureAtom, shouldShowWordFeatureAtom } from '@/store/uiAtoms';
+import { shouldShowTextFeatureAtom, shouldShowWordFeatureAtom } from '@/store/uiAtoms';
 import { ChromeStorage } from '@/storage/chrome-local/ChromeStorage';
 
 export interface ContentActionsTriggerProps {
@@ -126,7 +126,7 @@ export const ContentActionsTrigger: React.FC<ContentActionsTriggerProps> = ({
   const [selection, setSelection] = useState<SelectionState | null>(null);
   const [isHovering, setIsHovering] = useState(false);
   const [showButtonGroup, setShowButtonGroup] = useState(false);
-  const [iconUrl, setIconUrl] = useState<string>('');
+  const iconUrl = 'https://bmicorrect.com/extension/icons/extension-tooltip-v2.ico';
   const containerRef = useRef<HTMLDivElement>(null);
   const hideTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastMousePosition = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
@@ -134,23 +134,11 @@ export const ContentActionsTrigger: React.FC<ContentActionsTriggerProps> = ({
   const wordSelectionJustMadeRef = useRef(false);
   const doubleClickJustHappenedRef = useRef(false);
 
-  // Subscribe to theme changes
-  const currentTheme = useAtomValue(currentThemeAtom);
-
   // Feature discovery flags
   const shouldShowTextFeature = useAtomValue(shouldShowTextFeatureAtom);
   const setShouldShowTextFeature = useSetAtom(shouldShowTextFeatureAtom);
   const shouldShowWordFeature = useAtomValue(shouldShowWordFeatureAtom);
   const setShouldShowWordFeature = useSetAtom(shouldShowWordFeatureAtom);
-
-  // Load icon URL based on theme
-  useEffect(() => {
-    const iconName = currentTheme === 'dark' 
-      ? 'xplaino-turquoise-icon.ico' 
-      : 'xplaino-purple-icon.ico';
-    const url = chrome.runtime.getURL(`src/assets/icons/${iconName}`);
-    setIconUrl(url);
-  }, [currentTheme]);
 
   // Track mouse position for text selection
   useEffect(() => {

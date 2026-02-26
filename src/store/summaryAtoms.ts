@@ -10,6 +10,7 @@ export interface ChatMessage {
 }
 
 export type PageReadingState = 'reading' | 'ready' | 'error';
+export type PageReadingStatus = 'PAGE_READING_IN_PROGRESS' | 'PAGE_READING_COMPLETED' | 'PAGE_READING_ERROR';
 export type SummariseState = 'idle' | 'summarising' | 'done' | 'error';
 export type AskingState = 'idle' | 'asking' | 'error';
 
@@ -17,7 +18,13 @@ export type AskingState = 'idle' | 'asking' | 'error';
 // SUMMARY TAB STATE ATOMS
 // ============================================
 
-/** Page reading state */
+/** Page reading status (in-memory only; used for wait-before-summarise) */
+export const pageReadingStatusAtom = atom<PageReadingStatus>('PAGE_READING_IN_PROGRESS');
+
+/** Page content (in-memory only; never stored in Chrome storage) */
+export const pageContentAtom = atom<string>('');
+
+/** @deprecated Use pageReadingStatusAtom and map in UI (IN_PROGRESS→reading, COMPLETED→ready, ERROR→error) */
 export const pageReadingStateAtom = atom<PageReadingState>('reading');
 
 /** Summarise state */
@@ -52,6 +59,12 @@ export const summaryErrorAtom = atom<string>('');
 
 /** Signal to focus the ask input bar in SummaryView */
 export const focusAskInputAtom = atom<boolean>(false);
+
+/**
+ * Map from sequential content ID (e.g. "1", "2") to DOM element for summary ref click-to-scroll.
+ * Set when building the summarise request; cleared or replaced when starting a new summarise.
+ */
+export const summaryIdToElementMapAtom = atom<Map<string, HTMLElement> | null>(null);
 
 // ============================================
 // DERIVED ATOMS

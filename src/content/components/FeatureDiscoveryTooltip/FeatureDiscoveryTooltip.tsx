@@ -5,6 +5,7 @@ import { useAtomValue } from 'jotai';
 import { shouldShowTextFeatureAtom, shouldShowWordFeatureAtom, currentThemeAtom } from '@/store/uiAtoms';
 import onHoverMessageStyles from '../../styles/onHoverMessage.shadow.css?inline';
 import { FAB_COLOR_VARIABLES } from '../../../constants/colors.css';
+import { getOrCreatePortalContainer, PORTAL_ROOT_ID } from '../../utils/portalRoot';
 
 /**
  * Known text-centric HTML tags that inherently contain readable text.
@@ -62,12 +63,12 @@ export const FeatureDiscoveryTooltip: React.FC = () => {
       return;
     }
 
-    // Inject CSS variables with :root selector
+    // Inject CSS variables scoped to portal container so we don't override page :root theme
     const existingColorStyle = document.getElementById('onhovermessage-color-variables');
     if (!existingColorStyle) {
       const colorStyle = document.createElement('style');
       colorStyle.id = 'onhovermessage-color-variables';
-      colorStyle.textContent = FAB_COLOR_VARIABLES.replace(/:host/g, ':root');
+      colorStyle.textContent = FAB_COLOR_VARIABLES.replace(/:host/g, `#${PORTAL_ROOT_ID}`);
       document.head.appendChild(colorStyle);
     }
 
@@ -269,8 +270,8 @@ export const FeatureDiscoveryTooltip: React.FC = () => {
     </div>
   );
 
-  // Render outside Shadow DOM using portal to document.body
-  return createPortal(tooltipContent, document.body);
+  // Render into dedicated portal container so CSS variables don't leak to page
+  return createPortal(tooltipContent, getOrCreatePortalContainer());
 };
 
 FeatureDiscoveryTooltip.displayName = 'FeatureDiscoveryTooltip';

@@ -16,7 +16,6 @@ import { FeatureRequestModal } from './components/FeatureRequestModal';
 import { TextExplanationSidePanel } from './components/TextExplanationSidePanel';
 import { TextExplanationIconContainer } from './components/TextExplanationIcon';
 import { ImageExplanationIcon } from './components/ImageExplanationIcon/ImageExplanationIcon';
-import { FeatureDiscoveryTooltip } from './components/FeatureDiscoveryTooltip/FeatureDiscoveryTooltip';
 import { WordExplanationPopover, type TabType } from './components/WordExplanationPopover';
 import { WordAskAISidePanel } from './components/WordAskAISidePanel';
 import { FolderListModal } from './components/FolderListModal';
@@ -83,7 +82,8 @@ import { SavedImageService } from '../api-services/SavedImageService';
 import { UserSettingsService } from '../api-services/UserSettingsService';
 import { SubscriptionService } from '../api-services/SubscriptionService';
 import type { FolderWithSubFoldersResponse } from '../api-services/dto/FolderDTO';
-import { extractAndStorePageContent, getStoredPageContent } from './utils/pageContentExtractor';
+import { extractPageContent, extractPageContentWithIds } from './utils/pageContentExtractor';
+import { getSummarisePayloadOrWait, registerGetPageContentOrWait, registerGetSummarisePayloadOrWait } from './pageContentBridge';
 import { addTextUnderline, removeTextUnderline, pulseTextBackground, changeUnderlineColor, type UnderlineState } from './utils/textSelectionUnderline';
 import { PageTranslationManager } from './utils/pageTranslationManager';
 import { incrementApiCounterAndShouldShowReview } from './utils/reviewPromptTracker';
@@ -93,8 +93,10 @@ import {
   summaryAtom,
   summaryErrorAtom,
   messageQuestionsAtom,
-  pageReadingStateAtom,
+  pageReadingStatusAtom,
+  pageContentAtom,
   focusAskInputAtom,
+  summaryIdToElementMapAtom,
 } from '../store/summaryAtoms';
 import { showLoginModalAtom, showSubscriptionModalAtom, showFeatureRequestModalAtom, userAuthInfoAtom, currentThemeAtom, subscriptionStatusAtom, isUserLoggedInAtom, shouldShowImageFeatureAtom, shouldShowTextFeatureAtom, shouldShowWordFeatureAtom, activePanelWidthAtom } from '../store/uiAtoms';
 import {
@@ -148,7 +150,6 @@ const FOLDER_LIST_MODAL_HOST_ID = 'xplaino-folder-list-modal-host';
 const WELCOME_MODAL_HOST_ID = 'xplaino-welcome-modal-host';
 const REVIEW_PROMPT_MODAL_HOST_ID = 'xplaino-review-prompt-modal-host';
 const YOUTUBE_ASK_AI_BUTTON_HOST_ID = 'xplaino-youtube-ask-ai-button-host';
-const FEATURE_DISCOVERY_TOOLTIP_HOST_ID = 'xplaino-feature-discovery-tooltip-host';
 
 /**
  * Domain status enum (must match src/types/domain.ts)
@@ -182,7 +183,6 @@ let wordAskAICloseHandler: (() => void) | null = null;
 let toastRoot: ReactDOM.Root | null = null;
 let welcomeModalRoot: ReactDOM.Root | null = null;
 let reviewPromptModalRoot: ReactDOM.Root | null = null;
-let featureDiscoveryTooltipRoot: ReactDOM.Root | null = null;
 
 // Modal state
 let modalVisible = false;
@@ -757,11 +757,11 @@ function removeFAB(): void {
 // UTILITY FUNCTIONS
 // =============================================================================
 
-// Reference link pattern: [[[ ref text ]]]
-const REF_LINK_PATTERN = /\[\[\[\s*(.+?)\s*\]\]\]/g;
+// Reference link pattern from backend: [[[ref:("id1","id2")]]]
+const REF_LINK_PATTERN = /\[\[\[ref:\s*\([^)]*\)\]\]\]/g;
 
 /**
- * Filter out reference links ([[[ text ]]]) from summary text
+ * Filter out reference links from summary text for plain display
  */
 function filterReferenceLinks(summary: string): string {
   return summary.replace(REF_LINK_PATTERN, '').trim();
@@ -828,16 +828,9 @@ async function handleSummariseClick(): Promise<void> {
   updateFAB();
 
   try {
-    // Extract page content if not already available
-    let pageContent = await getStoredPageContent();
-    if (!pageContent) {
-      console.log('[Content Script] Extracting page content...');
-      store.set(pageReadingStateAtom, 'reading');
-      pageContent = await extractAndStorePageContent();
-      if (!pageContent) {
-        throw new Error('Could not extract page content');
-      }
-      store.set(pageReadingStateAtom, 'ready');
+    const { content } = await getSummarisePayloadOrWait();
+    if (!content || Object.keys(content).length === 0) {
+      throw new Error('Page content not available');
     }
 
     // Create abort controller
@@ -853,7 +846,7 @@ async function handleSummariseClick(): Promise<void> {
     // Call summarise API
     await SummariseService.summarise(
       {
-        text: pageContent,
+        content,
         context_type: 'PAGE',
         languageCode,
       },
@@ -11719,51 +11712,8 @@ function removeReviewPromptModal(): void {
 }
 
 // =============================================================================
-// FEATURE DISCOVERY TOOLTIP
+// YOUTUBE WATCH PAGE INITIALIZATION
 // =============================================================================
-
-/**
- * Inject FeatureDiscoveryTooltip into the page.
- * Uses a simple hidden div as mount point since the component uses createPortal to document.body.
- */
-function injectFeatureDiscoveryTooltip(): void {
-  // Check if already injected
-  if (document.getElementById(FEATURE_DISCOVERY_TOOLTIP_HOST_ID)) {
-    return;
-  }
-
-  const mountPoint = document.createElement('div');
-  mountPoint.id = FEATURE_DISCOVERY_TOOLTIP_HOST_ID;
-  mountPoint.style.display = 'none';
-  document.documentElement.appendChild(mountPoint);
-
-  featureDiscoveryTooltipRoot = ReactDOM.createRoot(mountPoint);
-  featureDiscoveryTooltipRoot.render(
-    React.createElement(Provider, { store },
-      React.createElement(FeatureDiscoveryTooltip)
-    )
-  );
-
-  console.log('[Content Script] Feature Discovery Tooltip injected');
-}
-
-/**
- * Remove FeatureDiscoveryTooltip from the page.
- */
-function removeFeatureDiscoveryTooltip(): void {
-  const host = document.getElementById(FEATURE_DISCOVERY_TOOLTIP_HOST_ID);
-  if (host) {
-    if (featureDiscoveryTooltipRoot) {
-      featureDiscoveryTooltipRoot.unmount();
-      featureDiscoveryTooltipRoot = null;
-    }
-    host.remove();
-  }
-}
-
-/**
- * Handle "Write a Review" button click
- */
 async function handleReviewClick(): Promise<void> {
   await ChromeStorage.setHasUserReviewSubmissionAttempted(true);
   reviewPromptModalVisible = false;
@@ -12032,7 +11982,6 @@ async function initContentScript(): Promise<void> {
     removeToast();
     removeWelcomeModal();
     removeReviewPromptModal();
-    removeFeatureDiscoveryTooltip();
     
     // For watch pages, inject the Ask AI button
     if (isYouTubeWatchPage()) {
@@ -12052,7 +12001,34 @@ async function initContentScript(): Promise<void> {
     // from reading any selected text via window.getSelection().
     injectUserSelectOverride();
 
-    // Inject all components in parallel with proper async handling
+    // Page content: create completion promise and register getter so summarise/ask can wait for read
+    let pageContentReadyResolve!: () => void;
+    const pageContentReadyPromise = new Promise<void>((r) => {
+      pageContentReadyResolve = r;
+    });
+    registerGetPageContentOrWait(() =>
+      pageContentReadyPromise.then(() => store.get(pageContentAtom))
+    );
+    registerGetSummarisePayloadOrWait(async () => {
+      await pageContentReadyPromise;
+      const { content, idToElement } = extractPageContentWithIds();
+      store.set(summaryIdToElementMapAtom, idToElement);
+      return { content };
+    });
+
+    const runPageRead = async (): Promise<void> => {
+      store.set(pageReadingStatusAtom, 'PAGE_READING_IN_PROGRESS');
+      try {
+        const content = extractPageContent();
+        store.set(pageContentAtom, content);
+        store.set(pageReadingStatusAtom, 'PAGE_READING_COMPLETED');
+      } catch {
+        store.set(pageReadingStatusAtom, 'PAGE_READING_ERROR');
+      }
+      pageContentReadyResolve();
+    };
+
+    // Inject UI and read page content concurrently
     await Promise.all([
       injectFAB(),
       injectSidePanel(),
@@ -12063,9 +12039,9 @@ async function initContentScript(): Promise<void> {
       injectToast(),
       injectImageExplanationIconContainer(),
       injectImageExplanationPanel(),
+      runPageRead(),
     ]);
     setupImageHoverDetection();
-    injectFeatureDiscoveryTooltip();
     
     // Check if welcome modal should be shown
     // Only show if domain is not BANNED or DISABLED
@@ -12107,7 +12083,6 @@ async function initContentScript(): Promise<void> {
     removeToast();
     removeWelcomeModal();
     removeReviewPromptModal();
-    removeFeatureDiscoveryTooltip();
     removeYouTubeAskAIButton();
     removeUserSelectOverride();
   }
