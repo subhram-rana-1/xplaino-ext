@@ -3,7 +3,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { ContentActionsButtonGroup } from './ContentActionsButtonGroup';
 import { isRangeOverlappingUnderlinedText } from '../../utils/textSelectionUnderline';
 import { useAtom, useAtomValue, useSetAtom } from 'jotai';
-import { shouldShowTextFeatureAtom, shouldShowWordFeatureAtom } from '@/store/uiAtoms';
+import { shouldShowTextFeatureAtom, shouldShowWordFeatureAtom, contentActionsModalOpenAtom } from '@/store/uiAtoms';
 import { highlightColoursAtom, selectedHighlightColourIdAtom } from '@/store/webHighlightAtoms';
 import { ChromeStorage } from '@/storage/chrome-local/ChromeStorage';
 
@@ -41,38 +41,6 @@ export interface ContentActionsTriggerProps {
   // --- Text selection callbacks ---
   /** Callback when Ask AI is clicked (text selection) */
   onTextAskAI?: (selectedText: string, range?: Range, iconPosition?: { x: number; y: number }) => void;
-  /** Callback when Summarize is clicked */
-  onSummarize?: (selectedText: string, range?: Range, iconPosition?: { x: number; y: number }) => void;
-  /** Callback when Key Points is clicked */
-  onKeyPoints?: (selectedText: string, range?: Range, iconPosition?: { x: number; y: number }) => void;
-  /** Callback when Rewrite is clicked */
-  onRewrite?: (selectedText: string, range?: Range, iconPosition?: { x: number; y: number }) => void;
-  /** Callback when Paraphrase is clicked */
-  onParaphrase?: (selectedText: string, range?: Range, iconPosition?: { x: number; y: number }) => void;
-  /** Callback when Improve Writing is clicked */
-  onImproveWriting?: (selectedText: string, range?: Range, iconPosition?: { x: number; y: number }) => void;
-  /** Callback when Fix Grammar is clicked */
-  onFixGrammar?: (selectedText: string, range?: Range, iconPosition?: { x: number; y: number }) => void;
-  /** Callback when Tone is clicked */
-  onTone?: (selectedText: string, range?: Range, iconPosition?: { x: number; y: number }) => void;
-  /** Callback when Convert to Bullets is clicked */
-  onConvertBullets?: (selectedText: string, range?: Range, iconPosition?: { x: number; y: number }) => void;
-  /** Callback when Convert to Table is clicked */
-  onConvertTable?: (selectedText: string, range?: Range, iconPosition?: { x: number; y: number }) => void;
-  /** Callback when Convert to Diagram is clicked */
-  onConvertDiagram?: (selectedText: string, range?: Range, iconPosition?: { x: number; y: number }) => void;
-  /** Callback when Create Mind Map is clicked */
-  onCreateMindMap?: (selectedText: string, range?: Range, iconPosition?: { x: number; y: number }) => void;
-  /** Callback when Convert to Email is clicked */
-  onConvertEmail?: (selectedText: string, range?: Range, iconPosition?: { x: number; y: number }) => void;
-  /** Callback when Convert to WhatsApp is clicked */
-  onConvertWhatsApp?: (selectedText: string, range?: Range, iconPosition?: { x: number; y: number }) => void;
-  /** Callback when Convert to LinkedIn is clicked */
-  onConvertLinkedIn?: (selectedText: string, range?: Range, iconPosition?: { x: number; y: number }) => void;
-  /** Callback when Convert to Tweet is clicked */
-  onConvertTweet?: (selectedText: string, range?: Range, iconPosition?: { x: number; y: number }) => void;
-  /** Callback when Convert to Presentation is clicked */
-  onConvertPresentation?: (selectedText: string, range?: Range, iconPosition?: { x: number; y: number }) => void;
   /** Callback to show disable notification modal */
   onShowModal?: () => void;
   /** Callback to show toast message */
@@ -81,6 +49,10 @@ export interface ContentActionsTriggerProps {
   onHighlight?: (selectedText: string, range?: Range, hexcode?: string) => void;
   /** Callback when Add a note is clicked — receives selected text and the live Range */
   onNote?: (selectedText: string, range?: Range) => void;
+  /** Callback when a custom prompt is clicked from the word selection 3-dot popover */
+  onWordCustomPromptClick?: (selectedText: string, displayText: string, promptContent: string) => void;
+  /** Callback when a custom prompt is clicked from the text selection 3-dot popover */
+  onTextCustomPromptClick?: (selectedText: string, displayText: string, promptContent: string) => void;
 }
 
 interface SelectionState {
@@ -107,28 +79,13 @@ export const ContentActionsTrigger: React.FC<ContentActionsTriggerProps> = ({
   onBetterFormal,
   onBetterCasual,
   onBetterAcademic,
-  // Text selection props
   onTextAskAI,
-  onSummarize,
-  onKeyPoints,
-  onRewrite,
-  onParaphrase,
-  onImproveWriting,
-  onFixGrammar,
-  onTone,
-  onConvertBullets,
-  onConvertTable,
-  onConvertDiagram,
-  onCreateMindMap,
-  onConvertEmail,
-  onConvertWhatsApp,
-  onConvertLinkedIn,
-  onConvertTweet,
-  onConvertPresentation,
   onShowModal,
   onShowToast,
   onHighlight,
   onNote,
+  onWordCustomPromptClick,
+  onTextCustomPromptClick,
 }) => {
   const [selection, setSelection] = useState<SelectionState | null>(null);
   const [isHovering, setIsHovering] = useState(false);
@@ -146,6 +103,7 @@ export const ContentActionsTrigger: React.FC<ContentActionsTriggerProps> = ({
   const setShouldShowTextFeature = useSetAtom(shouldShowTextFeatureAtom);
   const shouldShowWordFeature = useAtomValue(shouldShowWordFeatureAtom);
   const setShouldShowWordFeature = useSetAtom(shouldShowWordFeatureAtom);
+  const isContentActionsModalOpen = useAtomValue(contentActionsModalOpenAtom);
 
   // Highlight colour atoms
   const [highlightColours] = useAtom(highlightColoursAtom);
@@ -282,6 +240,11 @@ export const ContentActionsTrigger: React.FC<ContentActionsTriggerProps> = ({
       if (doubleClickJustHappenedRef.current) {
         return;
       }
+
+      // Don't process clicks while a content-actions modal is open
+      if (isContentActionsModalOpen) {
+        return;
+      }
       
       // Double-check that we're not inside our container (in case selection changed)
       const currentTarget = document.activeElement;
@@ -348,7 +311,7 @@ export const ContentActionsTrigger: React.FC<ContentActionsTriggerProps> = ({
         ChromeStorage.setShouldShowTextFeature(false);
       }
     }, 10);
-  }, [getSelectionPosition, isWordSelection, selection, onShowToast, shouldShowTextFeature, setShouldShowTextFeature]);
+  }, [getSelectionPosition, isWordSelection, selection, onShowToast, shouldShowTextFeature, setShouldShowTextFeature, isContentActionsModalOpen]);
 
   // Handle selection change (to hide component when selection is cleared)
   const handleSelectionChange = useCallback(() => {
@@ -356,6 +319,13 @@ export const ContentActionsTrigger: React.FC<ContentActionsTriggerProps> = ({
     setTimeout(() => {
       // Don't clear if a word selection was just made (prevents icon from disappearing)
       if (wordSelectionJustMadeRef.current && selection?.isWord) {
+        return;
+      }
+
+      // Don't clear selection while a modal (e.g. "Add custom prompt") is open.
+      // Clicking inside a portaled modal clears the browser's text selection but
+      // we must keep our React selection state alive so the tree stays mounted.
+      if (isContentActionsModalOpen) {
         return;
       }
       
@@ -376,7 +346,7 @@ export const ContentActionsTrigger: React.FC<ContentActionsTriggerProps> = ({
         setSelection(null);
       }
     }, 10);
-  }, [selection]);
+  }, [selection, isContentActionsModalOpen]);
 
   // Set up event listeners in capture phase so they fire before
   // the host page can call stopPropagation() and swallow the events.
@@ -558,6 +528,12 @@ export const ContentActionsTrigger: React.FC<ContentActionsTriggerProps> = ({
     }
   }, [selection, onHighlight]);
 
+  const handleWordCustomPromptClick = useCallback((displayText: string, promptContent: string) => {
+    if (selection) {
+      onWordCustomPromptClick?.(selection.text, displayText, promptContent);
+    }
+  }, [selection, onWordCustomPromptClick]);
+
   const handleNote = useCallback(() => {
     if (selection) {
       console.log('[ContentActions] Add note:', selection.text.substring(0, 50));
@@ -680,165 +656,11 @@ export const ContentActionsTrigger: React.FC<ContentActionsTriggerProps> = ({
     }
   }, [selection, onTextAskAI, getTextSelectionContext]);
 
-  const handleSummarize = useCallback(() => {
+  const handleTextCustomPromptClick = useCallback((displayText: string, promptContent: string) => {
     if (selection) {
-      console.log('[ContentActions] Summarize:', selection.text.substring(0, 50));
-      setShowButtonGroup(false);
-      setIsHovering(false);
-      const { range, iconPosition } = getTextSelectionContext();
-      onSummarize?.(selection.text, range, iconPosition);
+      onTextCustomPromptClick?.(selection.text, displayText, promptContent);
     }
-  }, [selection, onSummarize, getTextSelectionContext]);
-
-  const handleKeyPoints = useCallback(() => {
-    if (selection) {
-      console.log('[ContentActions] Key Points:', selection.text.substring(0, 50));
-      setShowButtonGroup(false);
-      setIsHovering(false);
-      const { range, iconPosition } = getTextSelectionContext();
-      onKeyPoints?.(selection.text, range, iconPosition);
-    }
-  }, [selection, onKeyPoints, getTextSelectionContext]);
-
-  const handleRewrite = useCallback(() => {
-    if (selection) {
-      console.log('[ContentActions] Rewrite:', selection.text.substring(0, 50));
-      setShowButtonGroup(false);
-      setIsHovering(false);
-      const { range, iconPosition } = getTextSelectionContext();
-      onRewrite?.(selection.text, range, iconPosition);
-    }
-  }, [selection, onRewrite, getTextSelectionContext]);
-
-  const handleParaphrase = useCallback(() => {
-    if (selection) {
-      console.log('[ContentActions] Paraphrase:', selection.text.substring(0, 50));
-      setShowButtonGroup(false);
-      setIsHovering(false);
-      const { range, iconPosition } = getTextSelectionContext();
-      onParaphrase?.(selection.text, range, iconPosition);
-    }
-  }, [selection, onParaphrase, getTextSelectionContext]);
-
-  const handleImproveWriting = useCallback(() => {
-    if (selection) {
-      console.log('[ContentActions] Improve Writing:', selection.text.substring(0, 50));
-      setShowButtonGroup(false);
-      setIsHovering(false);
-      const { range, iconPosition } = getTextSelectionContext();
-      onImproveWriting?.(selection.text, range, iconPosition);
-    }
-  }, [selection, onImproveWriting, getTextSelectionContext]);
-
-  const handleFixGrammar = useCallback(() => {
-    if (selection) {
-      console.log('[ContentActions] Fix Grammar:', selection.text.substring(0, 50));
-      setShowButtonGroup(false);
-      setIsHovering(false);
-      const { range, iconPosition } = getTextSelectionContext();
-      onFixGrammar?.(selection.text, range, iconPosition);
-    }
-  }, [selection, onFixGrammar, getTextSelectionContext]);
-
-  const handleTone = useCallback(() => {
-    if (selection) {
-      console.log('[ContentActions] Tone:', selection.text.substring(0, 50));
-      setShowButtonGroup(false);
-      setIsHovering(false);
-      const { range, iconPosition } = getTextSelectionContext();
-      onTone?.(selection.text, range, iconPosition);
-    }
-  }, [selection, onTone, getTextSelectionContext]);
-
-  const handleConvertBullets = useCallback(() => {
-    if (selection) {
-      console.log('[ContentActions] Convert to Bullets:', selection.text.substring(0, 50));
-      setShowButtonGroup(false);
-      setIsHovering(false);
-      const { range, iconPosition } = getTextSelectionContext();
-      onConvertBullets?.(selection.text, range, iconPosition);
-    }
-  }, [selection, onConvertBullets, getTextSelectionContext]);
-
-  const handleConvertTable = useCallback(() => {
-    if (selection) {
-      console.log('[ContentActions] Convert to Table:', selection.text.substring(0, 50));
-      setShowButtonGroup(false);
-      setIsHovering(false);
-      const { range, iconPosition } = getTextSelectionContext();
-      onConvertTable?.(selection.text, range, iconPosition);
-    }
-  }, [selection, onConvertTable, getTextSelectionContext]);
-
-  const handleConvertDiagram = useCallback(() => {
-    if (selection) {
-      console.log('[ContentActions] Convert to Diagram:', selection.text.substring(0, 50));
-      setShowButtonGroup(false);
-      setIsHovering(false);
-      const { range, iconPosition } = getTextSelectionContext();
-      onConvertDiagram?.(selection.text, range, iconPosition);
-    }
-  }, [selection, onConvertDiagram, getTextSelectionContext]);
-
-  const handleCreateMindMap = useCallback(() => {
-    if (selection) {
-      console.log('[ContentActions] Create Mind Map:', selection.text.substring(0, 50));
-      setShowButtonGroup(false);
-      setIsHovering(false);
-      const { range, iconPosition } = getTextSelectionContext();
-      onCreateMindMap?.(selection.text, range, iconPosition);
-    }
-  }, [selection, onCreateMindMap, getTextSelectionContext]);
-
-  const handleConvertEmail = useCallback(() => {
-    if (selection) {
-      console.log('[ContentActions] Convert to Email:', selection.text.substring(0, 50));
-      setShowButtonGroup(false);
-      setIsHovering(false);
-      const { range, iconPosition } = getTextSelectionContext();
-      onConvertEmail?.(selection.text, range, iconPosition);
-    }
-  }, [selection, onConvertEmail, getTextSelectionContext]);
-
-  const handleConvertWhatsApp = useCallback(() => {
-    if (selection) {
-      console.log('[ContentActions] Convert to WhatsApp:', selection.text.substring(0, 50));
-      setShowButtonGroup(false);
-      setIsHovering(false);
-      const { range, iconPosition } = getTextSelectionContext();
-      onConvertWhatsApp?.(selection.text, range, iconPosition);
-    }
-  }, [selection, onConvertWhatsApp, getTextSelectionContext]);
-
-  const handleConvertLinkedIn = useCallback(() => {
-    if (selection) {
-      console.log('[ContentActions] Convert to LinkedIn:', selection.text.substring(0, 50));
-      setShowButtonGroup(false);
-      setIsHovering(false);
-      const { range, iconPosition } = getTextSelectionContext();
-      onConvertLinkedIn?.(selection.text, range, iconPosition);
-    }
-  }, [selection, onConvertLinkedIn, getTextSelectionContext]);
-
-  const handleConvertTweet = useCallback(() => {
-    if (selection) {
-      console.log('[ContentActions] Convert to Tweet:', selection.text.substring(0, 50));
-      setShowButtonGroup(false);
-      setIsHovering(false);
-      const { range, iconPosition } = getTextSelectionContext();
-      onConvertTweet?.(selection.text, range, iconPosition);
-    }
-  }, [selection, onConvertTweet, getTextSelectionContext]);
-
-  const handleConvertPresentation = useCallback(() => {
-    if (selection) {
-      console.log('[ContentActions] Convert to Presentation:', selection.text.substring(0, 50));
-      setShowButtonGroup(false);
-      setIsHovering(false);
-      const { range, iconPosition } = getTextSelectionContext();
-      onConvertPresentation?.(selection.text, range, iconPosition);
-    }
-  }, [selection, onConvertPresentation, getTextSelectionContext]);
+  }, [selection, onTextCustomPromptClick]);
 
   // Handle action completion - clear selection and hide all UI
   const handleActionComplete = useCallback(() => {
@@ -907,22 +729,6 @@ export const ContentActionsTrigger: React.FC<ContentActionsTriggerProps> = ({
         onBetterCasual={handleBetterCasual}
         onBetterAcademic={handleBetterAcademic}
         onTextAskAI={handleTextAskAI}
-        onSummarize={handleSummarize}
-        onKeyPoints={handleKeyPoints}
-        onRewrite={handleRewrite}
-        onParaphrase={handleParaphrase}
-        onImproveWriting={handleImproveWriting}
-        onFixGrammar={handleFixGrammar}
-        onTone={handleTone}
-        onConvertBullets={handleConvertBullets}
-        onConvertTable={handleConvertTable}
-        onConvertDiagram={handleConvertDiagram}
-        onCreateMindMap={handleCreateMindMap}
-        onConvertEmail={handleConvertEmail}
-        onConvertWhatsApp={handleConvertWhatsApp}
-        onConvertLinkedIn={handleConvertLinkedIn}
-        onConvertTweet={handleConvertTweet}
-        onConvertPresentation={handleConvertPresentation}
         onMouseEnter={handleContainerMouseEnter}
         onMouseLeave={handleContainerMouseLeave}
         onKeepActive={handleKeepActive}
@@ -932,6 +738,8 @@ export const ContentActionsTrigger: React.FC<ContentActionsTriggerProps> = ({
         selectedHighlightColourId={selectedHighlightColourId}
         onHighlightWithColor={handleHighlight}
         onNote={handleNote}
+        onWordCustomPromptClick={handleWordCustomPromptClick}
+        onTextCustomPromptClick={handleTextCustomPromptClick}
       />
     </div>
   );

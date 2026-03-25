@@ -86,7 +86,9 @@ export const ContentActionButton: React.FC<ContentActionButtonProps> = ({
       >
         <IconComponent
           size={27}
-          strokeWidth={2.5}
+          strokeWidth={icon === 'note' ? 0 : 2.5}
+          fill={icon === 'note' ? '#0d8070' : 'none'}
+          color={icon === 'note' ? '#0d8070' : 'currentColor'}
         />
       </button>
       {isButtonMounted && buttonRef.current && !hideTooltip && (

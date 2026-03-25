@@ -7,11 +7,10 @@ import { CitationDetail } from '@/api-services/WebpageChatService';
 
 const MARK_ATTR = 'data-citation-highlight';
 const MARK_STYLE =
-  'background-color:rgba(13,148,136,0.18) !important;color:inherit !important;' +
+  'background-color:transparent !important;color:inherit !important;' +
   'text-decoration:underline !important;text-decoration-style:dashed !important;' +
   'text-decoration-color:#0d9488 !important;text-decoration-thickness:2px !important;' +
   'text-underline-offset:3px !important;' +
-  'border-radius:2px !important;' +
   'box-decoration-break:clone !important;-webkit-box-decoration-break:clone !important;';
 
 // =============================================================================

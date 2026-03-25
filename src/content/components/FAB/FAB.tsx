@@ -1,6 +1,5 @@
 // src/content/components/FAB/FAB.tsx
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
-import { Loader2 } from 'lucide-react';
 import { ActionButton } from './ActionButton';
 import { FABMorePopover } from './FABMorePopover';
 import { TranslationControlPopover } from './TranslationControlPopover';
@@ -58,7 +57,6 @@ export interface FABProps {
 }
 
 export const FAB: React.FC<FABProps> = ({
-  onSummarise,
   onTranslate,
   onStopTranslation,
   onToggleView,
@@ -68,8 +66,6 @@ export const FAB: React.FC<FABProps> = ({
   onFeatureRequest,
   onAskAboutPage,
   useShadowDom = false,
-  isSummarising = false,
-  hasSummary = false,
   canHideActions = true,
   onShowModal,
   isPanelOpen = false,
@@ -94,7 +90,6 @@ export const FAB: React.FC<FABProps> = ({
 
   // Detect Mac vs Windows/Linux for keyboard shortcut labels
   const isMac = useMemo(() => /Mac|iPod|iPhone|iPad/.test(navigator.platform), []);
-  const summariseShortcut = isMac ? '⌘M' : 'Ctrl+M';
   const askAboutPageShortcut = isMac ? '⌘B' : 'Ctrl+B';
   const translateShortcut = isMac ? '⌘K' : 'Ctrl+K';
 
@@ -159,8 +154,8 @@ export const FAB: React.FC<FABProps> = ({
   // Handle parent container mouse leave - hides actions after delay
   const handleParentMouseLeave = useCallback(() => {
     isHoveringRef.current = false;
-    // Don't hide if summarising, if actions shouldn't be hidden yet, if any popover is open, or if disable action is in progress
-    if (isSummarising || !canHideActions || showMorePopover || showTranslationPopover || isDisablingRef.current) {
+    // Don't hide if actions shouldn't be hidden yet, if any popover is open, or if disable action is in progress
+    if (!canHideActions || showMorePopover || showTranslationPopover || isDisablingRef.current) {
       return;
     }
     clearHideTimeout();
@@ -169,7 +164,7 @@ export const FAB: React.FC<FABProps> = ({
         setActionsVisible(false);
       }
     }, 300); // Small delay before hiding
-  }, [clearHideTimeout, isSummarising, canHideActions, showMorePopover, showTranslationPopover]);
+  }, [clearHideTimeout, canHideActions, showMorePopover, showTranslationPopover]);
 
   // Force-show actions when triggered externally (e.g. keyboard shortcut)
   useEffect(() => {
@@ -242,7 +237,7 @@ export const FAB: React.FC<FABProps> = ({
           setShowTranslationPopover(false);
         }
         // Hide actions if they're visible and can be hidden
-        if (actionsVisible && canHideActions && !isSummarising && translationState !== 'translating') {
+        if (actionsVisible && canHideActions && translationState !== 'translating') {
           setActionsVisible(false);
         }
       }
@@ -256,14 +251,9 @@ export const FAB: React.FC<FABProps> = ({
         window.removeEventListener('mousedown', handleClickOutside, true);
       };
     }
-  }, [actionsVisible, showMorePopover, showTranslationPopover, canHideActions, isSummarising, translationState]);
+  }, [actionsVisible, showMorePopover, showTranslationPopover, canHideActions, translationState]);
 
   // Action handlers
-  const handleSummarise = useCallback(() => {
-    console.log('[FAB] Summarise clicked');
-    onSummarise?.();
-  }, [onSummarise]);
-
   const handleAskAboutPage = useCallback(() => {
     console.log('[FAB] Ask about page clicked');
     onAskAboutPage?.();
@@ -400,7 +390,6 @@ export const FAB: React.FC<FABProps> = ({
     `fabButton ${showPulse ? 'pulse' : ''} ${actionsVisible ? 'actionsVisible' : ''}`,
     `${styles.fabButton} ${showPulse ? styles.pulse : ''} ${actionsVisible ? styles.actionsVisible : ''}`
   );
-  const translationSpinnerClass = getClassName('translationSpinner', styles.translationSpinner);
 
   return (
     <>
@@ -413,14 +402,6 @@ export const FAB: React.FC<FABProps> = ({
         onMouseLeave={handleParentMouseLeave}
       >
         <div className={actionsContainerClass}>
-          <ActionButton
-            icon="summarise"
-            tooltip={hasSummary ? 'View summary' : 'Summarise page'}
-            shortcut={summariseShortcut}
-            onClick={handleSummarise}
-            className={actionButtonClass}
-            isLoading={isSummarising}
-          />
           <ActionButton
             icon="askAboutPage"
             tooltip="Ask about page"
@@ -499,12 +480,7 @@ export const FAB: React.FC<FABProps> = ({
         onMouseEnter={handleParentMouseEnter}
         onMouseLeave={handleParentMouseLeave}
       >
-        {/* Translation Spinner - shown to the left of FAB when translating (hidden when actions are visible) */}
-        {translationState === 'translating' && !actionsVisible && (
-          <div className={translationSpinnerClass}>
-            <Loader2 size={16} strokeWidth={2.5} />
-          </div>
-        )}
+        {/* Translation Spinner removed — no spinner shown near FAB during translation */}
 
         {/* FAB Container - on the right */}
         <div className={fabContainerClass}>

@@ -41,40 +41,12 @@ export interface ContentActionsButtonGroupProps {
   // --- Text selection callbacks ---
   /** Callback when Ask AI is clicked (text selection) */
   onTextAskAI?: () => void;
-  /** Callback when Summarize is clicked */
-  onSummarize?: () => void;
-  /** Callback when Key Points is clicked */
-  onKeyPoints?: () => void;
-  /** Callback when Rewrite is clicked */
-  onRewrite?: () => void;
-  /** Callback when Paraphrase is clicked */
-  onParaphrase?: () => void;
-  /** Callback when Improve Writing is clicked */
-  onImproveWriting?: () => void;
-  /** Callback when Fix Grammar is clicked */
-  onFixGrammar?: () => void;
-  /** Callback when Tone is clicked */
-  onTone?: () => void;
-  /** Callback when Convert to Bullets is clicked */
-  onConvertBullets?: () => void;
-  /** Callback when Convert to Table is clicked */
-  onConvertTable?: () => void;
-  /** Callback when Convert to Diagram is clicked */
-  onConvertDiagram?: () => void;
-  /** Callback when Create Mind Map is clicked */
-  onCreateMindMap?: () => void;
-  /** Callback when Convert to Email is clicked */
-  onConvertEmail?: () => void;
-  /** Callback when Convert to WhatsApp is clicked */
-  onConvertWhatsApp?: () => void;
-  /** Callback when Convert to LinkedIn is clicked */
-  onConvertLinkedIn?: () => void;
-  /** Callback when Convert to Tweet is clicked */
-  onConvertTweet?: () => void;
-  /** Callback when Convert to Presentation is clicked */
-  onConvertPresentation?: () => void;
   /** Callback when mouse enters (to keep container active) */
   onMouseEnter?: () => void;
+  /** Callback when a custom prompt is clicked (word selection) */
+  onWordCustomPromptClick?: (displayText: string, promptContent: string) => void;
+  /** Callback when a custom prompt is clicked (text selection) */
+  onTextCustomPromptClick?: (displayText: string, promptContent: string) => void;
   /** Callback when mouse leaves (to hide container) */
   onMouseLeave?: (e: React.MouseEvent) => void;
   /** Callback to force keep states active (e.g., when popover opens) */
@@ -102,7 +74,7 @@ export const ContentActionsButtonGroup: React.FC<ContentActionsButtonGroupProps>
   onExplain,
   onGrammar: _onGrammar, // Keep for backward compatibility but don't use
   onTranslate,
-  onBookmark: _onBookmark, // Kept for API compatibility but not shown in the button group
+  onBookmark,
   onSynonym,
   onOpposite,
   onAskAI,
@@ -113,24 +85,9 @@ export const ContentActionsButtonGroup: React.FC<ContentActionsButtonGroupProps>
   onBetterFormal,
   onBetterCasual,
   onBetterAcademic,
-  // Text selection props
   onTextAskAI,
-  onSummarize,
-  onKeyPoints,
-  onRewrite,
-  onParaphrase,
-  onImproveWriting,
-  onFixGrammar,
-  onTone,
-  onConvertBullets,
-  onConvertTable,
-  onConvertDiagram,
-  onCreateMindMap,
-  onConvertEmail,
-  onConvertWhatsApp,
-  onConvertLinkedIn,
-  onConvertTweet,
-  onConvertPresentation,
+  onWordCustomPromptClick,
+  onTextCustomPromptClick,
   onMouseEnter,
   onMouseLeave,
   onKeepActive,
@@ -152,8 +109,6 @@ export const ContentActionsButtonGroup: React.FC<ContentActionsButtonGroupProps>
   const buttonGroupRef = useRef<HTMLDivElement>(null);
   const highlightButtonRef = useRef<HTMLButtonElement>(null);
   const lastMeasuredWidth = useRef<number>(0); // Store the last measured width for closing animation
-  const isPopoverOpeningRef = useRef(false); // Track if popover is in opening phase to prevent premature close
-  const openingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null); // Track opening timeout
   const colorPickerHoverTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Resolve the active hexcode from the selected colour id
@@ -167,7 +122,6 @@ export const ContentActionsButtonGroup: React.FC<ContentActionsButtonGroupProps>
     return () => {
       if (animationTimeoutRef.current) clearTimeout(animationTimeoutRef.current);
       if (closingTimeoutRef.current) clearTimeout(closingTimeoutRef.current);
-      if (openingTimeoutRef.current) clearTimeout(openingTimeoutRef.current);
       if (colorPickerHoverTimeoutRef.current) clearTimeout(colorPickerHoverTimeoutRef.current);
     };
   }, []);
@@ -185,35 +139,24 @@ export const ContentActionsButtonGroup: React.FC<ContentActionsButtonGroupProps>
   // ---- Options popover hover handlers ----
 
   const handleOptionsMouseEnter = useCallback(() => {
-    if (openingTimeoutRef.current) clearTimeout(openingTimeoutRef.current);
-    isPopoverOpeningRef.current = true;
     setShowOptionsPopover(true);
     onKeepActive?.();
-    openingTimeoutRef.current = setTimeout(() => {
-      isPopoverOpeningRef.current = false;
-    }, 350);
   }, [onKeepActive]);
 
   const handleOptionsMouseLeave = useCallback((e: React.MouseEvent) => {
-    if (isPopoverOpeningRef.current) return;
     const relatedTarget = e.relatedTarget;
     const wrapper = e.currentTarget as HTMLElement;
-    // If moving into the popover (a DOM child of this wrapper) don't close
     const isMovingToChild = relatedTarget instanceof Node && wrapper.contains(relatedTarget);
     if (isMovingToChild) return;
-    // Close immediately so the shrink animation starts without any extra delay
     setShowOptionsPopover(false);
   }, []);
 
   const handlePopoverMouseLeave = useCallback((e: React.MouseEvent) => {
-    if (isPopoverOpeningRef.current) return;
     const relatedTarget = e.relatedTarget;
     const popover = e.currentTarget as HTMLElement;
     const wrapper = popover.closest('.optionsButtonWrapper');
-    // If moving back to the button wrapper don't close
     const isMovingToWrapper = relatedTarget instanceof Node && wrapper && wrapper.contains(relatedTarget);
     if (isMovingToWrapper) return;
-    // Close immediately so the shrink animation starts without any extra delay
     setShowOptionsPopover(false);
   }, []);
 
@@ -348,6 +291,43 @@ export const ContentActionsButtonGroup: React.FC<ContentActionsButtonGroupProps>
         delay={0}
       />
 
+      {/* Options button (3 dots) with options popover - HOVER to show */}
+      <div
+        className="optionsButtonWrapper"
+        onMouseEnter={handleOptionsMouseEnter}
+        onMouseLeave={handleOptionsMouseLeave}
+      >
+        <ContentActionButton
+          icon="options"
+          tooltip="More options"
+          delay={1}
+          className="optionsButton"
+          hideTooltip={showOptionsPopover}
+        >
+          <ActionButtonOptionsPopover
+            visible={showOptionsPopover}
+            isWordSelection={isWordSelection}
+            onTranslate={onTranslate}
+            onSynonym={onSynonym}
+            onOpposite={onOpposite}
+            onAskAI={onAskAI}
+            onEtymology={onEtymology}
+            onMnemonic={onMnemonic}
+            onQuiz={onQuiz}
+            onCommonMistakes={onCommonMistakes}
+            onBetterFormal={onBetterFormal}
+            onBetterCasual={onBetterCasual}
+            onBetterAcademic={onBetterAcademic}
+            onTextAskAI={onTextAskAI}
+            onWordCustomPromptClick={onWordCustomPromptClick}
+            onTextCustomPromptClick={onTextCustomPromptClick}
+            onHideButtonGroup={handleHideButtonGroup}
+            onPopoverMouseEnter={handleOptionsMouseEnter}
+            onPopoverMouseLeave={handlePopoverMouseLeave}
+          />
+        </ContentActionButton>
+      </div>
+
       {/* Highlight button — colored circle + color-picker popover on hover (text selections only) */}
       {!isWordSelection && (
         <div
@@ -427,56 +407,19 @@ export const ContentActionsButtonGroup: React.FC<ContentActionsButtonGroupProps>
         />
       )}
 
-      {/* Options button (3 dots) with options popover - HOVER to show */}
-      <div
-        className="optionsButtonWrapper"
-        onMouseEnter={handleOptionsMouseEnter}
-        onMouseLeave={handleOptionsMouseLeave}
-      >
+      {/* Bookmark button — only for word selections */}
+      {isWordSelection && (
         <ContentActionButton
-          icon="options"
-          tooltip="More options"
-          delay={3}
-          className="optionsButton"
-          hideTooltip={showOptionsPopover}
-        >
-          <ActionButtonOptionsPopover
-            visible={showOptionsPopover}
-            isWordSelection={isWordSelection}
-            onTranslate={onTranslate}
-            onSynonym={onSynonym}
-            onOpposite={onOpposite}
-            onAskAI={onAskAI}
-            onEtymology={onEtymology}
-            onMnemonic={onMnemonic}
-            onQuiz={onQuiz}
-            onCommonMistakes={onCommonMistakes}
-            onBetterFormal={onBetterFormal}
-            onBetterCasual={onBetterCasual}
-            onBetterAcademic={onBetterAcademic}
-            onTextAskAI={onTextAskAI}
-            onSummarize={onSummarize}
-            onKeyPoints={onKeyPoints}
-            onRewrite={onRewrite}
-            onParaphrase={onParaphrase}
-            onImproveWriting={onImproveWriting}
-            onFixGrammar={onFixGrammar}
-            onTone={onTone}
-            onConvertBullets={onConvertBullets}
-            onConvertTable={onConvertTable}
-            onConvertDiagram={onConvertDiagram}
-            onCreateMindMap={onCreateMindMap}
-            onConvertEmail={onConvertEmail}
-            onConvertWhatsApp={onConvertWhatsApp}
-            onConvertLinkedIn={onConvertLinkedIn}
-            onConvertTweet={onConvertTweet}
-            onConvertPresentation={onConvertPresentation}
-            onHideButtonGroup={handleHideButtonGroup}
-            onPopoverMouseEnter={handleOptionsMouseEnter}
-            onPopoverMouseLeave={handlePopoverMouseLeave}
-          />
-        </ContentActionButton>
-      </div>
+          icon="bookmark"
+          tooltip="Bookmark"
+          onClick={() => {
+            onBookmark?.();
+            handleHideButtonGroup();
+          }}
+          delay={2}
+        />
+      )}
+
     </div>
   );
 };

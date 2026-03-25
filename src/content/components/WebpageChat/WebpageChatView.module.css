@@ -147,6 +147,30 @@
   box-shadow: none;
 }
 
+.citationChip:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.citationChip:disabled:hover {
+  background: rgba(13,148,136,0.1);
+  border-color: rgba(13,148,136,0.4);
+  color: #0a7a70;
+  box-shadow: none;
+}
+
+@keyframes chipColorPulsate {
+  0%   { background: rgba(13,148,136,0.1); border-color: rgba(13,148,136,0.4); box-shadow: none; }
+  20%  { background: rgba(13,148,136,0.38); border-color: rgba(13,148,136,0.85); box-shadow: 0 0 5px rgba(13,148,136,0.3); }
+  40%  { background: rgba(13,148,136,0.1); border-color: rgba(13,148,136,0.4); box-shadow: none; }
+  60%  { background: rgba(13,148,136,0.38); border-color: rgba(13,148,136,0.85); box-shadow: 0 0 5px rgba(13,148,136,0.3); }
+  100% { background: rgba(13,148,136,0.1); border-color: rgba(13,148,136,0.4); box-shadow: none; }
+}
+
+.citationChipPulsating {
+  animation: chipColorPulsate 1s ease-in-out forwards;
+}
+
 /* ============================================================
    Loading dots
    ============================================================ */
@@ -181,6 +205,37 @@
 @keyframes pulse {
   0%, 100% { opacity: 0.3; }
   50% { opacity: 1; }
+}
+
+/* ============================================================
+   Image thumbnail in user chat bubble
+   ============================================================ */
+
+.imageThumbnailBtn {
+  display: block;
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0 0 6px 0;
+  cursor: pointer;
+  border-radius: 8px;
+  overflow: hidden;
+  transition: opacity 0.15s ease;
+}
+
+.imageThumbnailBtn:hover {
+  opacity: 0.85;
+}
+
+.imageChatThumbnail {
+  display: block;
+  max-width: 160px;
+  max-height: 100px;
+  width: auto;
+  height: auto;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1.5px solid var(--color-border-default-theme);
 }
 
 /* ============================================================
@@ -246,6 +301,62 @@
 @keyframes blink {
   0%, 100% { opacity: 1; }
   50% { opacity: 0; }
+}
+
+/* ============================================================
+   Image attachment preview (shown before user submits with image)
+   ============================================================ */
+
+.imageAttachmentPreview {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px 4px;
+  border-top: 1px solid var(--color-border, #e5e5e5);
+  background: var(--color-surface, #fff);
+  flex-shrink: 0;
+}
+
+.imageAttachmentThumbWrap {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.imageAttachmentThumb {
+  width: 44px;
+  height: 44px;
+  object-fit: cover;
+  border-radius: 6px;
+  border: 1px solid var(--color-border, #ddd);
+  display: block;
+}
+
+.imageAttachmentDismiss {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  background: var(--color-text-secondary, #666);
+  color: #fff;
+  border: none;
+  border-radius: 50%;
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  line-height: 1;
+}
+
+.imageAttachmentDismiss:hover {
+  background: var(--color-text-primary, #1a1a1a);
+}
+
+.imageAttachmentHint {
+  font-size: 12px;
+  color: var(--color-text-secondary, #666);
+  font-style: italic;
 }
 
 /* ============================================================
@@ -458,8 +569,8 @@
   top: calc(100% + 4px);
   left: 50%;
   transform: translateX(-50%);
-  background: #1a1a1a;
-  color: #fff;
+  background: var(--color-text-primary-theme, #1a1a1a);
+  color: var(--color-bg-primary-theme, #fff);
   font-size: 11px;
   font-weight: 500;
   padding: 3px 8px;
@@ -486,8 +597,8 @@
   height: 26px;
   border-radius: 9999px;
   background: transparent;
-  border: 1px solid #ccc;
-  color: #888;
+  border: 1px solid var(--color-border-default-theme, rgba(0,0,0,0.15));
+  color: var(--color-text-secondary-theme, #888);
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -499,9 +610,36 @@
 
 .promptAddBtn:hover,
 .promptAddBtnActive {
-  background: rgba(13, 148, 136, 0.08);
-  color: #0d9488;
-  border-color: #0d9488;
+  background: var(--color-primary-opacity-10, rgba(13, 148, 136, 0.08));
+  color: var(--color-primary, #0d9488);
+  border-color: var(--color-primary, #0d9488);
+}
+
+/* ── Prompt pill buttons (built-in prompts) ── */
+.promptPill {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 12px;
+  border: 1px solid var(--color-border-default-theme, rgba(0,0,0,0.15));
+  background: var(--color-bg-primary-theme, #fff);
+  cursor: pointer;
+  border-radius: 9999px;
+  font-size: 12px;
+  font-family: inherit;
+  color: var(--color-text-secondary-theme, #666);
+  white-space: nowrap;
+  transition: all 0.15s ease;
+}
+
+.promptPill:hover:not(:disabled) {
+  background: var(--color-primary-opacity-10, rgba(13, 148, 136, 0.07));
+  color: var(--color-primary, #0d9488);
+  border-color: var(--color-primary, #0d9488);
+}
+
+.promptPill:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
 /* ── Custom prompt dropdown container (relative anchor) ── */
@@ -516,8 +654,8 @@
   bottom: calc(100% + 6px);
   right: 0;
   z-index: 500;
-  background: var(--color-surface, #fff);
-  border: 1px solid rgba(0, 0, 0, 0.1);
+  background: var(--color-bg-primary-theme, #fff);
+  border: 1px solid var(--color-border-default-theme, rgba(0, 0, 0, 0.1));
   border-radius: 8px;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
   min-width: 220px;
@@ -560,15 +698,16 @@
   border: none;
   cursor: pointer;
   font-size: 12px;
-  color: var(--color-text-secondary, #666);
+  font-family: inherit;
+  color: var(--color-text-secondary-theme, #666);
   text-align: left;
   min-width: 0;
   transition: background 0.1s ease, color 0.1s ease;
 }
 
 .customPromptItemTitle:hover {
-  background: rgba(13, 148, 136, 0.07);
-  color: #0d9488;
+  background: var(--color-primary-opacity-10, rgba(13, 148, 136, 0.07));
+  color: var(--color-primary, #0d9488);
 }
 
 .customPromptItemTitleText {
@@ -583,7 +722,7 @@
   border-radius: 4px;
   background: transparent;
   border: none;
-  color: #888;
+  color: var(--color-text-secondary-theme, #888);
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -601,15 +740,15 @@
 }
 
 .customPromptItemMenuBtn:hover {
-  background: rgba(13, 148, 136, 0.07);
-  color: #0d9488;
+  background: var(--color-primary-opacity-10, rgba(13, 148, 136, 0.07));
+  color: var(--color-primary, #0d9488);
 }
 
 /* ── Per-prompt action sub-menu (portaled) ── */
 .customPromptActionMenu {
   z-index: 9999;
-  background: var(--color-surface, #fff);
-  border: 1px solid rgba(0, 0, 0, 0.1);
+  background: var(--color-bg-primary-theme, #fff);
+  border: 1px solid var(--color-border-default-theme, rgba(0, 0, 0, 0.1));
   border-radius: 8px;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
   min-width: 150px;
@@ -627,7 +766,8 @@
   border: none;
   cursor: pointer;
   font-size: 12px;
-  color: var(--color-text-secondary, #666);
+  font-family: inherit;
+  color: var(--color-text-secondary-theme, #666);
   text-align: left;
   text-decoration: none;
   transition: background 0.1s ease, color 0.1s ease;
@@ -635,18 +775,18 @@
 }
 
 .customPromptActionItem:hover {
-  background: rgba(13, 148, 136, 0.07);
-  color: #0d9488;
+  background: var(--color-primary-opacity-10, rgba(13, 148, 136, 0.07));
+  color: var(--color-primary, #0d9488);
 }
 
 .customPromptActionItemDanger:hover {
-  background: rgba(239, 68, 68, 0.08);
+  background: var(--color-error-opacity-10, rgba(239, 68, 68, 0.08));
   color: #ef4444;
 }
 
 /* ── Footer buttons inside dropdown ── */
 .customPromptDropdownFooter {
-  border-top: 1px solid rgba(0, 0, 0, 0.08);
+  border-top: 1px solid var(--color-border-default-theme, rgba(0, 0, 0, 0.08));
   padding: 4px 0;
 }
 
@@ -660,7 +800,8 @@
   border: none;
   cursor: pointer;
   font-size: 12px;
-  color: var(--color-text-secondary, #666);
+  font-family: inherit;
+  color: var(--color-text-secondary-theme, #666);
   text-align: left;
   text-decoration: none;
   transition: background 0.1s ease, color 0.1s ease;
@@ -668,8 +809,8 @@
 }
 
 .customPromptFooterBtn:hover {
-  background: rgba(13, 148, 136, 0.07);
-  color: #0d9488;
+  background: var(--color-primary-opacity-10, rgba(13, 148, 136, 0.07));
+  color: var(--color-primary, #0d9488);
 }
 
 /* ── Confirm / share dialogs (portaled within chat view) ── */
@@ -699,14 +840,14 @@
 .confirmTitle {
   font-size: 14px;
   font-weight: 600;
-  color: var(--color-text-primary, #1a1a1a);
+  color: var(--color-text-primary-theme, #1a1a1a);
   margin: 0;
   text-align: center;
 }
 
 .confirmBody {
   font-size: 13px;
-  color: var(--color-text-secondary, #666);
+  color: var(--color-text-secondary-theme, #666);
   margin: 0;
   text-align: center;
   line-height: 1.5;
@@ -715,18 +856,19 @@
 .confirmInput {
   width: 100%;
   padding: 8px 12px;
-  border: 1px solid rgba(0, 0, 0, 0.15);
+  border: 1px solid var(--color-border-default-theme, rgba(0, 0, 0, 0.15));
   border-radius: 8px;
   font-size: 13px;
-  color: var(--color-text-primary, #1a1a1a);
-  background: var(--color-surface, #fff);
+  font-family: inherit;
+  color: var(--color-text-primary-theme, #1a1a1a);
+  background: var(--color-bg-primary-theme, #fff);
   outline: none;
   box-sizing: border-box;
   transition: border-color 0.15s ease;
 }
 
 .confirmInput:focus {
-  border-color: #0d9488;
+  border-color: var(--color-primary, #0d9488);
 }
 
 .confirmError {
@@ -749,12 +891,13 @@
   padding: 6px 18px;
   border: none;
   border-radius: 8px;
-  background: #0d9488;
+  background: var(--color-primary, #0d9488);
   color: #fff;
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
   transition: background 0.15s ease;
+  font-family: inherit;
 }
 
 .confirmPrimaryBtn:hover:not(:disabled) {
@@ -779,6 +922,7 @@
   font-weight: 500;
   cursor: pointer;
   transition: background 0.15s ease;
+  font-family: inherit;
 }
 
 .confirmDangerBtn:hover {
@@ -787,19 +931,20 @@
 
 .confirmCancelBtn {
   padding: 6px 18px;
-  border: 1px solid rgba(0, 0, 0, 0.15);
+  border: 1px solid var(--color-border-default-theme, rgba(0, 0, 0, 0.15));
   border-radius: 8px;
-  background: var(--color-surface, #fff);
-  color: var(--color-text-secondary, #666);
+  background: var(--color-bg-primary-theme, #fff);
+  color: var(--color-text-secondary-theme, #666);
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.15s ease;
+  font-family: inherit;
 }
 
 .confirmCancelBtn:hover {
-  background: rgba(0, 0, 0, 0.04);
-  color: var(--color-text-primary, #1a1a1a);
+  background: var(--color-primary-opacity-10, rgba(0, 0, 0, 0.04));
+  color: var(--color-text-primary-theme, #1a1a1a);
 }
 
 .spin {
@@ -814,12 +959,21 @@
    Annotation preview card
    ============================================================ */
 
+.annotationCardWrap {
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+  align-self: flex-start;
+  max-width: 96%;
+}
+
 .annotationCard {
   display: flex;
   align-items: flex-start;
   gap: 7px;
-  align-self: flex-start;
-  max-width: 92%;
+  flex: 1;
+  min-width: 0;
+  max-width: 100%;
   padding: 8px 12px;
   border-radius: 10px;
   border-left: 2px solid rgba(13, 148, 136, 0.6);
@@ -850,4 +1004,26 @@
 .annotationText {
   font-style: italic;
   color: #555;
+}
+
+.annotationDismissBtn {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  margin-top: 6px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--color-text-secondary-theme, #888);
+  cursor: pointer;
+  padding: 0;
+  transition: background-color 0.12s ease, color 0.12s ease;
+}
+
+.annotationDismissBtn:hover {
+  background: rgba(239, 68, 68, 0.08);
+  color: #ef4444;
 }

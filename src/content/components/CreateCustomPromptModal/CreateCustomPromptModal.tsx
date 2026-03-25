@@ -271,7 +271,7 @@ export const CreateCustomPromptModal: React.FC<CreateCustomPromptModalProps> = (
   // In shadow DOM mode render inline (styles live inside shadow root).
   // In CSS Modules mode portal to document.body so the modal sits above everything.
   if (useShadowDom) return content;
-  return ReactDOM.createPortal(content, document.body);
+  return ReactDOM.createPortal(content, document.documentElement);
 };
 
 CreateCustomPromptModal.displayName = 'CreateCustomPromptModal';

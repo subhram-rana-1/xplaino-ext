@@ -29,10 +29,20 @@ export interface RenderedMessage {
   content?: string;
   /** Per-message citation map (assistant messages only) */
   citationMap?: Record<string, CitationDetail>;
+  /** Suggested follow-up questions returned by the /answer API (assistant messages only) */
+  possibleQuestions?: string[];
   /** For error messages: the original question, used to reconstruct the retry handler */
   errorQuestion?: string;
   /** For annotation messages: the selected text context */
   annotation?: AnnotationData;
+  /**
+   * When this user message was asked about a specific image, holds the image
+   * thumbnail URL (for display) and the explanation ID (for scroll-to-image).
+   */
+  imageContext?: {
+    imageUrl: string;
+    imageExplanationId: string;
+  };
 }
 
 // =============================================================================
@@ -82,8 +92,10 @@ export function makeSessionId(): string {
 
 /** Payload set by content/index.ts when a text-selection action fires */
 export interface PendingAnnotation extends AnnotationData {
-  /** Pre-populated question for preset actions (Summarize, Key Points, etc.) */
+  /** Pre-populated question sent to the API */
   question?: string;
+  /** Text shown in the user bubble (falls back to `question` when absent) */
+  displayQuestion?: string;
   /** When true, the chat input bar should be focused after the annotation is consumed */
   focusInput?: boolean;
 }
@@ -153,12 +165,14 @@ export const webpageChatIsLoadingAtom = atom<boolean>((get) => {
 });
 
 /**
- * True when any session has at least one assistant reply.
+ * True when any session has at least one user or assistant message.
  * Used by the refresh-guard keyboard listener in content/index.ts.
  */
 export const webpageChatHasConversationAtom = atom<boolean>((get) => {
   const sessions = get(webpageChatSessionsAtom);
-  return sessions.some((s) => s.messages.some((m) => m.type === 'assistant'));
+  return sessions.some((s) =>
+    s.messages.some((m) => m.type === 'user' || m.type === 'assistant')
+  );
 });
 
 /**
@@ -167,3 +181,43 @@ export const webpageChatHasConversationAtom = atom<boolean>((get) => {
  * Reset to false when the user dismisses (Stay) or confirms (Reload).
  */
 export const webpageChatShowRefreshWarningAtom = atom<boolean>(false);
+
+// =============================================================================
+// Pending image question (cross-boundary: set by content/index.ts, consumed in view)
+// =============================================================================
+
+/**
+ * Payload set by content/index.ts when the user clicks Simplify, Ask AI,
+ * or a custom prompt from the image hover button group.
+ *
+ * - `question` is sent to the API.
+ * - `displayText` is shown in the user bubble.
+ * - `imageFile` is the canvas-converted Blob for the multipart upload.
+ * - `imageUrl` is the image's src URL used to render the thumbnail.
+ * - `imageExplanationId` ties the message to an `ImageExplanationState` for scroll-to-image.
+ * - `focusInput` — when true, open the chat panel and focus input WITHOUT auto-submitting.
+ */
+export interface PendingImageQuestion {
+  question: string;
+  displayText: string;
+  imageFile: File | Blob;
+  imageUrl: string;
+  imageExplanationId: string;
+  /** When true the panel opens and input is focused; question is NOT auto-submitted. */
+  focusInput?: boolean;
+}
+
+/** Set by content/index.ts; consumed + cleared by WebpageChatView on change */
+export const webpageChatPendingImageQuestionAtom = atom<PendingImageQuestion | null>(null);
+
+// =============================================================================
+// Auto-submit question (FAB Summarise → chat bridge)
+// =============================================================================
+
+/**
+ * Set by content/index.ts when the FAB Summarise button (or Ctrl+M) is clicked.
+ * WebpageChatView consumes this, clears it, and calls submitQuestion with the value.
+ * Using a dedicated atom (rather than pendingAnnotation) avoids creating a
+ * spurious annotation card for a page-level summarise with no selected text.
+ */
+export const webpageChatAutoSubmitQuestionAtom = atom<string | null>(null);

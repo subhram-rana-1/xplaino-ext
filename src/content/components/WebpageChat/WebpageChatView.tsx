@@ -7,16 +7,20 @@ import React, {
   useEffect,
   useState,
   useCallback,
+  useMemo,
 } from 'react';
 import { ArrowUp, Square, Trash2, Plus, X, Quote, BookMarked, MoreHorizontal, Pencil, EyeOff, Share2, ExternalLink, Loader2 } from 'lucide-react';
 import { useAtom, useSetAtom, useAtomValue } from 'jotai';
 import ReactMarkdown from 'react-markdown';
+import remarkBreaks from 'remark-breaks';
 import styles from './WebpageChatView.module.css';
+import { OnHoverMessage } from '../OnHoverMessage/OnHoverMessage';
 import { CreateCustomPromptModal } from '../CreateCustomPromptModal/CreateCustomPromptModal';
 import { CustomPromptService } from '@/api-services/CustomPromptService';
 import type { CustomPromptResponse } from '@/api-services/dto/CustomPromptDTO';
 
 import { WebpageChatService, CitationDetail, ConversationMessage, stripCiteMarkers } from '@/api-services/WebpageChatService';
+import { WebpageChatImageService } from '@/api-services/WebpageChatImageService';
 import { ENV } from '@/config/env';
 import { getLanguageCode } from '@/api-services/TranslateService';
 import { ChromeStorage } from '@/storage/chrome-local/ChromeStorage';
@@ -41,6 +45,8 @@ import {
   webpageChatActiveSessionAtom,
   webpageChatNextSessionCounterAtom,
   webpageChatPendingAnnotationAtom,
+  webpageChatPendingImageQuestionAtom,
+  webpageChatAutoSubmitQuestionAtom,
   webpageChatStateAtom,
   webpageChatStreamingAnswerAtom,
   webpageChatErrorAtom,
@@ -52,6 +58,9 @@ import {
   AnnotationData,
   makeSessionId,
 } from '@/store/webpageChatAtoms';
+
+/** Shared prompt used by the FAB Summarise button, Ctrl+M, and the built-in pill. */
+const SUMMARISE_PAGE_QUESTION = 'Summarise this page';
 
 import { showLoginModalAtom } from '@/store/uiAtoms';
 
@@ -104,6 +113,8 @@ interface CitationChipProps {
   sessionId: string;
   setSessions: (updater: (prev: ChatSession[]) => ChatSession[]) => void;
   useShadowDom?: boolean;
+  isStreaming?: boolean;
+  shouldPulsate?: boolean;
 }
 
 const CitationChip: React.FC<CitationChipProps> = ({
@@ -115,6 +126,8 @@ const CitationChip: React.FC<CitationChipProps> = ({
   sessionId,
   setSessions,
   useShadowDom,
+  isStreaming,
+  shouldPulsate,
 }) => {
   const cn = useCallback(
     (base: string) => (useShadowDom ? base : (styles[base as keyof typeof styles] ?? base)),
@@ -124,8 +137,10 @@ const CitationChip: React.FC<CitationChipProps> = ({
   const isActive = chunkIds.some((id) => activeCitations.has(id));
   const hasData = chunkIds.some((id) => citationMap[id]);
   const [tooltipVisible, setTooltipVisible] = useState(false);
+  const [pulsating, setPulsating] = useState(shouldPulsate ?? false);
 
   const handleClick = () => {
+    setPulsating(false);
     if (!hasData) {
       setTooltipVisible(true);
       setTimeout(() => setTooltipVisible(false), 2500);
@@ -143,20 +158,22 @@ const CitationChip: React.FC<CitationChipProps> = ({
         }))
       );
     } else {
+      // Deactivate all currently active citations first (single-selection behaviour)
+      setActiveCitations((prev) => {
+        for (const id of prev) deactivateCitation(id);
+        return [];
+      });
+
       const activated: string[] = [];
       for (const id of chunkIds) {
         const detail = citationMap[id];
         if (detail && activateCitation(id, detail)) activated.push(id);
       }
-      setActiveCitations((prev) => {
-        const set = new Set(prev);
-        for (const id of activated) set.add(id);
-        return Array.from(set);
-      });
+      setActiveCitations(() => activated);
       setSessions((prev) =>
         updateSession(prev, sessionId, (s) => ({
           ...s,
-          activeCitations: Array.from(new Set([...s.activeCitations, ...activated])),
+          activeCitations: activated,
         }))
       );
     }
@@ -165,6 +182,7 @@ const CitationChip: React.FC<CitationChipProps> = ({
   let chipClass = cn('citationChip');
   if (isActive) chipClass += ' ' + cn('citationChipActive');
   if (!hasData) chipClass += ' ' + cn('citationChipDimmed');
+  if (pulsating) chipClass += ' ' + cn('citationChipPulsating');
 
   return (
     <span style={{ position: 'relative', display: 'inline' }}>
@@ -172,6 +190,7 @@ const CitationChip: React.FC<CitationChipProps> = ({
         className={chipClass}
         onClick={handleClick}
         type="button"
+        disabled={isStreaming}
         aria-label={`Citation ${number}`}
         title={hasData ? undefined : 'Could not locate this reference on the page'}
       >
@@ -213,6 +232,8 @@ interface AssistantMessageProps {
   sessionId: string;
   setSessions: (updater: (prev: ChatSession[]) => ChatSession[]) => void;
   useShadowDom?: boolean;
+  isStreaming?: boolean;
+  shouldPulsate?: boolean;
 }
 
 const AssistantMessage: React.FC<AssistantMessageProps> = ({
@@ -223,6 +244,8 @@ const AssistantMessage: React.FC<AssistantMessageProps> = ({
   sessionId,
   setSessions,
   useShadowDom,
+  isStreaming,
+  shouldPulsate,
 }) => {
   const { parsedText, citations } = parseAnswerCitations(content);
 
@@ -233,6 +256,7 @@ const AssistantMessage: React.FC<AssistantMessageProps> = ({
 
   return (
     <ReactMarkdown
+      remarkPlugins={[remarkBreaks]}
       components={{
         p: ({ children }) => <p className={cn('markdownP')}>{children}</p>,
         h1: ({ children }) => <h1 className={cn('markdownH1')}>{children}</h1>,
@@ -260,6 +284,8 @@ const AssistantMessage: React.FC<AssistantMessageProps> = ({
                 sessionId={sessionId}
                 setSessions={setSessions}
                 useShadowDom={useShadowDom}
+                isStreaming={isStreaming}
+                shouldPulsate={shouldPulsate}
               />
             );
           }
@@ -278,10 +304,11 @@ const AssistantMessage: React.FC<AssistantMessageProps> = ({
 
 interface AnnotationPreviewProps {
   annotation: AnnotationData;
+  onDismiss: () => void;
   useShadowDom?: boolean;
 }
 
-const AnnotationPreview: React.FC<AnnotationPreviewProps> = ({ annotation, useShadowDom }) => {
+const AnnotationPreview: React.FC<AnnotationPreviewProps> = ({ annotation, onDismiss, useShadowDom }) => {
   const cn = (base: string) => (useShadowDom ? base : (styles[base as keyof typeof styles] ?? base));
 
   const displayText =
@@ -294,15 +321,26 @@ const AnnotationPreview: React.FC<AnnotationPreviewProps> = ({ annotation, useSh
   };
 
   return (
-    <button
-      className={cn('annotationCard')}
-      onClick={handleClick}
-      type="button"
-      title="Click to locate this text on the page"
-    >
-      <Quote size={13} className={cn('annotationIcon')} />
-      <span className={cn('annotationText')}>{displayText}</span>
-    </button>
+    <div className={cn('annotationCardWrap')}>
+      <button
+        className={cn('annotationCard')}
+        onClick={handleClick}
+        type="button"
+        title="Click to locate this text on the page"
+      >
+        <Quote size={13} className={cn('annotationIcon')} />
+        <span className={cn('annotationText')}>{displayText}</span>
+      </button>
+      <button
+        className={cn('annotationDismissBtn')}
+        onClick={onDismiss}
+        type="button"
+        title="Remove"
+        aria-label="Remove annotation"
+      >
+        <X size={12} />
+      </button>
+    </div>
   );
 };
 
@@ -329,6 +367,8 @@ export const WebpageChatView: React.FC<WebpageChatViewProps> = ({
   const activeSession = useAtomValue(webpageChatActiveSessionAtom);
   const nextCounter = useAtomValue(webpageChatNextSessionCounterAtom);
   const [pendingAnnotation, setPendingAnnotation] = useAtom(webpageChatPendingAnnotationAtom);
+  const [pendingImageQuestion, setPendingImageQuestion] = useAtom(webpageChatPendingImageQuestionAtom);
+  const [autoSubmitQuestion, setAutoSubmitQuestion] = useAtom(webpageChatAutoSubmitQuestionAtom);
 
   const [chatState, setChatState] = useAtom(webpageChatStateAtom);
   const [streamingAnswer, setStreamingAnswer] = useAtom(webpageChatStreamingAnswerAtom);
@@ -343,10 +383,24 @@ export const WebpageChatView: React.FC<WebpageChatViewProps> = ({
   const [dotCount, setDotCount] = useState(1);
   const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
 
+  // Keyboard shortcut label for the Summarise pill (Mac vs Windows/Linux)
+  const isMac = useMemo(() => /Mac|iPod|iPhone|iPad/.test(navigator.platform), []);
+
+  // Image attachment pending — set when "Ask AI about this image" is clicked.
+  // Shown as a preview strip above the input bar; included in the submission.
+  const [pendingImageAttachment, setPendingImageAttachment] = useState<{
+    imageUrl: string;
+    imageFile: File | Blob;
+    imageExplanationId: string;
+  } | null>(null);
+
   // Per-component active citations mirror (for render performance)
   const [activeCitationsLocal, setActiveCitationsLocal] = useState<string[]>(
     activeSession?.activeCitations ?? []
   );
+
+  // Tracks the most recently committed assistant message for the pulsate animation
+  const [justCommittedMsgId, setJustCommittedMsgId] = useState<string | null>(null);
   const activeCitations = new Set(activeCitationsLocal);
 
   // ── Custom prompt state ────────────────────────────────────
@@ -366,6 +420,11 @@ export const WebpageChatView: React.FC<WebpageChatViewProps> = ({
   const inputRef = useRef<HTMLInputElement>(null);
   const abortRef = useRef<AbortController | null>(null);
   const customPromptMenuRef = useRef<HTMLDivElement>(null);
+  const summarisePillRef = useRef<HTMLButtonElement>(null);
+  // Tracks which session ID owns the currently in-flight SSE stream.
+  // Used to scope streaming UI (dots, answer) and input disabling to the
+  // correct session when the user switches tabs mid-stream.
+  const streamingSessionIdRef = useRef<string | null>(null);
 
   const cn = useCallback(
     (base: string) => (useShadowDom ? base : (styles[base as keyof typeof styles] ?? base)),
@@ -375,15 +434,21 @@ export const WebpageChatView: React.FC<WebpageChatViewProps> = ({
   // ── Fetch custom prompts on mount ───────────────────────────
   useEffect(() => {
     CustomPromptService.listCustomPrompts()
-      .then((res) => setCustomPrompts(res.prompts))
+      .then((res) => setCustomPrompts(res.prompts.filter((p) => !p.isHidden)))
       .catch(() => { /* silently ignore — user may not be logged in */ });
   }, []);
 
   // ── Outside-click to close custom prompt dropdown ───────────
+  // Use composedPath() instead of e.target so clicks inside the shadow DOM
+  // are correctly identified — e.target is retargeted to the shadow host at
+  // the document level, making every shadow-DOM click appear as an "outside" click.
   useEffect(() => {
     if (!customPromptMenuOpen) return;
     const handler = (e: MouseEvent) => {
-      if (customPromptMenuRef.current && !customPromptMenuRef.current.contains(e.target as Node)) {
+      if (
+        customPromptMenuRef.current &&
+        !e.composedPath().includes(customPromptMenuRef.current as EventTarget)
+      ) {
         setCustomPromptMenuOpen(false);
         setCustomPromptActionMenuId(null);
         setCustomPromptActionMenuPos(null);
@@ -478,10 +543,12 @@ export const WebpageChatView: React.FC<WebpageChatViewProps> = ({
   // ── Auto-submit for preset annotation questions ─────────────
   // When a preset question arrives via annotation, auto-send it
   const pendingAutoSubmitRef = useRef<string | null>(null);
+  const pendingAutoSubmitDisplayRef = useRef<string | undefined>(undefined);
   useEffect(() => {
     if (!pendingAnnotation) return; // already cleared above
     if (pendingAnnotation.question) {
       pendingAutoSubmitRef.current = pendingAnnotation.question;
+      pendingAutoSubmitDisplayRef.current = pendingAnnotation.displayQuestion;
     }
   }, [pendingAnnotation]);
 
@@ -489,12 +556,56 @@ export const WebpageChatView: React.FC<WebpageChatViewProps> = ({
   useEffect(() => {
     if (pendingAutoSubmitRef.current && inputValue === pendingAutoSubmitRef.current && !isLoading) {
       const q = pendingAutoSubmitRef.current;
+      const displayQ = pendingAutoSubmitDisplayRef.current;
       pendingAutoSubmitRef.current = null;
+      pendingAutoSubmitDisplayRef.current = undefined;
       // Small delay so the annotation card renders first
-      setTimeout(() => submitQuestion(q), 80);
+      setTimeout(() => submitQuestion(q, displayQ), 80);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [inputValue]);
+
+  // ── Consume autoSubmitQuestion from content/index.ts (FAB Summarise / Ctrl+M) ──
+  useEffect(() => {
+    if (!autoSubmitQuestion) return;
+    const q = autoSubmitQuestion;
+    setAutoSubmitQuestion(null);
+    // Small delay so the fresh session and panel are rendered before submitting
+    setTimeout(() => submitQuestion(q), 80);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoSubmitQuestion]);
+
+  // ── Consume pending image question from content/index.ts ─────
+  // Set by the image hover button group (Simplify, custom prompt, Ask AI)
+  const pendingImageQuestionRef = useRef<typeof pendingImageQuestion>(null);
+  useEffect(() => {
+    if (!pendingImageQuestion) return;
+    const payload = pendingImageQuestion;
+    setPendingImageQuestion(null);
+
+    if (payload.focusInput) {
+      // "Ask AI" path: show image preview, focus input, no auto-submit yet
+      setPendingImageAttachment({
+        imageUrl: payload.imageUrl,
+        imageFile: payload.imageFile,
+        imageExplanationId: payload.imageExplanationId,
+      });
+      setTimeout(() => inputRef.current?.focus(), 150);
+      return;
+    }
+
+    // Auto-submit image question
+    pendingImageQuestionRef.current = payload;
+    // Trigger via a small timeout so the panel is rendered first
+    setTimeout(() => {
+      const p = pendingImageQuestionRef.current;
+      if (p) {
+        pendingImageQuestionRef.current = null;
+        submitImageQuestion(p).catch(console.error);
+      }
+    }, 80);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingImageQuestion]);
 
   // ============================================================
   // Session management
@@ -529,17 +640,12 @@ export const WebpageChatView: React.FC<WebpageChatViewProps> = ({
   const handleSwitchSession = (id: string) => {
     if (id === activeSessionId) return;
 
-    // Abort in-flight request
-    abortRef.current?.abort();
-    abortRef.current = null;
-    setChatState('idle');
-    setStreamingAnswer('');
-    setErrorMsg('');
-
-    // Remove current session highlights, apply new session highlights
+    // Do NOT abort an in-flight stream — let it complete in the background and
+    // commit its result to the originating session. The streaming UI is scoped
+    // to streamingSessionIdRef, so it won't bleed into other session views.
     removeAllHighlights();
-
     setActiveSessionId(id);
+    setErrorMsg('');
 
     const target = sessions.find((s) => s.id === id);
     setActiveCitationsLocal(target?.activeCitations ?? []);
@@ -606,9 +712,12 @@ export const WebpageChatView: React.FC<WebpageChatViewProps> = ({
   // ============================================================
 
   const submitQuestion = useCallback(
-    async (question: string) => {
-      if (!question.trim() || isLoading) return;
+    async (question: string, displayText?: string) => {
+      if (!question.trim()) return;
+      // Block only if THIS session already owns an in-flight stream, not others
+      if (isLoading && streamingSessionIdRef.current === activeSessionId) return;
       const q = question.trim();
+      const displayQ = displayText?.trim() ?? q;
 
       // Grab the pending annotation from the session at call time
       const currentSession = sessions.find((s) => s.id === activeSessionId);
@@ -629,9 +738,9 @@ export const WebpageChatView: React.FC<WebpageChatViewProps> = ({
             ? [
                 ...s.messages,
                 { id: annoMsgId, type: 'annotation', annotation: { ...annotation } },
-                { id: userMsgId, type: 'user', content: q },
+                { id: userMsgId, type: 'user', content: displayQ },
               ]
-            : [...s.messages, { id: userMsgId, type: 'user', content: q }];
+            : [...s.messages, { id: userMsgId, type: 'user', content: displayQ }];
           return {
             ...s,
             messages: newMessages,
@@ -648,6 +757,9 @@ export const WebpageChatView: React.FC<WebpageChatViewProps> = ({
         type: 'contextual',
         reply: '',
       };
+
+      // Mark this session as the owner of the upcoming stream
+      streamingSessionIdRef.current = activeSessionId;
 
       if (!annotation) {
         // Stage 1: Classify (only when no annotation)
@@ -682,6 +794,7 @@ export const WebpageChatView: React.FC<WebpageChatViewProps> = ({
                 ],
               }))
             );
+            streamingSessionIdRef.current = null;
             setChatState('idle');
             return;
           }
@@ -690,9 +803,11 @@ export const WebpageChatView: React.FC<WebpageChatViewProps> = ({
         } catch (err) {
           const msg = err instanceof Error ? err.message : 'Unknown error';
           if (msg === 'LOGIN_REQUIRED' || msg === 'TOKEN_REFRESH_FAILED') {
+            streamingSessionIdRef.current = null;
             setChatState('idle');
             return;
           }
+          streamingSessionIdRef.current = null;
           setChatState('error');
           setSessions((prev) =>
             updateSession(prev, activeSessionId, (s) => ({
@@ -726,6 +841,7 @@ export const WebpageChatView: React.FC<WebpageChatViewProps> = ({
       }
 
       if (chunks.length === 0) {
+        streamingSessionIdRef.current = null;
         setChatState('error');
         setSessions((prev) =>
           updateSession(prev, activeSessionId, (s) => ({
@@ -766,7 +882,18 @@ export const WebpageChatView: React.FC<WebpageChatViewProps> = ({
           onChunk: (_chunk, _accumulated, progressiveAnswer) => {
             setStreamingAnswer(progressiveAnswer);
           },
-          onCitations: (answer, citeMap) => {
+          onInlineCitation: (_citationNumber, _chunkIds, citations) => {
+            for (const c of citations) {
+              msgCitationMap[c.chunkId] = c;
+            }
+            setSessions((prev) =>
+              updateSession(prev, activeSessionId, (s) => ({
+                ...s,
+                citationMap: { ...s.citationMap, ...msgCitationMap },
+              }))
+            );
+          },
+          onCitations: (answer, citeMap, possibleQuestions) => {
             Object.assign(msgCitationMap, citeMap);
             const asstMsgId = makeMsgId();
 
@@ -780,6 +907,7 @@ export const WebpageChatView: React.FC<WebpageChatViewProps> = ({
                     type: 'assistant',
                     content: answer,
                     citationMap: { ...msgCitationMap },
+                    possibleQuestions: possibleQuestions.length > 0 ? possibleQuestions : undefined,
                   },
                 ],
                 citationMap: { ...s.citationMap, ...msgCitationMap },
@@ -790,11 +918,15 @@ export const WebpageChatView: React.FC<WebpageChatViewProps> = ({
                 ],
               }))
             );
+            setJustCommittedMsgId(asstMsgId);
+            setTimeout(() => setJustCommittedMsgId(null), 1500);
+            streamingSessionIdRef.current = null;
             setStreamingAnswer('');
             setChatState('idle');
           },
           onError: (code, msg) => {
             if (abort.signal.aborted) return;
+            streamingSessionIdRef.current = null;
             setStreamingAnswer('');
             setChatState('error');
             setSessions((prev) =>
@@ -813,6 +945,7 @@ export const WebpageChatView: React.FC<WebpageChatViewProps> = ({
             );
           },
           onLoginRequired: () => {
+            streamingSessionIdRef.current = null;
             setShowLoginModal(true);
             setStreamingAnswer('');
             setChatState('idle');
@@ -836,10 +969,156 @@ export const WebpageChatView: React.FC<WebpageChatViewProps> = ({
     ]
   );
 
+  // ── Submit image question (from image hover button group) ───
+  // Calls /api/webpage-chat/answer-with-image (multipart SSE) instead of /answer.
+  // Skips classify — always treated as 'contextual'.
+  const submitImageQuestion = useCallback(
+    async (payload: NonNullable<typeof pendingImageQuestion>) => {
+      if (isLoading) return;
+      const { question, displayText, imageFile, imageUrl, imageExplanationId } = payload;
+      const displayQ = displayText.trim() || question.trim();
+
+      const currentSession = sessions.find((s) => s.id === activeSessionId);
+      const userMsgId = makeMsgId();
+
+      setSessions((prev) =>
+        updateSession(prev, activeSessionId, (s) => ({
+          ...s,
+          messages: [
+            ...s.messages,
+            {
+              id: userMsgId,
+              type: 'user',
+              content: displayQ,
+              imageContext: { imageUrl, imageExplanationId },
+            },
+          ],
+        }))
+      );
+
+      setErrorMsg('');
+      setLastQuestion(question);
+
+      // Build contextual chunks
+      setChatState('indexing');
+      let chunks: ReturnType<typeof chunkPage> = [];
+      try {
+        chunks = await buildContextualChunks(question || displayQ, () => setIsIndexing(true));
+      } catch {
+        chunks = chunkPage();
+      } finally {
+        setIsIndexing(false);
+      }
+
+      if (chunks.length === 0) {
+        setChatState('error');
+        setSessions((prev) =>
+          updateSession(prev, activeSessionId, (s) => ({
+            ...s,
+            messages: [...s.messages, { id: makeMsgId(), type: 'error', errorQuestion: question }],
+          }))
+        );
+        setErrorMsg('No page content available to answer this question.');
+        return;
+      }
+
+      // SSE stream
+      setChatState('answering');
+      setStreamingAnswer('');
+      const abort = new AbortController();
+      abortRef.current = abort;
+
+      const nativeLanguage = await ChromeStorage.getUserSettingNativeLanguage();
+      const languageCode = nativeLanguage ? (getLanguageCode(nativeLanguage) || undefined) : undefined;
+      const answerHistory = trimHistory(currentSession?.history ?? [], ANSWER_HISTORY_TURNS);
+      const msgCitationMap: Record<string, CitationDetail> = {};
+
+      await WebpageChatImageService.answerWithImage(
+        imageFile,
+        question || displayQ,
+        'contextual',
+        chunks,
+        answerHistory,
+        window.location.href,
+        document.title || undefined,
+        languageCode,
+        {
+          onChunk: (_chunk, _accumulated, progressiveAnswer) => {
+            setStreamingAnswer(progressiveAnswer);
+          },
+          onInlineCitation: (_citationNumber, _chunkIds, citations) => {
+            for (const c of citations) {
+              msgCitationMap[c.chunkId] = c;
+            }
+            setSessions((prev) =>
+              updateSession(prev, activeSessionId, (s) => ({
+                ...s,
+                citationMap: { ...s.citationMap, ...msgCitationMap },
+              }))
+            );
+          },
+          onCitations: (answer, citeMap, _possibleQuestions) => {
+            Object.assign(msgCitationMap, citeMap);
+            const asstMsgId = makeMsgId();
+            setSessions((prev) =>
+              updateSession(prev, activeSessionId, (s) => ({
+                ...s,
+                messages: [
+                  ...s.messages,
+                  {
+                    id: asstMsgId,
+                    type: 'assistant',
+                    content: answer,
+                    citationMap: { ...msgCitationMap },
+                  },
+                ],
+                citationMap: { ...s.citationMap, ...msgCitationMap },
+                history: [
+                  ...s.history,
+                  { role: 'user', content: question || displayQ },
+                  { role: 'assistant', content: answer },
+                ],
+              }))
+            );
+            setJustCommittedMsgId(asstMsgId);
+            setTimeout(() => setJustCommittedMsgId(null), 1500);
+            setStreamingAnswer('');
+            setChatState('idle');
+          },
+          onError: (code, msg) => {
+            if (abort.signal.aborted) return;
+            setStreamingAnswer('');
+            setChatState('error');
+            setSessions((prev) =>
+              updateSession(prev, activeSessionId, (s) => ({
+                ...s,
+                messages: [...s.messages, { id: makeMsgId(), type: 'error', errorQuestion: question }],
+              }))
+            );
+            setErrorMsg(
+              code === 'ANSWER_FAILED' || code === 'INTERNAL_ERROR'
+                ? 'Something went wrong generating a response. Please try again.'
+                : `Error: ${msg}`
+            );
+          },
+          onLoginRequired: () => {
+            setShowLoginModal(true);
+            setStreamingAnswer('');
+            setChatState('idle');
+          },
+        },
+        abort
+      );
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [isLoading, sessions, activeSessionId, setSessions, setChatState, setStreamingAnswer, setErrorMsg, setLastQuestion, setIsIndexing, setShowLoginModal]
+  );
+
   // ── Stop ────────────────────────────────────────────────────
   const handleStop = () => {
     abortRef.current?.abort();
     abortRef.current = null;
+    streamingSessionIdRef.current = null;
 
     if (streamingAnswer) {
       setSessions((prev) =>
@@ -870,7 +1149,7 @@ export const WebpageChatView: React.FC<WebpageChatViewProps> = ({
 
   const handlePromptClick = useCallback(
     (displayText: string, apiContent?: string) => {
-      submitQuestion(apiContent ?? displayText);
+      submitQuestion(apiContent ?? displayText, displayText);
       setCustomPromptMenuOpen(false);
     },
     [submitQuestion]
@@ -883,7 +1162,24 @@ export const WebpageChatView: React.FC<WebpageChatViewProps> = ({
 
   // ── Send ────────────────────────────────────────────────────
   const handleSend = () => {
-    if (inputValue.trim()) submitQuestion(inputValue.trim());
+    const trimmed = inputValue.trim();
+    if (!trimmed) return;
+
+    if (pendingImageAttachment) {
+      const attachment = pendingImageAttachment;
+      setPendingImageAttachment(null);
+      setInputValue('');
+      submitImageQuestion({
+        question: trimmed,
+        displayText: trimmed,
+        imageFile: attachment.imageFile,
+        imageUrl: attachment.imageUrl,
+        imageExplanationId: attachment.imageExplanationId,
+      }).catch(console.error);
+      return;
+    }
+
+    submitQuestion(trimmed);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -893,7 +1189,12 @@ export const WebpageChatView: React.FC<WebpageChatViewProps> = ({
     }
   };
 
-  const hasContent = messages.length > 0 || !!streamingAnswer;
+  // True only when the active session owns the current in-flight stream.
+  // Guards streaming UI (dots, answer text, stop button, disabled input) so
+  // switching to another session tab doesn't show or disrupt another session's stream.
+  const isCurrentSessionStreaming = streamingSessionIdRef.current === activeSessionId && isLoading;
+
+  const hasContent = messages.length > 0 || (!!streamingAnswer && isCurrentSessionStreaming);
 
   // ============================================================
   // Render
@@ -952,6 +1253,15 @@ export const WebpageChatView: React.FC<WebpageChatViewProps> = ({
                 key={msg.id}
                 annotation={msg.annotation}
                 useShadowDom={useShadowDom}
+                onDismiss={() => {
+                  setSessions((prev) =>
+                    updateSession(prev, activeSessionId, (s) => ({
+                      ...s,
+                      messages: s.messages.filter((m) => m.id !== msg.id),
+                      pendingAnnotation: null,
+                    }))
+                  );
+                }}
               />
             );
           }
@@ -979,6 +1289,26 @@ export const WebpageChatView: React.FC<WebpageChatViewProps> = ({
                 key={msg.id}
                 className={`${cn('message')} ${cn('userMessage')}`}
               >
+                {msg.imageContext && (
+                  <button
+                    type="button"
+                    className={cn('imageThumbnailBtn')}
+                    title="Click to scroll to the image on the page"
+                    onClick={() =>
+                      window.dispatchEvent(
+                        new CustomEvent('xplaino-scroll-to-image', {
+                          detail: { id: msg.imageContext!.imageExplanationId },
+                        })
+                      )
+                    }
+                  >
+                    <img
+                      src={msg.imageContext.imageUrl}
+                      alt="Image context"
+                      className={cn('imageChatThumbnail')}
+                    />
+                  </button>
+                )}
                 {msg.content}
               </div>
             );
@@ -986,20 +1316,37 @@ export const WebpageChatView: React.FC<WebpageChatViewProps> = ({
 
           // assistant
           return (
-            <div
-              key={msg.id}
-              className={`${cn('message')} ${cn('assistantMessage')}`}
-            >
-              <AssistantMessage
-                content={msg.content ?? ''}
-                citationMap={msg.citationMap ?? citationMap}
-                activeCitations={activeCitations}
-                setActiveCitations={setActiveCitationsLocal}
-                sessionId={activeSessionId}
-                setSessions={setSessions}
-                useShadowDom={useShadowDom}
-              />
-            </div>
+            <React.Fragment key={msg.id}>
+              <div
+                className={`${cn('message')} ${cn('assistantMessage')}`}
+              >
+                <AssistantMessage
+                  content={msg.content ?? ''}
+                  citationMap={msg.citationMap ?? citationMap}
+                  activeCitations={activeCitations}
+                  setActiveCitations={setActiveCitationsLocal}
+                  sessionId={activeSessionId}
+                  setSessions={setSessions}
+                  useShadowDom={useShadowDom}
+                  shouldPulsate={msg.id === justCommittedMsgId}
+                />
+              </div>
+              {msg.possibleQuestions && msg.possibleQuestions.length > 0 && (
+                <div className={cn('suggestedQuestions')}>
+                  {msg.possibleQuestions.map((q, i) => (
+                    <button
+                      key={i}
+                      className={cn('questionItem')}
+                      disabled={isCurrentSessionStreaming}
+                      onClick={() => submitQuestion(q)}
+                    >
+                      <Plus size={14} className={cn('questionIcon')} />
+                      <span className={cn('questionText')}>{q}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </React.Fragment>
           );
         })}
 
@@ -1011,15 +1358,15 @@ export const WebpageChatView: React.FC<WebpageChatViewProps> = ({
           </div>
         )}
 
-        {/* Loading dots before first chunk */}
-        {(chatState === 'classifying' || (chatState === 'answering' && !streamingAnswer)) && (
+        {/* Loading dots before first chunk — only for the session that owns the stream */}
+        {isCurrentSessionStreaming && (chatState === 'classifying' || (chatState === 'answering' && !streamingAnswer)) && (
           <div className={cn('loadingContainer')}>
             <LoadingDots dotCount={dotCount} getClassName={cn} />
           </div>
         )}
 
-        {/* Streaming assistant response */}
-        {streamingAnswer && (
+        {/* Streaming assistant response — only for the session that owns the stream */}
+        {isCurrentSessionStreaming && streamingAnswer && (
           <div className={`${cn('message')} ${cn('assistantMessage')}`}>
             <AssistantMessage
               content={streamingAnswer}
@@ -1029,6 +1376,7 @@ export const WebpageChatView: React.FC<WebpageChatViewProps> = ({
               sessionId={activeSessionId}
               setSessions={setSessions}
               useShadowDom={useShadowDom}
+              isStreaming={true}
             />
             <span className={cn('cursor')} />
           </div>
@@ -1111,21 +1459,69 @@ export const WebpageChatView: React.FC<WebpageChatViewProps> = ({
                   <Plus size={13} />
                   <span>Add prompt</span>
                 </button>
-                <a
-                  href={`${ENV.XPLAINO_WEBSITE_BASE_URL}/user/account/custom-prompt`}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                <button
+                  type="button"
                   className={cn('customPromptFooterBtn')}
-                  onClick={() => setCustomPromptMenuOpen(false)}
+                  onClick={() => {
+                    setCustomPromptMenuOpen(false);
+                    window.open(`${ENV.XPLAINO_WEBSITE_BASE_URL}/user/account/custom-prompt`, '_blank');
+                  }}
                 >
                   <ExternalLink size={13} />
                   <span>Manage custom prompts</span>
-                </a>
+                </button>
               </div>
             </div>
           </div>
         )}
+
+        <button
+          ref={summarisePillRef}
+          type="button"
+          className={cn('promptPill')}
+          disabled={isCurrentSessionStreaming}
+          onClick={() => submitQuestion(SUMMARISE_PAGE_QUESTION)}
+        >
+          Summarise
+        </button>
+        <OnHoverMessage
+          message="Summarise page"
+          shortcut={isMac ? '⌘M' : 'Ctrl+M'}
+          targetRef={summarisePillRef}
+          position="top"
+          offset={8}
+        />
+        <button
+          type="button"
+          className={cn('promptPill')}
+          disabled={isCurrentSessionStreaming}
+          onClick={() => submitQuestion('What are the key takeaways from this page?')}
+        >
+          Key takeaways
+        </button>
       </div>
+
+      {/* Image attachment preview — shown when "Ask AI about this image" is clicked */}
+      {pendingImageAttachment && (
+        <div className={cn('imageAttachmentPreview')}>
+          <div className={cn('imageAttachmentThumbWrap')}>
+            <img
+              src={pendingImageAttachment.imageUrl}
+              alt="Attached image"
+              className={cn('imageAttachmentThumb')}
+            />
+            <button
+              type="button"
+              className={cn('imageAttachmentDismiss')}
+              onClick={() => setPendingImageAttachment(null)}
+              title="Remove image"
+            >
+              <X size={10} />
+            </button>
+          </div>
+          <span className={cn('imageAttachmentHint')}>Ask about the attached image</span>
+        </div>
+      )}
 
       {/* Input bar */}
       <div className={cn('inputBar')}>
@@ -1138,11 +1534,11 @@ export const WebpageChatView: React.FC<WebpageChatViewProps> = ({
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             onKeyDown={handleKeyDown}
-            disabled={isLoading && chatState !== 'answering'}
+            disabled={isCurrentSessionStreaming && chatState !== 'answering'}
           />
         </div>
 
-        {chatState === 'answering' ? (
+        {isCurrentSessionStreaming && chatState === 'answering' ? (
           <button
             className={cn('stopButton')}
             onClick={handleStop}
@@ -1155,7 +1551,7 @@ export const WebpageChatView: React.FC<WebpageChatViewProps> = ({
           <button
             className={cn('sendButton')}
             onClick={handleSend}
-            disabled={!inputValue.trim() || isLoading}
+            disabled={!inputValue.trim() || isCurrentSessionStreaming}
             type="button"
             aria-label="Send"
           >

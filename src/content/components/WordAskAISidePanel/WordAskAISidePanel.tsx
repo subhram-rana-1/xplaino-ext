@@ -1,9 +1,14 @@
 // src/content/components/WordAskAISidePanel/WordAskAISidePanel.tsx
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import type { RefObject } from 'react';
-import { ArrowUp, Square, Trash2, Plus, MoreVertical, BookOpen, Lightbulb, HelpCircle, AlertTriangle, GraduationCap, MessageSquare, PenLine } from 'lucide-react';
+import { ArrowUp, Square, Trash2, Plus, MoreVertical, BookMarked, ExternalLink } from 'lucide-react';
+import { CustomPromptService } from '@/api-services/CustomPromptService';
+import type { CustomPromptResponse } from '@/api-services/dto/CustomPromptDTO';
+import { ENV } from '@/config/env';
 import ReactMarkdown from 'react-markdown';
 import { MinimizeIcon } from '../ui/MinimizeIcon';
+import { TryPDFBadge } from '../TryPDFBadge/TryPDFBadge';
+import { CreateCustomPromptModal } from '../CreateCustomPromptModal/CreateCustomPromptModal';
 import styles from './WordAskAISidePanel.module.css';
 import { ChatMessage } from '@/store/wordExplanationAtoms';
 import { useAtomValue, useSetAtom } from 'jotai';
@@ -31,8 +36,8 @@ export interface WordAskAISidePanelProps {
   streamingText: string;
   /** Whether a request is in progress */
   isRequesting: boolean;
-  /** Handler to send a message */
-  onSendMessage: (question: string) => void;
+  /** Handler to send a message; displayText is shown in the chat bubble, question is sent to the API */
+  onSendMessage: (question: string, displayText?: string) => void;
   /** Handler to stop ongoing request */
   onStopRequest: () => void;
   /** Handler to clear chat */
@@ -84,6 +89,8 @@ export const WordAskAISidePanel: React.FC<WordAskAISidePanelProps> = ({
   const [loadingDotCount, setLoadingDotCount] = useState(1);
   const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
   const [showMorePromptsPopover, setShowMorePromptsPopover] = useState(false);
+  const [customPrompts, setCustomPrompts] = useState<CustomPromptResponse[]>([]);
+  const [showCreatePromptModal, setShowCreatePromptModal] = useState(false);
   const hasEmergedRef = useRef(false);
   const isUnmountingRef = useRef(false);
   const isAnimatingRef = useRef(false);
@@ -108,6 +115,13 @@ export const WordAskAISidePanel: React.FC<WordAskAISidePanelProps> = ({
       }
     };
   }, [isOpen]);
+
+  // Fetch custom prompts on mount
+  useEffect(() => {
+    CustomPromptService.listCustomPrompts()
+      .then((res) => setCustomPrompts(res.prompts.filter((p) => !p.isHidden)))
+      .catch(() => { /* user may not be logged in */ });
+  }, []);
 
   // Animation hook - merge and shrink animations use 400ms duration
   const {
@@ -420,17 +434,6 @@ export const WordAskAISidePanel: React.FC<WordAskAISidePanelProps> = ({
   // Built-in prompts
   const builtInPrompts = ['Explain more', 'Give examples', 'How to use?'];
 
-  // More prompt options for the 3-dot popover
-  const morePromptOptions = [
-    { icon: BookOpen, label: 'Etymology', question: `What is the etymology and origin of the word '${word}'? Trace its roots, original language, and how its meaning has evolved.` },
-    { icon: Lightbulb, label: 'Memory trick (Mnemonic)', question: `Create a creative and memorable memory trick (mnemonic) to help remember the meaning and usage of the word '${word}'.` },
-    { icon: HelpCircle, label: 'Quiz me on this word', question: `Create 2-3 multiple choice questions to quiz me on the word '${word}'. Include correct answers with brief explanations.` },
-    { icon: AlertTriangle, label: 'Common mistakes', question: `What are the most common mistakes people make when using the word '${word}'? Show how it is often misused and the correct usage.` },
-    { icon: PenLine, label: 'Better alternative (formal)', question: `Suggest a more formal or professional alternative to the word '${word}' and explain when to use it.` },
-    { icon: MessageSquare, label: 'Better alternative (casual)', question: `Suggest a more casual or conversational alternative to the word '${word}' and explain when it fits better.` },
-    { icon: GraduationCap, label: 'Better alternative (academic)', question: `Suggest a more academic or scholarly alternative to the word '${word}' for research papers and explain its precise usage.` },
-  ];
-
   const handleMorePromptsMouseEnter = useCallback(() => {
     if (morePromptsTimeoutRef.current) {
       clearTimeout(morePromptsTimeoutRef.current);
@@ -445,10 +448,10 @@ export const WordAskAISidePanel: React.FC<WordAskAISidePanelProps> = ({
     }, 300);
   }, []);
 
-  const handleMorePromptClick = useCallback((question: string) => {
+  const handleMorePromptClick = useCallback((question: string, displayText?: string) => {
     if (isRequesting) return;
     setShowMorePromptsPopover(false);
-    onSendMessage(question);
+    onSendMessage(question, displayText);
   }, [isRequesting, onSendMessage]);
 
   // Class names
@@ -514,6 +517,7 @@ export const WordAskAISidePanel: React.FC<WordAskAISidePanelProps> = ({
             useShadowDom={useShadowDom}
             direction="left"
           />
+          <TryPDFBadge useShadowDom={useShadowDom} />
         </div>
         
         {/* Center: Title */}
@@ -590,23 +594,46 @@ export const WordAskAISidePanel: React.FC<WordAskAISidePanelProps> = ({
               >
                 <MoreVertical size={16} />
               </button>
-              {/* Popover with more prompt options */}
+              {/* Popover with custom prompts */}
               {showMorePromptsPopover && (
                 <div className={morePromptsPopoverClass}>
-                  {morePromptOptions.map((option, index) => (
-                    <React.Fragment key={index}>
-                      {/* Separator before "Better alternative" group (index 4) */}
-                      {index === 4 && <div className={morePromptsSeparatorClass} />}
+                  {customPrompts.map((p) => {
+                    const content = p.description
+                      ? p.description.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim()
+                      : p.title;
+                    return (
                       <button
+                        key={p.id}
                         className={morePromptsOptionClass}
-                        onClick={() => handleMorePromptClick(option.question)}
+                        onClick={() => handleMorePromptClick(`${content} The word is: "${word}"`, p.title)}
                         disabled={isRequesting}
                       >
-                        <option.icon size={14} />
-                        <span>{option.label}</span>
+                        <BookMarked size={14} />
+                        <span>{p.title}</span>
                       </button>
-                    </React.Fragment>
-                  ))}
+                    );
+                  })}
+                  <div className={morePromptsSeparatorClass} />
+                  <button
+                    className={morePromptsOptionClass}
+                    onClick={() => {
+                      setShowMorePromptsPopover(false);
+                      setShowCreatePromptModal(true);
+                    }}
+                  >
+                    <Plus size={14} />
+                    <span>Add custom prompt</span>
+                  </button>
+                  <button
+                    className={morePromptsOptionClass}
+                    onClick={() => {
+                      setShowMorePromptsPopover(false);
+                      window.open(`${ENV.XPLAINO_WEBSITE_BASE_URL}/user/account/custom-prompt`, '_blank');
+                    }}
+                  >
+                    <ExternalLink size={14} />
+                    <span>Manage custom prompts</span>
+                  </button>
                 </div>
               )}
             </div>
@@ -668,6 +695,17 @@ export const WordAskAISidePanel: React.FC<WordAskAISidePanelProps> = ({
         {/* Upgrade Footer - only shown for free trial users */}
         {isFreeTrial && <UpgradeFooter useShadowDom={useShadowDom} />}
       </div>
+
+      {/* Create custom prompt modal */}
+      <CreateCustomPromptModal
+        isOpen={showCreatePromptModal}
+        onClose={() => setShowCreatePromptModal(false)}
+        onCreated={(created) => {
+          setCustomPrompts((prev) => [created, ...prev]);
+          setShowCreatePromptModal(false);
+        }}
+        useShadowDom={false}
+      />
     </div>
   );
 };

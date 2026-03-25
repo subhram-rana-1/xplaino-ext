@@ -66,8 +66,14 @@ export interface CitationDetail {
 export interface AnswerCallbacks {
   /** Called for each streamed chunk; progressiveAnswer is the growing display text */
   onChunk: (chunk: string, accumulated: string, progressiveAnswer: string) => void;
-  /** Called with final parsed answer text and citation map */
-  onCitations: (answer: string, citationMap: Record<string, CitationDetail>) => void;
+  /**
+   * Called immediately when a citation is detected in the stream.
+   * citationNumber matches the [N] placeholder already emitted in the preceding chunk.
+   * chunkIds and citations are parallel arrays (multi-source citations share one number).
+   */
+  onInlineCitation?: (citationNumber: number, chunkIds: string[], citations: CitationDetail[]) => void;
+  /** Called with final answer text, full citation map, and optional follow-up questions */
+  onCitations: (answer: string, citationMap: Record<string, CitationDetail>, possibleQuestions: string[]) => void;
   onError: (errorCode: string, errorMessage: string) => void;
   onLoginRequired: () => void;
   onSubscriptionRequired?: () => void;
@@ -85,47 +91,20 @@ export function stripCiteMarkers(text: string): string {
 }
 
 /**
- * Progressively extract the answer field from a partial/complete JSON string.
- * The LLM streams JSON: {"answer": "growing text..."}
- * Returns the extracted answer text, or empty string if not yet available.
+ * Translate [N] numbered citation placeholders in prose text back to the
+ * [[cite:chunkId1,chunkId2]] format understood by parseAnswerCitations / CitationChip.
+ * Only replaces [N] where N is a known citation number in the provided map.
  */
-function extractProgressiveAnswer(accumulated: string): string {
-  // Match the answer field value progressively — no closing quote required so
-  // each SSE chunk updates the displayed text as soon as "answer": " appears.
-  const match = accumulated.match(/"answer"\s*:\s*"((?:[^"\\]|\\[\s\S])*)/s);
-  if (match) {
-    const raw = match[1]
-      .replace(/\\n/g, '\n')
-      .replace(/\\t/g, '\t')
-      .replace(/\\r/g, '\r')
-      .replace(/\\"/g, '"')
-      .replace(/\\\\/g, '\\');
-    // Strip citation markers during streaming — the citationMap is empty until the
-    // final "citations" SSE event fires, so chips would all show "could not locate".
-    // The final committed message (from onCitations) keeps the markers and works correctly.
-    return raw.replace(/\[\[cite:[^\]]+\]\]/g, '');
-  }
-  // If the LLM output doesn't start with { it's plain text (windowed path)
-  if (!accumulated.trimStart().startsWith('{')) {
-    return accumulated;
-  }
-  return '';
-}
-
-/**
- * Parse final accumulated text into { answer, citedChunkIds }.
- * Falls back to using accumulated as raw answer if JSON parse fails.
- */
-function parseFinalAccumulated(accumulated: string): { answer: string; citedChunkIds: string[] } {
-  try {
-    const parsed = JSON.parse(accumulated);
-    return {
-      answer: parsed.answer ?? accumulated,
-      citedChunkIds: parsed.citedChunkIds ?? [],
-    };
-  } catch {
-    return { answer: accumulated, citedChunkIds: [] };
-  }
+function translateNumberedCitations(
+  text: string,
+  citationNumberToChunkIds: Record<number, string[]>
+): string {
+  return text.replace(/\[(\d+)\]/g, (match, numStr) => {
+    const num = parseInt(numStr, 10);
+    const chunkIds = citationNumberToChunkIds[num];
+    if (!chunkIds || chunkIds.length === 0) return match;
+    return `[[cite:${chunkIds.join(',')}]]`;
+  });
 }
 
 // =============================================================================
@@ -146,13 +125,13 @@ async function processSSEStream(
   const decoder = new TextDecoder();
   let buffer = '';
   let accumulated = '';
-  let finalAnswer = '';
-  let citationMap: Record<string, CitationDetail> = {};
-  let gotCitations = false;
+  const citationMap: Record<string, CitationDetail> = {};
+  const citationNumberToChunkIds: Record<number, string[]> = {};
+  let possibleQuestions: string[] = [];
 
   try {
     // eslint-disable-next-line no-constant-condition
-    while (true) {
+    outer: while (true) {
       if (abortController?.signal.aborted) {
         await reader.cancel();
         return;
@@ -173,35 +152,42 @@ async function processSSEStream(
       for (const line of lines) {
         if (!line.startsWith('data: ')) continue;
         const data = line.slice(6).trim();
-        if (data === '[DONE]') continue;
+
+        // [DONE] signals the stream is complete — commit immediately without
+        // waiting for the HTTP connection to close (which can hang with proxies).
+        if (data === '[DONE]') {
+          break outer;
+        }
 
         try {
           const event = JSON.parse(data) as Record<string, unknown>;
+          const evType = event.type as string | undefined;
 
-          if ('type' in event) {
-            const evType = event.type as string;
-
-            if (evType === 'citations') {
-              citationMap = (event.citationMap ?? {}) as Record<string, CitationDetail>;
-              gotCitations = true;
-              // Parse the final answer from accumulated
-              const parsed = parseFinalAccumulated(accumulated);
-              finalAnswer = parsed.answer;
-            } else if (evType === 'error') {
-              const code = (event.error_code as string) ?? 'UNKNOWN_ERROR';
-              const msg = (event.error_message as string) ?? 'An error occurred';
-              if (ApiResponseHandler.checkLoginRequired({ error_code: code }, 0)) {
-                ApiResponseHandler.handleLoginRequired(callbacks.onLoginRequired, 'WebpageChatService');
-              } else {
-                callbacks.onError(code, msg);
-              }
-              return;
+          if (evType === 'chunk') {
+            const text = (event.text as string) ?? '';
+            accumulated = (event.accumulated as string) ?? accumulated + text;
+            const progressiveAnswer = translateNumberedCitations(accumulated, citationNumberToChunkIds);
+            callbacks.onChunk(text, accumulated, progressiveAnswer);
+          } else if (evType === 'inline_citation') {
+            const citationNumber = event.citationNumber as number;
+            const chunkIds = (event.chunkIds as string[]) ?? [];
+            const citations = (event.citations as CitationDetail[]) ?? [];
+            citationNumberToChunkIds[citationNumber] = chunkIds;
+            for (const c of citations) {
+              citationMap[c.chunkId] = c;
             }
-          } else if ('chunk' in event) {
-            const chunk = event.chunk as string;
-            accumulated = (event.accumulated as string) ?? accumulated + chunk;
-            const progressiveAnswer = extractProgressiveAnswer(accumulated);
-            callbacks.onChunk(chunk, accumulated, progressiveAnswer);
+            callbacks.onInlineCitation?.(citationNumber, chunkIds, citations);
+          } else if (evType === 'possible_questions') {
+            possibleQuestions = (event.possibleQuestions as string[]) ?? [];
+          } else if (evType === 'error') {
+            const code = (event.error_code as string) ?? 'UNKNOWN_ERROR';
+            const msg = (event.error_message as string) ?? 'An error occurred';
+            if (ApiResponseHandler.checkLoginRequired({ error_code: code }, 0)) {
+              ApiResponseHandler.handleLoginRequired(callbacks.onLoginRequired, 'WebpageChatService');
+            } else {
+              callbacks.onError(code, msg);
+            }
+            return;
           }
         } catch {
           // Ignore malformed SSE data lines
@@ -212,13 +198,9 @@ async function processSSEStream(
     reader.releaseLock();
   }
 
-  if (gotCitations) {
-    callbacks.onCitations(finalAnswer, citationMap);
-  } else {
-    // Stream ended without citations event — try to parse what we have
-    const parsed = parseFinalAccumulated(accumulated);
-    callbacks.onCitations(parsed.answer, {});
-  }
+  // Fire onCitations whether we exited via [DONE] or natural stream close.
+  const finalAnswer = translateNumberedCitations(accumulated, citationNumberToChunkIds);
+  callbacks.onCitations(finalAnswer, citationMap, possibleQuestions);
 }
 
 // =============================================================================

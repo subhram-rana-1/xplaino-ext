@@ -1,0 +1,175 @@
+/* TryPDFBadge.module.css */
+
+.wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+/* ── Main badge button ─────────────────────────────────────── */
+.badge {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  border-radius: 999px;
+  padding: 5px;
+  background: linear-gradient(
+    135deg,
+    var(--color-primary-opacity-10, rgba(13, 128, 112, 0.10)),
+    var(--color-primary-opacity-20, rgba(13, 128, 112, 0.20))
+  );
+  border: none;
+  cursor: pointer;
+  outline: none;
+  color: var(--color-primary, #0d8070);
+  font-size: 11px;
+  font-family: inherit;
+  white-space: nowrap;
+  overflow: hidden;
+  flex-shrink: 0;
+  box-shadow: 0 2px 8px var(--color-primary-opacity-20, rgba(13, 128, 112, 0.20));
+  transition:
+    padding 0.25s ease,
+    background 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.badge:hover {
+  background: linear-gradient(
+    135deg,
+    var(--color-primary-opacity-15, rgba(13, 128, 112, 0.15)),
+    var(--color-primary-opacity-30, rgba(13, 128, 112, 0.30))
+  );
+  box-shadow: 0 3px 12px var(--color-primary-opacity-30, rgba(13, 128, 112, 0.30));
+}
+
+.badge.expanded {
+  padding: 4px 8px 4px 7px;
+  gap: 5px;
+}
+
+/* ── PDF icon (always visible) ─────────────────────────────── */
+.badgeIcon {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  color: var(--color-primary, #0d8070);
+}
+
+/* ── Label text ────────────────────────────────────────────── */
+.badgeText {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: var(--color-primary, #0d8070);
+  max-width: 0;
+  opacity: 0;
+  overflow: hidden;
+  transition: max-width 0.25s ease, opacity 0.18s ease;
+}
+
+.badge.expanded .badgeText {
+  max-width: 130px;
+  opacity: 1;
+}
+
+/* ── Dismiss (X) button ────────────────────────────────────── */
+.dismissBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  max-width: 0;
+  opacity: 0;
+  overflow: hidden;
+  border-radius: 50%;
+  flex-shrink: 0;
+  transition: max-width 0.25s ease, opacity 0.18s ease;
+  color: var(--color-primary, #0d8070);
+  padding: 2px;
+  margin-left: -2px;
+}
+
+.badge.expanded .dismissBtn {
+  max-width: 18px;
+  opacity: 0.7;
+}
+
+.dismissBtn:hover {
+  opacity: 1 !important;
+  background: var(--color-primary-opacity-10, rgba(13, 128, 112, 0.10));
+}
+
+/* ── Features popover ──────────────────────────────────────── */
+.popover {
+  position: absolute;
+  top: calc(100% + 7px);
+  left: 0;
+  background: linear-gradient(
+    160deg,
+    #0a5f54 0%,
+    #0d8070 55%,
+    #1fb89a 100%
+  );
+  border: none;
+  border-radius: 12px;
+  box-shadow:
+    0 8px 32px rgba(13, 128, 112, 0.40),
+    0 2px 8px rgba(0, 0, 0, 0.15);
+  padding: 0;
+  z-index: 99999;
+  min-width: 190px;
+  pointer-events: none;
+  overflow: hidden;
+  animation: popoverFadeIn 0.15s ease forwards;
+}
+
+@keyframes popoverFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ── Popover header ────────────────────────────────────────── */
+.popoverHeader {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.55);
+  padding: 10px 13px 6px;
+}
+
+.popoverDivider {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.15);
+  margin: 0 10px 4px;
+}
+
+/* ── Feature list items ────────────────────────────────────── */
+.popoverItem {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 6px 13px;
+  font-size: 11px;
+  line-height: 1.45;
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.popoverItemIcon {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  color: rgba(255, 255, 255, 0.70);
+  opacity: 1;
+}
+
+.popoverItemLabel {
+  color: rgba(255, 255, 255, 0.92);
+}

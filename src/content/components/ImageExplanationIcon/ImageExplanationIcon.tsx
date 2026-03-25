@@ -1,6 +1,7 @@
 // src/content/components/ImageExplanationIcon/ImageExplanationIcon.tsx
-import React, { useCallback, useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ExplanationIconButton } from '../ui/ExplanationIconButton';
+import { ImageActionsButtonGroup } from './ImageActionsButtonGroup';
 
 export interface ImageExplanationIconProps {
   /** Position of the icon */
@@ -31,6 +32,14 @@ export interface ImageExplanationIconProps {
   isHiding?: boolean;
   /** Whether to show the feature discovery tooltip ("Explain this image") on initial hover */
   shouldShowFeatureTooltip?: boolean;
+  /** Called when "Ask AI" is selected from the 3-dot options popover */
+  onAskAI?: () => void;
+  /** Called when the Simplify button is clicked (distinct from the main icon click which toggles panel) */
+  onSimplify?: () => void;
+  /** Called when a custom prompt is clicked from the 3-dot popover */
+  onPromptClick?: (displayText: string, apiContent: string) => void;
+  /** Called when bookmark icon is clicked — handles both save (no savedId) and delete (has savedId) */
+  onBookmarkOpen?: () => void;
 }
 
 /**
@@ -71,10 +80,40 @@ export const ImageExplanationIcon: React.FC<ImageExplanationIconProps> = ({
   onBookmarkClick,
   isHiding = false,
   shouldShowFeatureTooltip = true,
+  onAskAI,
+  onSimplify,
+  onPromptClick,
+  onBookmarkOpen,
 }) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const scrollableParentsRef = useRef<HTMLElement[]>([]);
   const rafIdRef = useRef<number | null>(null);
+  const buttonGroupHideTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const [showButtonGroup, setShowButtonGroup] = useState(false);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (buttonGroupHideTimeoutRef.current) clearTimeout(buttonGroupHideTimeoutRef.current);
+    };
+  }, []);
+
+  const handleIconMouseEnterForGroup = useCallback(() => {
+    if (buttonGroupHideTimeoutRef.current) clearTimeout(buttonGroupHideTimeoutRef.current);
+    setShowButtonGroup(true);
+    onMouseEnter?.();
+  }, [onMouseEnter]);
+
+  const handleButtonGroupMouseEnter = useCallback(() => {
+    if (buttonGroupHideTimeoutRef.current) clearTimeout(buttonGroupHideTimeoutRef.current);
+    onMouseEnter?.();
+  }, [onMouseEnter]);
+
+  const handleButtonGroupMouseLeave = useCallback((_e: React.MouseEvent) => {
+    buttonGroupHideTimeoutRef.current = setTimeout(() => setShowButtonGroup(false), 200);
+    onMouseLeave?.();
+  }, [onMouseLeave]);
 
   // Update position function based on image element
   const updatePosition = useCallback(() => {
@@ -202,27 +241,50 @@ export const ImageExplanationIcon: React.FC<ImageExplanationIconProps> = ({
 
   return (
     <div ref={containerRef} style={wrapperStyle}>
-      <ExplanationIconButton
-        isSpinning={isSpinning}
-        isPanelOpen={isPanelOpen}
-        isBookmarked={isBookmarked}
-        firstChunkReceived={firstChunkReceived}
-        isHiding={isHiding}
-        onClick={onClick}
-        onBookmarkClick={onBookmarkClick}
-        onMouseEnter={onMouseEnter}
-        onMouseLeave={onMouseLeave}
-        iconRef={iconRef as ((element: HTMLButtonElement | null) => void) | undefined}
-        useShadowDom={useShadowDom}
-        spinnerSize="xs"
-        showPurpleIconInitially={true}
-        ariaLabel="Simplify image"
-        hoverMessage={firstChunkReceived ? "View explanation" : "Explain this image"}
-        bookmarkHoverMessage="Remove bookmark"
-        imageMode={true}
-        forceShowHoverMessage={shouldShowFeatureTooltip && !firstChunkReceived && !isSpinning && !isHiding}
-        hoverMessageVariant={shouldShowFeatureTooltip && !firstChunkReceived ? 'featureDiscovery' : 'default'}
-      />
+      {/* Circular icon — fades out when button group is shown */}
+      <div
+        style={{
+          opacity: showButtonGroup ? 0 : 1,
+          pointerEvents: showButtonGroup ? 'none' : 'auto',
+          transition: 'opacity 0.15s ease',
+        }}
+      >
+        <ExplanationIconButton
+          isSpinning={isSpinning}
+          isPanelOpen={isPanelOpen}
+          isBookmarked={isBookmarked}
+          firstChunkReceived={firstChunkReceived}
+          isHiding={isHiding}
+          onClick={onClick}
+          onBookmarkClick={onBookmarkClick}
+          onMouseEnter={handleIconMouseEnterForGroup}
+          onMouseLeave={onMouseLeave}
+          iconRef={iconRef as ((element: HTMLButtonElement | null) => void) | undefined}
+          useShadowDom={useShadowDom}
+          spinnerSize="xs"
+          showPurpleIconInitially={true}
+          ariaLabel="Simplify image"
+          hoverMessage={firstChunkReceived ? "View explanation" : "Explain this image"}
+          bookmarkHoverMessage="Remove bookmark"
+          imageMode={true}
+          forceShowHoverMessage={shouldShowFeatureTooltip && !firstChunkReceived && !isSpinning && !isHiding}
+          hoverMessageVariant={shouldShowFeatureTooltip && !firstChunkReceived ? 'featureDiscovery' : 'default'}
+        />
+      </div>
+
+      {/* Content actions button group — appears on hover of the circular icon */}
+      <div style={{ position: 'absolute', top: 0, left: 0 }}>
+        <ImageActionsButtonGroup
+          visible={showButtonGroup}
+          isBookmarked={isBookmarked}
+          onSimplify={onSimplify ?? onClick}
+          onBookmarkOpen={onBookmarkOpen ?? onBookmarkClick ?? onClick}
+          onAskAI={onAskAI}
+          onPromptClick={onPromptClick}
+          onMouseEnter={handleButtonGroupMouseEnter}
+          onMouseLeave={handleButtonGroupMouseLeave}
+        />
+      </div>
     </div>
   );
 };

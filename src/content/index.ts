@@ -57,6 +57,7 @@ import baseSidePanelStyles from './styles/baseSidePanel.shadow.css?inline';
 import spinnerStyles from './styles/spinner.shadow.css?inline';
 import webpageChatStyles from './styles/webpageChat.shadow.css?inline';
 import createCustomPromptModalStyles from './styles/createCustomPromptModal.shadow.css?inline';
+import tryPDFBadgeStyles from './styles/tryPDFBadge.shadow.css?inline';
 
 // Import color CSS variables
 import { getAllColorVariables } from '../constants/colors.css.js';
@@ -64,7 +65,7 @@ import { COLORS } from '../constants/colors';
 import { getCurrentTheme } from '../constants/theme';
 
 // Import services and utilities
-import { SummariseService } from '../api-services/SummariseService';
+// SummariseService removed — summarise now goes through WebpageChatService (/answer)
 import { SimplifyService } from '../api-services/SimplifyService';
 import { SimplifyImageService } from '../api-services/SimplifyImageService';
 import { getLanguageCode, getLanguageName, TranslateTextItem, translateWithFallback } from '../api-services/TranslateService';
@@ -85,16 +86,13 @@ import { UserSettingsService } from '../api-services/UserSettingsService';
 import { SubscriptionService } from '../api-services/SubscriptionService';
 import type { FolderWithSubFoldersResponse } from '../api-services/dto/FolderDTO';
 import { extractPageContent, extractPageContentWithIds } from './utils/pageContentExtractor';
-import { getSummarisePayloadOrWait, registerGetPageContentOrWait, registerGetSummarisePayloadOrWait } from './pageContentBridge';
+import { registerGetPageContentOrWait, registerGetSummarisePayloadOrWait } from './pageContentBridge';
 import { addTextUnderline, removeTextUnderline, pulseTextBackground, changeUnderlineColor, type UnderlineState } from './utils/textSelectionUnderline';
 import { PageTranslationManager } from './utils/pageTranslationManager';
 import { incrementApiCounterAndShouldShowReview } from './utils/reviewPromptTracker';
 import {
-  summariseStateAtom,
   streamingTextAtom,
   summaryAtom,
-  summaryErrorAtom,
-  messageQuestionsAtom,
   pageReadingStatusAtom,
   pageContentAtom,
   summaryIdToElementMapAtom,
@@ -142,7 +140,16 @@ import {
   webpageChatPendingAnnotationAtom,
   webpageChatHasConversationAtom,
   webpageChatShowRefreshWarningAtom,
+  webpageChatPendingImageQuestionAtom,
+  webpageChatSessionsAtom,
+  webpageChatActiveSessionIdAtom,
+  webpageChatNextSessionCounterAtom,
+  webpageChatAutoSubmitQuestionAtom,
+  makeSessionId,
 } from '../store/webpageChatAtoms';
+
+/** Shared prompt used by the FAB Summarise button, Ctrl+M, and the chat panel pill. */
+const SUMMARISE_PAGE_QUESTION = 'Summarise this page';
 
 console.log('[Content Script] Initialized');
 
@@ -329,8 +336,6 @@ ChromeStorage.getPanelWidth().then((w) => {
 
 // FAB loading state
 let isSummarising = false;
-let summariseAbortController: AbortController | null = null;
-let firstChunkReceived = false;
 let canHideFABActions = true;
 let forceShowFABActions = false; // Force-show FAB actions (e.g. from keyboard shortcut)
 
@@ -836,170 +841,41 @@ function handleAskAboutPageClick(): void {
 }
 
 /**
- * Handle summarise button click
+ * Handle summarise button click — opens the Ask AI chat panel in a fresh session
+ * and auto-submits the summarise question through the /answer API.
  */
-async function handleSummariseClick(): Promise<void> {
+function handleSummariseClick(): void {
   console.log('[Content Script] Summarise clicked from FAB');
-  
-  // Check if summary already exists
-  const existingSummary = store.get(summaryAtom);
-  const hasSummary = !!existingSummary && existingSummary.trim().length > 0;
-  
-  // If summary exists, toggle the side panel (close if open, open if closed)
-  if (hasSummary) {
-    if (sidePanelOpen) {
-      console.log('[Content Script] Summary exists and side panel is open, closing side panel');
-      setSidePanelOpen(false);
-    } else {
-      console.log('[Content Script] Summary exists, opening side panel');
-      setSidePanelOpen(true, 'summary');
-    }
-    return;
-  }
-  
-  // If already summarising, abort and reset
-  if (isSummarising && summariseAbortController) {
-    summariseAbortController.abort();
-    summariseAbortController = null;
-    isSummarising = false;
-    firstChunkReceived = false;
-    canHideFABActions = true;
-    forceShowFABActions = false;
-    store.set(summariseStateAtom, 'idle');
-    updateFAB();
-    return;
-  }
 
-  // Set loading state
-  isSummarising = true;
-  firstChunkReceived = false;
-  canHideFABActions = false; // Prevent hiding actions during loading
-  forceShowFABActions = true; // Force-show FAB actions so user sees the spinner
-  store.set(summariseStateAtom, 'summarising');
-  store.set(streamingTextAtom, '');
-  store.set(summaryAtom, '');
-  store.set(summaryErrorAtom, '');
-  store.set(messageQuestionsAtom, {});
-  updateFAB();
+  const existingSessions = store.get(webpageChatSessionsAtom);
+  const activeId = store.get(webpageChatActiveSessionIdAtom);
+  const activeSession = existingSessions.find((s) => s.id === activeId);
 
-  try {
-    const { content } = await getSummarisePayloadOrWait();
-    if (!content || Object.keys(content).length === 0) {
-      throw new Error('Page content not available');
-    }
-
-    // Create abort controller
-    summariseAbortController = new AbortController();
-
-    // Get language code from user settings
-    const nativeLanguage = await ChromeStorage.getUserSettingNativeLanguage();
-    const languageCode = nativeLanguage ? (getLanguageCode(nativeLanguage) || undefined) : undefined;
-
-    // Increment API counter for review prompt tracking
-    incrementApiCounterAndCheckReview();
-
-    // Call summarise API
-    await SummariseService.summarise(
+  // Reuse the active session if it has no messages yet; otherwise open a new one
+  // so the summarise reply doesn't mix with an existing conversation.
+  if (!activeSession || activeSession.messages.length > 0) {
+    const newId = makeSessionId();
+    const nextCounter = store.get(webpageChatNextSessionCounterAtom);
+    store.set(webpageChatSessionsAtom, [
+      ...existingSessions,
       {
-        content,
-        context_type: 'PAGE',
-        languageCode,
+        id: newId,
+        name: `Session ${nextCounter}`,
+        messages: [],
+        history: [],
+        citationMap: {},
+        activeCitations: [],
+        pendingAnnotation: null,
       },
-      {
-        onChunk: (_chunk, accumulated) => {
-          // Update streaming text first
-          store.set(streamingTextAtom, accumulated);
-          
-          // On first chunk, open side panel with summary tab and allow FAB actions to hide
-          if (!firstChunkReceived) {
-            firstChunkReceived = true;
-            canHideFABActions = true; // Allow actions to hide after first event
-            isSummarising = false; // Stop showing spinner, revert to icon
-            forceShowFABActions = false; // Stop force-showing actions
-            console.log('[Content Script] First chunk received, opening side panel');
-            setSidePanelOpen(true, 'summary');
-            // Update FAB after setting streaming text so hasSummary will be true
-            updateFAB(); // Update FAB to reflect changes (spinner -> icon, canHideActions, hasSummary)
-          }
-        },
-        onComplete: (finalSummary, questions) => {
-          console.log('[Content Script] Summarise complete');
-          store.set(summaryAtom, finalSummary);
-          store.set(streamingTextAtom, '');
-          store.set(summariseStateAtom, 'done');
-          
-          // Store questions for summary (use -1 as key for summary)
-          if (questions.length > 0) {
-            const currentQuestions = store.get(messageQuestionsAtom);
-            store.set(messageQuestionsAtom, {
-              ...currentQuestions,
-              [-1]: questions,
-            });
-          }
-          
-          // Reset loading state
-          isSummarising = false;
-          summariseAbortController = null;
-          firstChunkReceived = false;
-          canHideFABActions = true;
-          forceShowFABActions = false;
-          updateFAB();
-        },
-        onError: (errorCode, errorMsg) => {
-          console.error('[Content Script] Summarise error:', errorCode, errorMsg);
-          store.set(summariseStateAtom, 'error');
-          store.set(summaryErrorAtom, errorMsg);
-          
-          // Reset loading state
-          isSummarising = false;
-          summariseAbortController = null;
-          firstChunkReceived = false;
-          canHideFABActions = true;
-          forceShowFABActions = false;
-          updateFAB();
-        },
-        onLoginRequired: () => {
-          console.log('[Content Script] Login required for summarise');
-          store.set(summariseStateAtom, 'idle');
-          store.set(showLoginModalAtom, true);
-          
-          // Reset loading state
-          isSummarising = false;
-          summariseAbortController = null;
-          firstChunkReceived = false;
-          canHideFABActions = true;
-          forceShowFABActions = false;
-          updateFAB();
-        },
-        onSubscriptionRequired: () => {
-          console.log('[Content Script] Subscription required for summarise');
-          store.set(summariseStateAtom, 'idle');
-          store.set(showSubscriptionModalAtom, true);
-          
-          // Reset loading state
-          isSummarising = false;
-          summariseAbortController = null;
-          firstChunkReceived = false;
-          canHideFABActions = true;
-          forceShowFABActions = false;
-          updateFAB();
-        },
-      },
-      summariseAbortController
-    );
-  } catch (error) {
-    console.error('[Content Script] Summarise exception:', error);
-    store.set(summariseStateAtom, 'error');
-    store.set(summaryErrorAtom, error instanceof Error ? error.message : 'An error occurred while summarising');
-    
-    // Reset loading state
-    isSummarising = false;
-    summariseAbortController = null;
-    firstChunkReceived = false;
-    canHideFABActions = true;
-    forceShowFABActions = false;
-    updateFAB();
+    ]);
+    store.set(webpageChatActiveSessionIdAtom, newId);
   }
+
+  // Signal WebpageChatView to auto-submit the summarise question
+  store.set(webpageChatAutoSubmitQuestionAtom, SUMMARISE_PAGE_QUESTION);
+
+  // Open the Ask AI panel on the chat tab
+  setSidePanelOpen(true, 'chat');
 }
 
 /**
@@ -1353,6 +1229,9 @@ async function injectSidePanel(): Promise<void> {
   injectStyles(shadow, webpageChatStyles);
   injectStyles(shadow, createCustomPromptModalStyles);
 
+  // Inject TryPDFBadge styles
+  injectStyles(shadow, tryPDFBadgeStyles);
+
   // Append to document
   document.documentElement.appendChild(host);
 
@@ -1413,6 +1292,7 @@ async function injectContentActions(): Promise<void> {
   
   // Inject component styles
   injectStyles(shadow, contentActionsStyles);
+  injectStyles(shadow, createCustomPromptModalStyles);
 
   // Append to document
   document.documentElement.appendChild(host);
@@ -1446,26 +1326,16 @@ async function injectContentActions(): Promise<void> {
         onBetterAcademic: handleBetterAcademicClick,
         // Text selection AI actions
         onTextAskAI: handleTextAskAIOpen,
-        onSummarize: handleTextSummarize,
-        onKeyPoints: handleTextKeyPoints,
-        onRewrite: handleTextRewrite,
-        onParaphrase: handleTextParaphrase,
-        onImproveWriting: handleTextImproveWriting,
-        onFixGrammar: handleTextFixGrammar,
-        onTone: handleTextTone,
-        onConvertBullets: handleTextConvertBullets,
-        onConvertTable: handleTextConvertTable,
-        onConvertDiagram: handleTextConvertDiagram,
-        onCreateMindMap: handleTextCreateMindMap,
-        onConvertEmail: handleTextConvertEmail,
-        onConvertWhatsApp: handleTextConvertWhatsApp,
-        onConvertLinkedIn: handleTextConvertLinkedIn,
-        onConvertTweet: handleTextConvertTweet,
-        onConvertPresentation: handleTextConvertPresentation,
         onShowModal: showDisableModal,
         onShowToast: showToast,
         onHighlight: handleHighlightClick,
         onNote: handleNoteCreate,
+        onWordCustomPromptClick: (selectedText: string, displayText: string, promptContent: string) => {
+          void handleWordAskAIAction(selectedText, `${promptContent} The word is: "${selectedText}"`, displayText);
+        },
+        onTextCustomPromptClick: (selectedText: string, displayText: string, promptContent: string) => {
+          dispatchAnnotatedChat(selectedText, promptContent, false, displayText);
+        },
       })
     )
   );
@@ -1567,15 +1437,23 @@ async function handleContentActionsBookmarkClick(selectedText: string): Promise<
     return;
   }
   
-  // Capture the current selection range before it's cleared
-  const selection = window.getSelection();
-  let range: Range | null = null;
-  if (selection && selection.rangeCount > 0) {
-    range = selection.getRangeAt(0).cloneRange();
+  // Route word selections through the word save flow (SavedWordsService)
+  if (isWordSelection(text)) {
+    folderModalMode = 'word';
+    folderModalWord = text;
+    folderModalWordId = null; // No existing word-explanation atom; save-handler handles this case
+    folderModalWordContextualMeaning = null;
+  } else {
+    // Capture the current selection range for paragraph saves
+    const sel = window.getSelection();
+    let range: Range | null = null;
+    if (sel && sel.rangeCount > 0) {
+      range = sel.getRangeAt(0).cloneRange();
+    }
+    folderModalRange = range;
+    folderModalParagraphSource = 'contentactions'; // Mark as ContentActions bookmark to prevent panel from opening
   }
-  folderModalRange = range;
-  folderModalParagraphSource = 'contentactions'; // Mark as ContentActions bookmark to prevent panel from opening
-  
+
   console.log('[Content Script] Calling FolderService.getAllFolders');
   
   // Get folders and show modal
@@ -2694,8 +2572,8 @@ async function handleAskAIFromContentActions(selectedText: string): Promise<void
  * Generic handler for word Ask AI actions from the 3-dot menu.
  * Creates word span, opens Ask AI side panel, and auto-sends the crafted question.
  */
-async function handleWordAskAIAction(selectedText: string, question: string): Promise<void> {
-  console.log('[Content Script] Word Ask AI action:', { selectedText, question });
+async function handleWordAskAIAction(selectedText: string, question: string, displayText?: string): Promise<void> {
+  console.log('[Content Script] Word Ask AI action:', { selectedText, question, displayText });
 
   try {
     const wordId = await initWordSpanForAskAI(selectedText);
@@ -2709,7 +2587,7 @@ async function handleWordAskAIAction(selectedText: string, question: string): Pr
 
     // Auto-send the crafted question after a small delay to let the panel mount
     setTimeout(() => {
-      handleAskAISendMessage(wordId, question);
+      handleAskAISendMessage(wordId, question, displayText);
     }, 100);
   } catch (error) {
     console.error('[Content Script] Word Ask AI action exception:', error);
@@ -2799,17 +2677,66 @@ async function handleBetterAcademicClick(selectedText: string): Promise<void> {
  * Redirect a text-selection AI action to the WebpageChat panel.
  * Sets the pending annotation atom (consumed by WebpageChatView) and opens the chat tab.
  *
- * @param selectedText - The text the user selected on the page
- * @param question     - Optional pre-populated question (for preset actions like "Summarize").
- *                       When provided, the view auto-submits it.
- *                       When omitted, the user types their own question.
+ * @param selectedText    - The text the user selected on the page
+ * @param question        - Optional pre-populated question sent to the API.
+ *                          When provided, the view auto-submits it.
+ *                          When omitted, the user types their own question.
+ * @param focusInput      - When true, focus the chat input without auto-submitting.
+ * @param displayQuestion - Optional text shown in the user bubble (falls back to `question`).
  */
-function dispatchAnnotatedChat(selectedText: string, question?: string, focusInput = false): void {
+function dispatchAnnotatedChat(selectedText: string, question?: string, focusInput = false, displayQuestion?: string): void {
   store.set(webpageChatPendingAnnotationAtom, {
     selectedText,
     textSnippetStart: selectedText.slice(0, 60),
     textSnippetEnd: selectedText.slice(-60),
     question,
+    focusInput,
+    ...(displayQuestion !== undefined ? { displayQuestion } : {}),
+  });
+  setSidePanelOpen(true, 'chat');
+}
+
+/**
+ * Redirect an image hover action to the WebpageChat panel.
+ * Sets webpageChatPendingImageQuestionAtom (consumed by WebpageChatView) and
+ * opens the chat tab. When focusInput is true, no question is auto-submitted.
+ *
+ * Always converts the image to a valid File before dispatching — imageFile starts
+ * as an empty Blob() placeholder and only gets populated after the main circular
+ * icon is clicked. Calling convertImageToFile here ensures the multipart upload
+ * always contains real image data regardless of how the question was triggered.
+ */
+async function dispatchImageQuestion(
+  explanation: ImageExplanationState,
+  question: string,
+  displayText: string,
+  focusInput = false
+): Promise<void> {
+  // Register element for scroll-to-image before explanation is removed from atom
+  imageScrollRegistry.set(explanation.id, explanation.imageElement);
+
+  // Resolve a valid File — fall back to the stored value if it's already non-empty
+  let imageFile: File | Blob = explanation.imageFile;
+  if (imageFile.size === 0) {
+    const converted = await convertImageToFile(explanation.imageElement);
+    if (converted) {
+      imageFile = converted;
+      // Cache converted file in the atom so subsequent calls skip the conversion
+      const map = new Map(store.get(imageExplanationsAtom));
+      const entry = map.get(explanation.id);
+      if (entry) {
+        map.set(explanation.id, { ...entry, imageFile: converted });
+        store.set(imageExplanationsAtom, map);
+      }
+    }
+  }
+
+  store.set(webpageChatPendingImageQuestionAtom, {
+    question,
+    displayText,
+    imageFile,
+    imageUrl: explanation.imageElement.src,
+    imageExplanationId: explanation.id,
     focusInput,
   });
   setSidePanelOpen(true, 'chat');
@@ -2820,19 +2747,6 @@ function dispatchAnnotatedChat(selectedText: string, question?: string, focusInp
  * Redirects to the WebpageChat panel with the selected text as an annotation
  * and the action question pre-populated (auto-submitted by the view).
  */
-function handleTextAskAIAction(
-  selectedText: string,
-  question: string,
-  _range?: Range,
-  _iconPosition?: { x: number; y: number }
-): void {
-  console.log('[Content Script] Text action → WebpageChat annotation:', {
-    selectedText: selectedText.substring(0, 50),
-    question,
-  });
-  dispatchAnnotatedChat(selectedText, question);
-}
-
 /**
  * Handle Ask AI button click from ContentActions 3-dot menu for TEXT selection.
  * Redirects to the WebpageChat panel with the selected text as an annotation.
@@ -2845,118 +2759,6 @@ function handleTextAskAIOpen(
 ): void {
   console.log('[Content Script] Text Ask AI → WebpageChat annotation:', selectedText.substring(0, 50));
   dispatchAnnotatedChat(selectedText, undefined, true);
-}
-
-/**
- * Handle Summarize button click from ContentActions 3-dot menu for TEXT selection.
- */
-async function handleTextSummarize(selectedText: string, range?: Range, iconPosition?: { x: number; y: number }): Promise<void> {
-  await handleTextAskAIAction(selectedText, 'Summarize this text concisely', range, iconPosition);
-}
-
-/**
- * Handle Key Points button click from ContentActions 3-dot menu for TEXT selection.
- */
-async function handleTextKeyPoints(selectedText: string, range?: Range, iconPosition?: { x: number; y: number }): Promise<void> {
-  await handleTextAskAIAction(selectedText, 'Extract the key points from this text', range, iconPosition);
-}
-
-/**
- * Handle Rewrite button click from ContentActions 3-dot menu for TEXT selection.
- */
-async function handleTextRewrite(selectedText: string, range?: Range, iconPosition?: { x: number; y: number }): Promise<void> {
-  await handleTextAskAIAction(selectedText, 'Rewrite this text to make it clearer and easier to understand', range, iconPosition);
-}
-
-/**
- * Handle Paraphrase button click from ContentActions 3-dot menu for TEXT selection.
- */
-async function handleTextParaphrase(selectedText: string, range?: Range, iconPosition?: { x: number; y: number }): Promise<void> {
-  await handleTextAskAIAction(selectedText, 'Paraphrase this text using different wording while keeping the same meaning', range, iconPosition);
-}
-
-/**
- * Handle Improve Writing button click from ContentActions 3-dot menu for TEXT selection.
- */
-async function handleTextImproveWriting(selectedText: string, range?: Range, iconPosition?: { x: number; y: number }): Promise<void> {
-  await handleTextAskAIAction(selectedText, 'Improve this text to make it more polished and professional', range, iconPosition);
-}
-
-/**
- * Handle Fix Grammar button click from ContentActions 3-dot menu for TEXT selection.
- */
-async function handleTextFixGrammar(selectedText: string, range?: Range, iconPosition?: { x: number; y: number }): Promise<void> {
-  await handleTextAskAIAction(selectedText, 'Fix the grammar, spelling, and punctuation errors in this text', range, iconPosition);
-}
-
-/**
- * Handle Tone button click from ContentActions 3-dot menu for TEXT selection.
- */
-async function handleTextTone(selectedText: string, range?: Range, iconPosition?: { x: number; y: number }): Promise<void> {
-  await handleTextAskAIAction(selectedText, 'What is the tone of this passage? Is it informative, persuasive, critical, or something else?', range, iconPosition);
-}
-
-/**
- * Handle Convert to Bullets button click from ContentActions 3-dot menu for TEXT selection.
- */
-async function handleTextConvertBullets(selectedText: string, range?: Range, iconPosition?: { x: number; y: number }): Promise<void> {
-  await handleTextAskAIAction(selectedText, 'Convert this text into a scannable bullet point format', range, iconPosition);
-}
-
-/**
- * Handle Convert to Table button click from ContentActions 3-dot menu for TEXT selection.
- */
-async function handleTextConvertTable(selectedText: string, range?: Range, iconPosition?: { x: number; y: number }): Promise<void> {
-  await handleTextAskAIAction(selectedText, 'Convert the structured information in this text into a table format', range, iconPosition);
-}
-
-/**
- * Handle Convert to Diagram button click from ContentActions 3-dot menu for TEXT selection.
- */
-async function handleTextConvertDiagram(selectedText: string, range?: Range, iconPosition?: { x: number; y: number }): Promise<void> {
-  await handleTextAskAIAction(selectedText, 'Convert this text into a text-based conceptual flow diagram', range, iconPosition);
-}
-
-/**
- * Handle Create Mind Map button click from ContentActions 3-dot menu for TEXT selection.
- */
-async function handleTextCreateMindMap(selectedText: string, range?: Range, iconPosition?: { x: number; y: number }): Promise<void> {
-  await handleTextAskAIAction(selectedText, 'Create a structured mind map representation of the ideas in this text', range, iconPosition);
-}
-
-/**
- * Handle Convert to Email button click from ContentActions 3-dot menu for TEXT selection.
- */
-async function handleTextConvertEmail(selectedText: string, range?: Range, iconPosition?: { x: number; y: number }): Promise<void> {
-  await handleTextAskAIAction(selectedText, 'Convert this text into a professional email', range, iconPosition);
-}
-
-/**
- * Handle Convert to WhatsApp button click from ContentActions 3-dot menu for TEXT selection.
- */
-async function handleTextConvertWhatsApp(selectedText: string, range?: Range, iconPosition?: { x: number; y: number }): Promise<void> {
-  await handleTextAskAIAction(selectedText, 'Convert this text into a short, friendly WhatsApp message', range, iconPosition);
-}
-
-/**
- * Handle Convert to LinkedIn button click from ContentActions 3-dot menu for TEXT selection.
- */
-async function handleTextConvertLinkedIn(selectedText: string, range?: Range, iconPosition?: { x: number; y: number }): Promise<void> {
-  await handleTextAskAIAction(selectedText, 'Convert this text into a LinkedIn post format', range, iconPosition);
-}
-
-/**
- * Handle Convert to Tweet button click from ContentActions 3-dot menu for TEXT selection.
- */
-async function handleTextConvertTweet(selectedText: string, range?: Range, iconPosition?: { x: number; y: number }): Promise<void> {
-  await handleTextAskAIAction(selectedText, 'Convert this text into a concise tweet', range, iconPosition);
-}
-
-/**
- * Handle Convert to Presentation button click from ContentActions 3-dot menu for TEXT selection.
- */
-async function handleTextConvertPresentation(selectedText: string, range?: Range, iconPosition?: { x: number; y: number }): Promise<void> {
-  await handleTextAskAIAction(selectedText, 'Convert this text into presentation-ready bullet points for slides', range, iconPosition);
 }
 
 /**
@@ -5036,8 +4838,8 @@ function extractSurroundingContextForText(selectedText: string, range: Range | n
 /**
  * Handler for Ask AI send message
  */
-async function handleAskAISendMessage(wordId: string, question: string): Promise<void> {
-  console.log('[Content Script] handleAskAISendMessage called:', { wordId, question });
+async function handleAskAISendMessage(wordId: string, question: string, displayText?: string): Promise<void> {
+  console.log('[Content Script] handleAskAISendMessage called:', { wordId, question, displayText });
   
   const wordAtomState = store.get(wordExplanationsAtom).get(wordId);
   if (!wordAtomState) {
@@ -5045,10 +4847,10 @@ async function handleAskAISendMessage(wordId: string, question: string): Promise
     return;
   }
 
-  // Add user message to chat history
+  // Add user message to chat history — show displayText (prompt title) when provided
   const userMessage: ChatMessage = {
     role: 'user',
-    content: question.trim(),
+    content: displayText?.trim() ?? question.trim(),
   };
 
   const updatedChatHistory = [...wordAtomState.askAI.chatHistory, userMessage];
@@ -5120,10 +4922,10 @@ async function handleAskAISendMessage(wordId: string, question: string): Promise
           if (!currentState) return;
 
           // Fix the user message in the API-returned chat history to show the original question
-          // (not the prefixed version sent to the API) for display in the side panel
+          // (or prompt title when displayText is provided) for display in the side panel
           const displayChatHistory = updatedChatHistory.map((msg, idx) => {
             if (idx === updatedChatHistory.length - 2 && msg.role === 'user') {
-              return { ...msg, content: question.trim() };
+              return { ...msg, content: displayText?.trim() ?? question.trim() };
             }
             return msg;
           });
@@ -6481,6 +6283,9 @@ const hoveredImages = new Map<HTMLImageElement, { iconId: string }>();
 const imageHideTimeouts = new Map<HTMLImageElement, ReturnType<typeof setTimeout>>();
 // Track if mouse is over icon (to keep it visible)
 const iconHoverStates = new Map<string, boolean>();
+// Persists imageElement refs keyed by explanation ID for scroll-to-image.
+// Survives explanation removal from imageExplanationsAtom (which happens on hover leave).
+const imageScrollRegistry = new Map<string, HTMLImageElement>();
 // Track the MutationObserver for image hover detection so it can be disconnected
 let imageHoverObserver: MutationObserver | null = null;
 
@@ -6791,9 +6596,57 @@ function updateImageExplanationIconContainer(): void {
     imageElement: explanation.imageElement,
     firstChunkReceived: explanation.firstChunkReceived,
       isBookmarked: !!explanation.savedImageId,
+      // Legacy prop used by ExplanationIconButton bookmark icon (delete-only path)
       onBookmarkClick: explanation.savedImageId ? handleBookmarkClick : undefined,
       isHiding: explanation.isHiding || false,
       shouldShowFeatureTooltip: store.get(shouldShowImageFeatureAtom),
+      // --- Image action button group handlers ---
+      onBookmarkOpen: () => {
+        if (explanation.savedImageId) {
+          // Already bookmarked → delete
+          handleBookmarkClick();
+        } else {
+          // Not bookmarked → open folder modal to save
+          folderModalImageElement = explanation.imageElement;
+          folderModalImageFile = explanation.imageFile;
+          folderModalMode = 'image';
+          FolderService.getAllFolders({
+            onSuccess: async (response) => {
+              folderModalFolders = response.folders;
+              const storedFolderId = await ChromeStorage.getBookmarkPreferenceFolderId();
+              if (storedFolderId) {
+                const ancestorPath = findFolderAndGetAncestorPath(response.folders, storedFolderId);
+                if (ancestorPath !== null) {
+                  folderModalSelectedFolderId = storedFolderId;
+                  folderModalExpandedFolders = new Set(ancestorPath);
+                } else {
+                  folderModalSelectedFolderId = null;
+                  folderModalExpandedFolders = new Set();
+                }
+              } else {
+                folderModalSelectedFolderId = null;
+                folderModalExpandedFolders = new Set();
+              }
+              folderModalRememberCheckedInitialized = false;
+              folderModalOpen = true;
+              injectFolderListModal();
+              updateFolderListModal();
+            },
+            onError: (_code, message) => showToast(`Failed to load folders: ${message}`, 'error'),
+            onLoginRequired: () => store.set(showLoginModalAtom, true),
+            onSubscriptionRequired: () => store.set(showSubscriptionModalAtom, true),
+          });
+        }
+      },
+      onSimplify: () => {
+        void dispatchImageQuestion(explanation, 'Explain and simplify this image for me.', 'Simplify image');
+      },
+      onPromptClick: (displayText: string, apiContent: string) => {
+        void dispatchImageQuestion(explanation, apiContent, displayText);
+      },
+      onAskAI: () => {
+        void dispatchImageQuestion(explanation, '', 'Ask AI', true);
+      },
     };
   });
   
@@ -6834,6 +6687,10 @@ function updateImageExplanationIconContainer(): void {
             onBookmarkClick: icon.onBookmarkClick,
             isHiding: icon.isHiding,
             shouldShowFeatureTooltip: icon.shouldShowFeatureTooltip,
+            onAskAI: icon.onAskAI,
+            onSimplify: icon.onSimplify,
+            onPromptClick: icon.onPromptClick,
+            onBookmarkOpen: icon.onBookmarkOpen,
           })
         )
       )
@@ -6860,6 +6717,7 @@ async function injectImageExplanationIconContainer(): Promise<void> {
   injectStyles(shadow, colorVariables);
 
   // Inject component styles
+  injectStyles(shadow, contentActionsStyles);
   injectStyles(shadow, imageExplanationIconStyles);
   injectStyles(shadow, explanationIconButtonStyles);
   injectStyles(shadow, spinnerStyles);
@@ -8646,6 +8504,11 @@ async function injectWordAskAISidePanel(): Promise<void> {
   injectStyles(hostResult.shadow, minimizeIconStyles);
   // Inject base side panel styles for upgrade footer (coupon and upgrade buttons)
   injectStyles(hostResult.shadow, baseSidePanelStyles);
+  // Inject create custom prompt modal styles
+  injectStyles(hostResult.shadow, createCustomPromptModalStyles);
+
+  // Inject TryPDFBadge styles
+  injectStyles(hostResult.shadow, tryPDFBadgeStyles);
 
   // Append host to document body
   document.documentElement.appendChild(hostResult.host);
@@ -8709,7 +8572,7 @@ function updateWordAskAISidePanel(): void {
         messageQuestions: atomState.askAI.messageQuestions,
         streamingText: atomState.askAI.streamingText,
         isRequesting: atomState.askAI.isRequesting,
-        onSendMessage: (question) => handleAskAISendMessage(wordId, question),
+        onSendMessage: (question, displayText) => handleAskAISendMessage(wordId, question, displayText),
         onStopRequest: () => handleAskAIStopRequest(wordId),
         onClearChat: () => handleAskAIClearChat(wordId),
         onCloseHandlerReady: (handler) => {
@@ -9193,6 +9056,33 @@ async function handleHighlightClick(selectedText: string, range?: Range, hexcode
 }
 
 /**
+ * Sets up a debounced MutationObserver that calls `retryFn` whenever new DOM
+ * nodes appear. Disconnects once `retryFn` returns true (all items resolved)
+ * or after `timeoutMs` milliseconds (default 10 s).
+ */
+function retryUnresolvedWithObserver(
+  retryFn: () => Promise<boolean>,
+  timeoutMs = 10_000
+): void {
+  let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+
+  const observer = new MutationObserver(() => {
+    if (debounceTimer) clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(async () => {
+      const allDone = await retryFn();
+      if (allDone) {
+        observer.disconnect();
+        clearTimeout(killTimer);
+      }
+    }, 150);
+  });
+
+  observer.observe(document.body, { childList: true, subtree: true });
+
+  const killTimer = setTimeout(() => observer.disconnect(), timeoutMs);
+}
+
+/**
  * Fetch and re-apply all saved highlights for the current page URL.
  * Runs non-blocking after the rest of the UI is initialised.
  */
@@ -9205,18 +9095,21 @@ async function loadWebHighlights(): Promise<void> {
       onSuccess: async (response) => {
         console.log('[Content Script] Loaded', response.highlights.length, 'highlights');
         const newHighlights = new Map<string, WebHighlightState>();
+        const unresolved: typeof response.highlights = [];
 
         for (const highlight of response.highlights) {
           try {
             const range = resolveAnchor(highlight.anchor);
             if (!range) {
-              console.warn('[Content Script] Could not locate highlight in DOM, skipping:', highlight.id);
+              console.warn('[Content Script] Could not locate highlight in DOM, will retry:', highlight.id);
+              unresolved.push(highlight);
               continue;
             }
 
             const markElements = await applyHighlight(range, highlight.id, highlight.color);
             if (markElements.length === 0) {
-              console.warn('[Content Script] Highlight resolved but apply produced no marks:', highlight.id);
+              console.warn('[Content Script] Highlight resolved but apply produced no marks, will retry:', highlight.id);
+              unresolved.push(highlight);
               continue;
             }
 
@@ -9233,6 +9126,36 @@ async function loadWebHighlights(): Promise<void> {
         }
 
         store.set(webHighlightsAtom, newHighlights);
+
+        if (unresolved.length > 0) {
+          console.log('[Content Script] Retrying', unresolved.length, 'unresolved highlights via MutationObserver');
+          const remaining = [...unresolved];
+          retryUnresolvedWithObserver(async () => {
+            const stillUnresolved: typeof remaining = [];
+            for (const highlight of remaining.splice(0)) {
+              try {
+                const range = resolveAnchor(highlight.anchor);
+                if (!range) { stillUnresolved.push(highlight); continue; }
+                const markElements = await applyHighlight(range, highlight.id, highlight.color);
+                if (markElements.length === 0) { stillUnresolved.push(highlight); continue; }
+                const updated = new Map(store.get(webHighlightsAtom));
+                updated.set(highlight.id, {
+                  id: highlight.id,
+                  selectedText: highlight.selectedText,
+                  anchor: highlight.anchor,
+                  color: highlight.color,
+                  wrapperElements: markElements,
+                } satisfies WebHighlightState);
+                store.set(webHighlightsAtom, updated);
+                console.log('[Content Script] Retry resolved highlight:', highlight.id);
+              } catch (err) {
+                stillUnresolved.push(highlight);
+              }
+            }
+            remaining.push(...stillUnresolved);
+            return remaining.length === 0;
+          });
+        }
       },
       onError: (errorCode, errorMessage) => {
         // Non-critical — log and continue without highlights
@@ -9313,12 +9236,14 @@ async function loadWebNotes(): Promise<void> {
       onSuccess: async (response) => {
         console.log('[Content Script] Loaded', response.notes.length, 'notes');
         const newNotes = new Map<string, WebNoteState>();
+        const unresolved: typeof response.notes = [];
 
         for (const note of response.notes) {
           try {
             const range = resolveAnchor(note.anchor);
             if (!range) {
-              console.warn('[Content Script] Could not locate note anchor in DOM, skipping:', note.id);
+              console.warn('[Content Script] Could not locate note anchor in DOM, will retry:', note.id);
+              unresolved.push(note);
               continue;
             }
 
@@ -9339,6 +9264,37 @@ async function loadWebNotes(): Promise<void> {
 
         store.set(webNotesAtom, newNotes);
         updateNoteIconLayer();
+
+        if (unresolved.length > 0) {
+          console.log('[Content Script] Retrying', unresolved.length, 'unresolved notes via MutationObserver');
+          const remaining = [...unresolved];
+          retryUnresolvedWithObserver(async () => {
+            const stillUnresolved: typeof remaining = [];
+            for (const note of remaining.splice(0)) {
+              try {
+                const range = resolveAnchor(note.anchor);
+                if (!range) { stillUnresolved.push(note); continue; }
+                noteResolvedRanges.set(note.id, range);
+                const anchorSpan = injectNoteAnchorSpan(range, note.id);
+                const updated = new Map(store.get(webNotesAtom));
+                updated.set(note.id, {
+                  id: note.id,
+                  selectedText: note.selectedText,
+                  anchor: note.anchor,
+                  content: note.content,
+                  anchorSpan,
+                } satisfies WebNoteState);
+                store.set(webNotesAtom, updated);
+                updateNoteIconLayer();
+                console.log('[Content Script] Retry resolved note:', note.id);
+              } catch (err) {
+                stillUnresolved.push(note);
+              }
+            }
+            remaining.push(...stillUnresolved);
+            return remaining.length === 0;
+          });
+        }
       },
       onError: (errorCode, errorMessage) => {
         console.warn('[Content Script] Could not load notes:', errorCode, errorMessage);
@@ -10657,7 +10613,9 @@ async function handleFolderModalSave(folderId: string | null): Promise<void> {
         }
         
         showToast('Text saved successfully!', 'success');
-        showBookmarkToast('paragraph', '/user/dashboard/bookmark');
+        showBookmarkToast('paragraph', folderId
+          ? `/user/dashboard/folder/${folderId}/webpage`
+          : '/user/dashboard/bookmark');
         
         // Preserve folderModalText, folderModalRange, and folderModalParagraphSource before closing modal (which clears them)
         const savedText = folderModalText;
@@ -10925,7 +10883,7 @@ async function handleFolderModalSaveForLink(folderId: string | null, name?: stri
         }
         
         showToast('Link saved successfully!', 'success');
-        showBookmarkToast('link', '/user/dashboard/bookmark');
+        showBookmarkToast('link', folderId ? `/user/dashboard/folder/${folderId}/webpage` : '/user/dashboard/bookmark');
         
         // Update bookmark icon state based on source
         if (folderModalMode === 'link') {
@@ -11089,7 +11047,9 @@ async function handleFolderModalSaveForImage(folderId: string | null): Promise<v
         }
         
         showToast('Image saved successfully!', 'success');
-        showBookmarkToast('image', '/user/dashboard/bookmark');
+        showBookmarkToast('image', folderId
+          ? `/user/dashboard/folder/${folderId}/image`
+          : '/user/dashboard/bookmark');
         
         closeFolderListModal();
       },
@@ -11141,7 +11101,7 @@ async function handleFolderModalSaveForImage(folderId: string | null): Promise<v
 async function handleFolderModalSaveForWord(folderId: string | null): Promise<void> {
   console.log('[Content Script] Saving word to folder:', folderId);
   
-  if (!folderModalWord || !folderModalWordId) {
+  if (!folderModalWord) {
     console.error('[Content Script] Missing word data for saving');
     showToast('Error: Missing word data', 'error');
     return;
@@ -11151,9 +11111,12 @@ async function handleFolderModalSaveForWord(folderId: string | null): Promise<vo
   folderModalSaving = true;
   updateFolderListModal();
   
-  // Get word state
-  const atomState = store.get(wordExplanationsAtom).get(folderModalWordId);
-  if (!atomState) {
+  // Look up atom state only when coming from the word-explanation popover (has a wordId)
+  const atomState = folderModalWordId
+    ? store.get(wordExplanationsAtom).get(folderModalWordId)
+    : undefined;
+
+  if (folderModalWordId && !atomState) {
     console.error('[Content Script] Word state not found for wordId:', folderModalWordId);
     folderModalSaving = false;
     updateFolderListModal();
@@ -11161,11 +11124,13 @@ async function handleFolderModalSaveForWord(folderId: string | null): Promise<vo
     return;
   }
   
-  // Update word state to show saving
-  const newExplanations = new Map(store.get(wordExplanationsAtom));
-  newExplanations.set(folderModalWordId, { ...atomState, isSavingWord: true });
-  store.set(wordExplanationsAtom, newExplanations);
-  updateWordExplanationPopover();
+  // Update word state to show saving (only when atom state is available)
+  if (folderModalWordId && atomState) {
+    const newExplanations = new Map(store.get(wordExplanationsAtom));
+    newExplanations.set(folderModalWordId, { ...atomState, isSavingWord: true });
+    store.set(wordExplanationsAtom, newExplanations);
+    updateWordExplanationPopover();
+  }
   
   // Save word
   SavedWordsService.saveWord(
@@ -11211,7 +11176,9 @@ async function handleFolderModalSaveForWord(folderId: string | null): Promise<vo
         }
         
         showToast('Word saved successfully!', 'success');
-        showBookmarkToast('word', '/user/dashboard/bookmark');
+        showBookmarkToast('word', folderId
+          ? `/user/dashboard/folder/${folderId}/word`
+          : '/user/dashboard/bookmark');
         
         closeFolderListModal();
       },
@@ -12217,6 +12184,20 @@ async function initContentScript(): Promise<void> {
       runPageRead(),
     ]);
     setupImageHoverDetection();
+
+    // Listen for scroll-to-image requests dispatched from the WebpageChat panel when
+    // the user clicks an image thumbnail in the chat. Find the matching element and
+    // scroll it into view. imageScrollRegistry is checked first because the explanation
+    // may have been removed from imageExplanationsAtom after the user stopped hovering.
+    window.addEventListener('xplaino-scroll-to-image', (e: Event) => {
+      const { id } = (e as CustomEvent<{ id: string }>).detail;
+      const element =
+        imageScrollRegistry.get(id) ??
+        store.get(imageExplanationsAtom).get(id)?.imageElement;
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    });
 
     // Load highlight colours and saved highlights asynchronously (non-blocking)
     loadHighlightColours();

@@ -9,7 +9,7 @@
  * by textSelectionUnderline.ts.
  */
 
-import { COLORS } from '../../constants/colors';
+import { COLORS, colorWithOpacity } from '../../constants/colors';
 import { getCurrentTheme } from '../../constants/theme';
 
 /** Data attribute used to identify and look up highlight mark elements. */
@@ -18,6 +18,19 @@ export const HIGHLIGHT_DATA_ATTR = 'data-xplaino-highlight-id';
 // Default colours (theme-aware applied at runtime)
 const HIGHLIGHT_BG_LIGHT = 'rgba(255, 235, 59, 0.40)';
 const HIGHLIGHT_BG_DARK = 'rgba(255, 235, 59, 0.25)';
+
+// Opacity applied to API-supplied highlight colours so they render as gentle tints
+const HIGHLIGHT_COLOR_OPACITY_LIGHT = 0.35;
+const HIGHLIGHT_COLOR_OPACITY_DARK = 0.25;
+
+/**
+ * Ensure a colour value has the desired transparency.
+ * Colours that already carry an alpha channel (rgba/hsla) have their alpha
+ * replaced; solid hex / rgb values are converted to rgba.
+ */
+function toTransparentColor(color: string, opacity: number): string {
+  return colorWithOpacity(color as Parameters<typeof colorWithOpacity>[0], opacity);
+}
 
 // Block-level element tag names (kept in sync with textSelectionUnderline.ts)
 const BLOCK_ELEMENTS = new Set([
@@ -234,7 +247,9 @@ export async function applyHighlight(
   try {
     const theme = await getCurrentTheme();
     const isDark = theme === 'dark';
-    const bgColor = color ?? (isDark ? HIGHLIGHT_BG_DARK : HIGHLIGHT_BG_LIGHT);
+    const bgColor = color
+      ? toTransparentColor(color, isDark ? HIGHLIGHT_COLOR_OPACITY_DARK : HIGHLIGHT_COLOR_OPACITY_LIGHT)
+      : (isDark ? HIGHLIGHT_BG_DARK : HIGHLIGHT_BG_LIGHT);
 
     const markElements: HTMLElement[] = [];
 

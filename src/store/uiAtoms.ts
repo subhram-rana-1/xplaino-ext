@@ -142,6 +142,17 @@ export const shouldShowTextFeatureAtom = atom<boolean>(true);
 export const shouldShowWordFeatureAtom = atom<boolean>(true);
 
 // ============================================
+// CONTENT ACTIONS MODAL STATE
+// ============================================
+
+/**
+ * True while a modal opened from inside the content-actions popover is visible
+ * (e.g. "Add custom prompt"). Guards ContentActionsTrigger from clearing the
+ * selection state while the modal is being interacted with.
+ */
+export const contentActionsModalOpenAtom = atom<boolean>(false);
+
+// ============================================
 // PANEL STATE (shared with FAB for positioning)
 // ============================================
 

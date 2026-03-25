@@ -6,6 +6,7 @@ import { ENV } from '@/config/env';
 import { COLORS } from '@/constants/colors';
 import { OnHoverMessage } from '../OnHoverMessage';
 import { MinimizeIcon } from '../ui/MinimizeIcon';
+import { TryPDFBadge } from '../TryPDFBadge/TryPDFBadge';
 
 export interface HeaderProps {
   /** Brand image source */
@@ -77,6 +78,7 @@ export const Header: React.FC<HeaderProps> = ({
           useShadowDom={useShadowDom}
           direction="right"
         />
+        <TryPDFBadge useShadowDom={useShadowDom} />
       </div>
 
       {/* Center: Branding or Page Summary */}

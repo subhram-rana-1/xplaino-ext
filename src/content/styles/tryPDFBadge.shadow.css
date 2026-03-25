@@ -1,0 +1,202 @@
+/* src/content/styles/tryPDFBadge.shadow.css */
+/* Shadow DOM compatible styles for TryPDFBadge component */
+/* ALL properties use !important for Shadow DOM style isolation */
+
+.tryPDFWrapper {
+  position: relative !important;
+  display: flex !important;
+  align-items: center !important;
+  flex-shrink: 0 !important;
+}
+
+/* ── Main badge button ─────────────────────────────────────── */
+.tryPDFBadge {
+  display: flex !important;
+  align-items: center !important;
+  gap: 0 !important;
+  border-radius: 999px !important;
+  padding: 5px !important;
+  background: linear-gradient(
+    135deg,
+    var(--color-primary-opacity-10, rgba(13, 128, 112, 0.10)),
+    var(--color-primary-opacity-20, rgba(13, 128, 112, 0.20))
+  ) !important;
+  border: none !important;
+  cursor: pointer !important;
+  outline: none !important;
+  color: var(--color-primary, #0d8070) !important;
+  font-size: 11px !important;
+  font-family: inherit !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  flex-shrink: 0 !important;
+  box-shadow: 0 2px 8px var(--color-primary-opacity-20, rgba(13, 128, 112, 0.20)) !important;
+  transition:
+    padding 0.25s ease,
+    background 0.2s ease,
+    box-shadow 0.2s ease !important;
+}
+
+.tryPDFBadge:hover {
+  background: linear-gradient(
+    135deg,
+    var(--color-primary-opacity-15, rgba(13, 128, 112, 0.15)),
+    var(--color-primary-opacity-30, rgba(13, 128, 112, 0.30))
+  ) !important;
+  box-shadow: 0 3px 12px var(--color-primary-opacity-30, rgba(13, 128, 112, 0.30)) !important;
+}
+
+.tryPDFBadgeExpanded {
+  padding: 4px 8px 4px 7px !important;
+  gap: 5px !important;
+}
+
+/* ── PDF icon ──────────────────────────────────────────────── */
+.tryPDFBadgeIcon {
+  display: flex !important;
+  align-items: center !important;
+  flex-shrink: 0 !important;
+  color: var(--color-primary, #0d8070) !important;
+}
+
+.tryPDFBadgeIcon svg {
+  display: block !important;
+  color: currentColor !important;
+  stroke: currentColor !important;
+  fill: none !important;
+  pointer-events: none !important;
+}
+
+/* ── Label text ────────────────────────────────────────────── */
+.tryPDFBadgeText {
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.01em !important;
+  color: var(--color-primary, #0d8070) !important;
+  max-width: 0 !important;
+  opacity: 0 !important;
+  overflow: hidden !important;
+  transition: max-width 0.25s ease, opacity 0.18s ease !important;
+}
+
+.tryPDFBadgeExpanded .tryPDFBadgeText {
+  max-width: 130px !important;
+  opacity: 1 !important;
+}
+
+/* ── Dismiss button ────────────────────────────────────────── */
+.tryPDFDismissBtn {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  max-width: 0 !important;
+  opacity: 0 !important;
+  overflow: hidden !important;
+  border-radius: 50% !important;
+  flex-shrink: 0 !important;
+  transition: max-width 0.25s ease, opacity 0.18s ease !important;
+  color: var(--color-primary, #0d8070) !important;
+  padding: 2px !important;
+  margin-left: -2px !important;
+  cursor: pointer !important;
+}
+
+.tryPDFBadgeExpanded .tryPDFDismissBtn {
+  max-width: 18px !important;
+  opacity: 0.7 !important;
+}
+
+.tryPDFDismissBtn:hover {
+  opacity: 1 !important;
+  background: var(--color-primary-opacity-10, rgba(13, 128, 112, 0.10)) !important;
+}
+
+.tryPDFDismissBtn svg {
+  display: block !important;
+  pointer-events: none !important;
+  color: currentColor !important;
+  stroke: currentColor !important;
+  fill: none !important;
+}
+
+/* ── Features popover ──────────────────────────────────────── */
+.tryPDFPopover {
+  position: absolute !important;
+  top: calc(100% + 7px) !important;
+  left: 0 !important;
+  background: linear-gradient(
+    160deg,
+    #0a5f54 0%,
+    #0d8070 55%,
+    #1fb89a 100%
+  ) !important;
+  border: none !important;
+  border-radius: 12px !important;
+  box-shadow:
+    0 8px 32px rgba(13, 128, 112, 0.40),
+    0 2px 8px rgba(0, 0, 0, 0.15) !important;
+  padding: 0 !important;
+  z-index: 99999 !important;
+  min-width: 190px !important;
+  pointer-events: none !important;
+  overflow: hidden !important;
+  animation: tryPDFPopoverFadeIn 0.15s ease forwards !important;
+}
+
+@keyframes tryPDFPopoverFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ── Popover header ────────────────────────────────────────── */
+.tryPDFPopoverHeader {
+  font-size: 10px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.07em !important;
+  text-transform: uppercase !important;
+  color: rgba(255, 255, 255, 0.55) !important;
+  padding: 10px 13px 6px !important;
+}
+
+.tryPDFPopoverDivider {
+  height: 1px !important;
+  background: rgba(255, 255, 255, 0.15) !important;
+  margin: 0 10px 4px !important;
+}
+
+/* ── Feature list items ────────────────────────────────────── */
+.tryPDFPopoverItem {
+  display: flex !important;
+  align-items: center !important;
+  gap: 9px !important;
+  padding: 6px 13px !important;
+  font-size: 11px !important;
+  line-height: 1.45 !important;
+  color: rgba(255, 255, 255, 0.92) !important;
+}
+
+.tryPDFPopoverItemIcon {
+  display: flex !important;
+  align-items: center !important;
+  flex-shrink: 0 !important;
+  color: rgba(255, 255, 255, 0.70) !important;
+  opacity: 1 !important;
+}
+
+.tryPDFPopoverItemIcon svg {
+  display: block !important;
+  color: currentColor !important;
+  stroke: currentColor !important;
+  fill: none !important;
+  pointer-events: none !important;
+}
+
+.tryPDFPopoverItemLabel {
+  color: rgba(255, 255, 255, 0.92) !important;
+}

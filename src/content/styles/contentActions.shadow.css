@@ -243,28 +243,33 @@
   stroke: var(--color-primary) !important;
 }
 
-/* First button - left side matches pill shape */
-.contentActionsButtonGroup .contentActionButtonWrapper:first-child .contentActionButton {
+/* First button - left side matches pill shape (direct child only to avoid matching nested wrappers) */
+.contentActionsButtonGroup > .contentActionButtonWrapper:first-child .contentActionButton {
   border-top-left-radius: 999px !important;
   border-bottom-left-radius: 999px !important;
-  border-top-right-radius: 3px !important;
-  border-bottom-right-radius: 3px !important;
+  border-top-right-radius: 6px !important;
+  border-bottom-right-radius: 6px !important;
 }
 
-/* Last button - right side matches pill shape */
-.contentActionsButtonGroup .contentActionButtonWrapper:last-child .contentActionButton {
+/* Last button - right side matches pill shape (direct child only) */
+.contentActionsButtonGroup > .contentActionButtonWrapper:last-child .contentActionButton {
   border-top-right-radius: 999px !important;
   border-bottom-right-radius: 999px !important;
-  border-top-left-radius: 3px !important;
-  border-bottom-left-radius: 3px !important;
+  border-top-left-radius: 6px !important;
+  border-bottom-left-radius: 6px !important;
 }
 
-/* Handle options button wrapper (last child in button group) */
+/* Handle options button wrapper when it is the last direct child */
 .contentActionsButtonGroup > .optionsButtonWrapper:last-child .contentActionButton {
   border-top-right-radius: 999px !important;
   border-bottom-right-radius: 999px !important;
-  border-top-left-radius: 3px !important;
-  border-bottom-left-radius: 3px !important;
+  border-top-left-radius: 6px !important;
+  border-bottom-left-radius: 6px !important;
+}
+
+/* Options (3-dot) button — always square with rounded corners, never pill-shaped */
+.optionsButtonWrapper .contentActionButton {
+  border-radius: 6px !important;
 }
 
 
