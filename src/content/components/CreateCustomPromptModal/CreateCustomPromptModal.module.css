@@ -267,10 +267,10 @@
 /* ── Spinner ─────────────────────────────────────────────────────────────── */
 
 .spin {
-  animation: spin 0.8s linear infinite;
+  animation: xplaino-spin 0.8s linear infinite;
 }
 
-@keyframes spin {
+@keyframes xplaino-spin {
   to { transform: rotate(360deg); }
 }
 

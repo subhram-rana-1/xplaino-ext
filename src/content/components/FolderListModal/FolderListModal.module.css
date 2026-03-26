@@ -379,7 +379,7 @@
 }
 
 
-@keyframes spin {
+@keyframes xplaino-spin {
   to {
     transform: rotate(360deg);
   }

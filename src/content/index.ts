@@ -3770,7 +3770,7 @@ function injectWordSpanStyles(): void {
       border-radius: 10px;
     }
     
-    @keyframes spin {
+    @keyframes xplaino-spin {
       to {
         transform: rotate(360deg);
       }
@@ -8056,10 +8056,9 @@ async function injectWordExplanationPopover(): Promise<void> {
   injectStyles(hostResult.shadow, minimizeIconStyles);
   injectStyles(hostResult.shadow, spinnerStyles);
 
-  // Add spin keyframe animation (needed for spinner)
   const styleSheet = document.createElement('style');
   styleSheet.textContent = `
-    @keyframes spin {
+    @keyframes xplaino-spin {
       to { transform: rotate(360deg); }
     }
     @keyframes pulsate-primary {

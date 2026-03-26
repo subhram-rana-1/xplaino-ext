@@ -263,10 +263,10 @@
 }
 
 .simplifyButtonSpinner {
-  animation: spin 0.6s linear infinite !important;
+  animation: xplaino-spin 0.6s linear infinite !important;
 }
 
-@keyframes spin {
+@keyframes xplaino-spin {
   from {
     transform: rotate(0deg);
   }
@@ -470,17 +470,10 @@
 }
 
 .translateButtonSpinner {
-  animation: spin 0.6s linear infinite !important;
+  animation: xplaino-spin 0.6s linear infinite !important;
 }
 
-@keyframes spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
+/* xplaino-spin already defined above */
 
 .successCheckmark {
   color: var(--green, #10B981) !important;
