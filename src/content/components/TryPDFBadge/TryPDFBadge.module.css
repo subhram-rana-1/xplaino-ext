@@ -16,10 +16,10 @@
   padding: 5px;
   background: linear-gradient(
     135deg,
-    var(--color-primary-opacity-10, rgba(13, 128, 112, 0.10)),
-    var(--color-primary-opacity-20, rgba(13, 128, 112, 0.20))
+    rgba(13, 128, 112, 0.18),
+    rgba(13, 128, 112, 0.30)
   );
-  border: none;
+  border: 1px solid rgba(13, 128, 112, 0.35);
   cursor: pointer;
   outline: none;
   color: var(--color-primary, #0d8070);
@@ -28,20 +28,22 @@
   white-space: nowrap;
   overflow: hidden;
   flex-shrink: 0;
-  box-shadow: 0 2px 8px var(--color-primary-opacity-20, rgba(13, 128, 112, 0.20));
+  box-shadow: 0 2px 8px rgba(13, 128, 112, 0.22);
   transition:
     padding 0.25s ease,
     background 0.2s ease,
-    box-shadow 0.2s ease;
+    box-shadow 0.2s ease,
+    border-color 0.2s ease;
 }
 
 .badge:hover {
   background: linear-gradient(
     135deg,
-    var(--color-primary-opacity-15, rgba(13, 128, 112, 0.15)),
-    var(--color-primary-opacity-30, rgba(13, 128, 112, 0.30))
+    rgba(13, 128, 112, 0.25),
+    rgba(13, 128, 112, 0.40)
   );
-  box-shadow: 0 3px 12px var(--color-primary-opacity-30, rgba(13, 128, 112, 0.30));
+  border-color: rgba(13, 128, 112, 0.50);
+  box-shadow: 0 3px 12px rgba(13, 128, 112, 0.32);
 }
 
 .badge.expanded {

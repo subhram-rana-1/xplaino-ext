@@ -7,11 +7,13 @@ import { CitationDetail } from '@/api-services/WebpageChatService';
 
 const MARK_ATTR = 'data-citation-highlight';
 const MARK_STYLE =
+  'all:unset !important;display:inline !important;' +
+  'font:inherit !important;letter-spacing:inherit !important;word-spacing:inherit !important;' +
+  'line-height:inherit !important;font-weight:inherit !important;' +
   'background-color:transparent !important;color:inherit !important;' +
   'text-decoration:underline !important;text-decoration-style:dashed !important;' +
   'text-decoration-color:#0d9488 !important;text-decoration-thickness:2px !important;' +
-  'text-underline-offset:3px !important;' +
-  'box-decoration-break:clone !important;-webkit-box-decoration-break:clone !important;';
+  'text-underline-offset:3px !important;';
 
 // =============================================================================
 // XPath resolution
@@ -45,9 +47,11 @@ function getTextNodeAtOffset(element: Element, charOffset: number): TextNodePos 
   const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT, null);
   let cumulative = 0;
   let node: Node | null;
+  let lastSeen: Text | null = null;
 
   while ((node = walker.nextNode())) {
     const t = node as Text;
+    lastSeen = t;
     const len = t.textContent?.length ?? 0;
     if (cumulative + len > charOffset) {
       return { node: t, localOffset: charOffset - cumulative };
@@ -55,12 +59,23 @@ function getTextNodeAtOffset(element: Element, charOffset: number): TextNodePos 
     cumulative += len;
   }
 
-  // Offset is exactly at the end — return last text node, end position
-  const lastNode = node as Text | null;
-  if (lastNode) {
-    return { node: lastNode, localOffset: lastNode.textContent?.length ?? 0 };
+  if (lastSeen && cumulative === charOffset) {
+    return { node: lastSeen, localOffset: lastSeen.textContent?.length ?? 0 };
   }
   return null;
+}
+
+function firstTextNode(el: Element): Text | null {
+  const w = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, null);
+  return (w.nextNode() as Text) ?? null;
+}
+
+function lastTextNode(el: Element): Text | null {
+  const w = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, null);
+  let last: Text | null = null;
+  let n: Node | null;
+  while ((n = w.nextNode())) last = n as Text;
+  return last;
 }
 
 // =============================================================================
@@ -70,27 +85,47 @@ function getTextNodeAtOffset(element: Element, charOffset: number): TextNodePos 
 function buildRangeFromXPath(citation: CitationDetail): Range | null {
   const startEl = resolveXPath(citation.startXPath);
   const endEl = resolveXPath(citation.endXPath);
-  if (!startEl || !endEl) return null;
+  if (!startEl || !endEl) {
+    console.log(`[Citation][XPath] chunkId=${citation.chunkId} FAILED — startEl=${!!startEl} endEl=${!!endEl} startXPath="${citation.startXPath}" endXPath="${citation.endXPath}"`);
+    return null;
+  }
 
   try {
     const range = document.createRange();
     const startPos = getTextNodeAtOffset(startEl, citation.startOffset);
     if (!startPos) {
-      range.selectNodeContents(startEl);
+      console.log(`[Citation][XPath] chunkId=${citation.chunkId} WARN — no text node at startOffset=${citation.startOffset}, using first text node of startEl`);
+      const firstText = firstTextNode(startEl);
+      if (firstText) {
+        range.setStart(firstText, 0);
+      } else {
+        range.setStartBefore(startEl);
+      }
     } else {
       range.setStart(startPos.node, startPos.localOffset);
     }
 
     const endPos = getTextNodeAtOffset(endEl, citation.endOffset);
     if (!endPos) {
-      range.selectNodeContents(endEl);
-      range.collapse(false);
+      console.log(`[Citation][XPath] chunkId=${citation.chunkId} WARN — no text node at endOffset=${citation.endOffset}, using last text node of endEl`);
+      const lastText = lastTextNode(endEl);
+      if (lastText) {
+        range.setEnd(lastText, lastText.textContent?.length ?? 0);
+      } else {
+        range.setEndAfter(endEl);
+      }
     } else {
       range.setEnd(endPos.node, endPos.localOffset);
     }
 
-    return range.collapsed ? null : range;
-  } catch {
+    if (range.collapsed) {
+      console.log(`[Citation][XPath] chunkId=${citation.chunkId} FAILED — range collapsed after construction`);
+      return null;
+    }
+    console.log(`[Citation][XPath] chunkId=${citation.chunkId} OK`);
+    return range;
+  } catch (err) {
+    console.log(`[Citation][XPath] chunkId=${citation.chunkId} FAILED — exception: ${err}`);
     return null;
   }
 }
@@ -99,17 +134,57 @@ function buildRangeFromXPath(citation: CitationDetail): Range | null {
 // Range construction — fallback strategy (fuzzy text search)
 // =============================================================================
 
+/**
+ * Converts a whitespace-normalized snippet (as produced by the chunker's
+ * `replace(/\s+/g, ' ').trim()`) into a RegExp that matches the equivalent
+ * raw text regardless of how many/what kind of whitespace chars appear between
+ * each word.  Special regex characters in the snippet are escaped first.
+ */
+function snippetToRegex(snippet: string): RegExp {
+  const escaped = snippet
+    .trim()
+    .split(/\s+/)
+    .map((word) => word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+    .join('\\s+');
+  return new RegExp(escaped);
+}
+
+/**
+ * Returns the nearest common ancestor Element of two elements.
+ * Falls back to document.body if no shared ancestor is found.
+ */
+function getCommonAncestor(a: Element, b: Element): Element {
+  const aAncestors = new Set<Element>();
+  let node: Element | null = a;
+  while (node) {
+    aAncestors.add(node);
+    node = node.parentElement;
+  }
+  node = b;
+  while (node) {
+    if (aAncestors.has(node)) return node;
+    node = node.parentElement;
+  }
+  return document.body;
+}
+
 function buildRangeFromSnippets(
   textSnippetStart: string,
-  textSnippetEnd: string
+  textSnippetEnd: string,
+  chunkId?: string,
+  /** Limit the search to this subtree. Defaults to document.body. */
+  root: Element = document.body
 ): Range | null {
-  if (!textSnippetStart || !textSnippetEnd) return null;
+  if (!textSnippetStart || !textSnippetEnd) {
+    console.log(`[Citation][Snippet] chunkId=${chunkId} FAILED — missing snippets (start="${textSnippetStart}" end="${textSnippetEnd}")`);
+    return null;
+  }
 
-  // Collect all visible text nodes with cumulative positions
+  // Collect all visible text nodes with cumulative positions in the raw DOM text.
   const textParts: { node: Text; start: number; end: number }[] = [];
   let pos = 0;
 
-  const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, {
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
     acceptNode: (node) => {
       const parent = node.parentElement;
       if (!parent) return NodeFilter.FILTER_REJECT;
@@ -135,14 +210,29 @@ function buildRangeFromSnippets(
     pos += len;
   }
 
+  // Raw (un-normalized) concatenation of all text node contents.
+  // Regex search is used instead of indexOf so that the whitespace-normalized
+  // snippets (produced by the chunker's `replace(/\s+/g, ' ')`) match DOM text
+  // that may still contain raw newlines, tabs, or consecutive spaces.
   const fullText = textParts.map((p) => p.node.textContent ?? '').join('');
 
-  const startIdx = fullText.indexOf(textSnippetStart);
-  if (startIdx === -1) return null;
+  const startRegex = snippetToRegex(textSnippetStart);
+  const startMatch = startRegex.exec(fullText);
+  if (!startMatch) {
+    console.log(`[Citation][Snippet] chunkId=${chunkId} FAILED — textSnippetStart not found in page text. snippet="${textSnippetStart.slice(0, 60)}..."`);
+    return null;
+  }
+  const startIdx = startMatch.index;
 
-  const endSearch = fullText.indexOf(textSnippetEnd, startIdx);
-  if (endSearch === -1) return null;
-  const endIdx = endSearch + textSnippetEnd.length;
+  // Search for the end snippet in the portion of fullText starting at startIdx.
+  const endRegex = snippetToRegex(textSnippetEnd);
+  const endMatch = endRegex.exec(fullText.slice(startIdx));
+  if (!endMatch) {
+    console.log(`[Citation][Snippet] chunkId=${chunkId} FAILED — textSnippetEnd not found after startIdx=${startIdx}. snippet="${textSnippetEnd.slice(0, 60)}..."`);
+    return null;
+  }
+  // endIdx is the raw position just past the matched end snippet in fullText.
+  const endIdx = startIdx + endMatch.index + endMatch[0].length;
 
   const startPartInfo = textParts.find(
     (p) => p.start <= startIdx && p.end > startIdx
@@ -150,14 +240,23 @@ function buildRangeFromSnippets(
   const endPartInfo = textParts.find(
     (p) => p.start < endIdx && p.end >= endIdx
   );
-  if (!startPartInfo || !endPartInfo) return null;
+  if (!startPartInfo || !endPartInfo) {
+    console.log(`[Citation][Snippet] chunkId=${chunkId} FAILED — could not map indices to text nodes (startIdx=${startIdx} endIdx=${endIdx})`);
+    return null;
+  }
 
   try {
     const range = document.createRange();
     range.setStart(startPartInfo.node, startIdx - startPartInfo.start);
     range.setEnd(endPartInfo.node, endIdx - endPartInfo.start);
-    return range.collapsed ? null : range;
-  } catch {
+    if (range.collapsed) {
+      console.log(`[Citation][Snippet] chunkId=${chunkId} FAILED — range collapsed`);
+      return null;
+    }
+    console.log(`[Citation][Snippet] chunkId=${chunkId} OK — matched at positions ${startIdx}–${endIdx}`);
+    return range;
+  } catch (err) {
+    console.log(`[Citation][Snippet] chunkId=${chunkId} FAILED — exception: ${err}`);
     return null;
   }
 }
@@ -173,15 +272,46 @@ export type LocationResult =
 export function locateCitation(citation: CitationDetail): LocationResult {
   // Primary: XPath + offsets
   const primaryRange = buildRangeFromXPath(citation);
-  if (primaryRange) return { found: true, range: primaryRange };
+  if (primaryRange) {
+    console.log(`[Citation][locate] chunkId=${citation.chunkId} found via XPath`);
+    return { found: true, range: primaryRange };
+  }
 
-  // Fallback: fuzzy snippet search
+  // Secondary: snippet search bounded to the XPath-resolved subtree.
+  // The chunker walked within the content container (article/main/body), so
+  // searching within the common ancestor of startXPath and endXPath avoids
+  // interference from unrelated page elements (nav, breadcrumbs, sidebars, etc.)
+  // that lie outside that subtree but still appear in a full document.body walk.
+  const startEl = resolveXPath(citation.startXPath);
+  const endEl = resolveXPath(citation.endXPath);
+  if (startEl && endEl) {
+    const ancestor = getCommonAncestor(startEl, endEl);
+    console.log(`[Citation][locate] chunkId=${citation.chunkId} trying bounded snippet search within <${ancestor.tagName.toLowerCase()}>`);
+    const boundedRange = buildRangeFromSnippets(
+      citation.textSnippetStart,
+      citation.textSnippetEnd,
+      citation.chunkId,
+      ancestor
+    );
+    if (boundedRange) {
+      console.log(`[Citation][locate] chunkId=${citation.chunkId} found via bounded snippet search`);
+      return { found: true, range: boundedRange };
+    }
+  }
+
+  // Last resort: full document.body snippet search
+  console.log(`[Citation][locate] chunkId=${citation.chunkId} trying full-body snippet search`);
   const fallbackRange = buildRangeFromSnippets(
     citation.textSnippetStart,
-    citation.textSnippetEnd
+    citation.textSnippetEnd,
+    citation.chunkId
   );
-  if (fallbackRange) return { found: true, range: fallbackRange };
+  if (fallbackRange) {
+    console.log(`[Citation][locate] chunkId=${citation.chunkId} found via full-body snippet search`);
+    return { found: true, range: fallbackRange };
+  }
 
+  console.log(`[Citation][locate] chunkId=${citation.chunkId} NOT FOUND — all strategies failed`);
   return { found: false };
 }
 
@@ -200,48 +330,71 @@ function wrapRangeInMark(range: Range, chunkId: string): HTMLElement | null {
   try {
     const mark = createMarkElement(chunkId);
     range.surroundContents(mark);
+    console.log(`[Citation][wrap] chunkId=${chunkId} OK via surroundContents`);
     return mark;
-  } catch {
-    // surroundContents fails when the range crosses element boundaries (e.g. heading-group chunks
-    // that span an <h2> and several <p> siblings). Walk every text node that intersects the range
-    // and wrap each in its own <mark> with the same chunkId, so deactivateCitation removes them all.
+  } catch (surroundErr) {
+    console.log(`[Citation][wrap] chunkId=${chunkId} surroundContents failed (${surroundErr}) — trying multi-node fallback`);
     try {
       const ancestor = range.commonAncestorContainer;
       const root =
         ancestor.nodeType === Node.ELEMENT_NODE
           ? (ancestor as Element)
           : ancestor.parentElement;
-      if (!root) return null;
+      if (!root) {
+        console.log(`[Citation][wrap] chunkId=${chunkId} FAILED — no root element for fallback`);
+        return null;
+      }
+      console.log(`[Citation][wrap] chunkId=${chunkId} fallback root=<${root.tagName?.toLowerCase()}> rangeCollapsed=${range.collapsed}`);
 
+      const textsToWrap: { node: Text; start: number; end: number }[] = [];
       const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
-      const marks: HTMLElement[] = [];
       let n: Node | null;
+      let walked = 0;
 
       while ((n = walker.nextNode())) {
+        walked++;
         const text = n as Text;
-        const len = text.length ?? 0;
-        // Skip nodes that end before the range starts or begin after the range ends
-        if (range.comparePoint(text, 0) > 0) continue;
-        if (range.comparePoint(text, len) < 0) continue;
-
-        const startOffset = text === range.startContainer ? range.startOffset : 0;
-        const endOffset = text === range.endContainer ? range.endOffset : len;
-        if (startOffset >= endOffset) continue;
+        const len = text.length;
+        if (len === 0) continue;
 
         try {
+          const cmpStart = range.comparePoint(text, 0);
+          const cmpEnd = range.comparePoint(text, len);
+          if (cmpStart > 0) continue;
+          if (cmpEnd < 0) continue;
+        } catch {
+          continue;
+        }
+
+        const so = text === range.startContainer ? range.startOffset : 0;
+        const eo = text === range.endContainer ? range.endOffset : len;
+        if (so >= eo) continue;
+        textsToWrap.push({ node: text, start: so, end: eo });
+      }
+      console.log(`[Citation][wrap] chunkId=${chunkId} walked ${walked} text nodes, ${textsToWrap.length} qualify for wrapping`);
+
+      const marks: HTMLElement[] = [];
+      for (const { node, start, end } of textsToWrap) {
+        try {
           const nodeRange = document.createRange();
-          nodeRange.setStart(text, startOffset);
-          nodeRange.setEnd(text, endOffset);
+          nodeRange.setStart(node, start);
+          nodeRange.setEnd(node, end);
           const m = createMarkElement(chunkId);
           nodeRange.surroundContents(m);
           marks.push(m);
-        } catch {
-          // Skip individual nodes that can't be wrapped
+        } catch (nodeErr) {
+          console.log(`[Citation][wrap] chunkId=${chunkId} individual node wrap failed: ${nodeErr}`);
         }
       }
 
-      return marks.length > 0 ? marks[0] : null;
-    } catch {
+      if (marks.length > 0) {
+        console.log(`[Citation][wrap] chunkId=${chunkId} OK via multi-node fallback (${marks.length} mark(s))`);
+        return marks[0];
+      }
+      console.log(`[Citation][wrap] chunkId=${chunkId} FAILED — no nodes wrapped in fallback`);
+      return null;
+    } catch (err) {
+      console.log(`[Citation][wrap] chunkId=${chunkId} FAILED — fallback exception: ${err}`);
       return null;
     }
   }
@@ -272,11 +425,19 @@ function unwrapMarks(chunkId: string): void {
  * Returns whether the citation could be located.
  */
 export function activateCitation(chunkId: string, citation: CitationDetail): boolean {
+  console.log(`[Citation][activate] chunkId=${chunkId} — locating...`);
   const result = locateCitation(citation);
-  if (!result.found) return false;
+  if (!result.found) {
+    console.log(`[Citation][activate] chunkId=${chunkId} FAILED — could not locate citation on page`);
+    return false;
+  }
 
   const mark = wrapRangeInMark(result.range, chunkId);
-  if (!mark) return false;
+  if (!mark) {
+    console.log(`[Citation][activate] chunkId=${chunkId} FAILED — could not wrap range in mark`);
+    return false;
+  }
+  console.log(`[Citation][activate] chunkId=${chunkId} OK — mark inserted, scrolling...`);
 
   // Defer scroll until after the browser has finished painting the DOM mutation.
   // Using the direct mark reference avoids a querySelector race.

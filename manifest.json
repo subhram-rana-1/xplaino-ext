@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
-  "name": "Xplaino AI – Web Research & Second Brain",
-  "version": "2.0.2",
+  "name": "Xplaino AI – Chat with webpage, pdf, highlight text, add notes, bookmarks, Custom prompts",
+  "version": "2.0.3",
   "description": "AI research assistant to summarize webpages, translate content, simplify text, and save organized insights.",
   "icons": {
     "16": "public/icons/chrome-extension-logo.png",
@@ -15,7 +15,7 @@
       "48": "public/icons/chrome-extension-logo.png",
       "128": "public/icons/chrome-extension-logo.png"
     },
-    "default_title": "Xplaino AI – Web Research & Second Brain"
+    "default_title": "Xplaino AI – Chat with webpage, pdf, highlight text, add notes, bookmarks, Custom prompts"
   },
   "background": {
     "service_worker": "src/background/index.ts",

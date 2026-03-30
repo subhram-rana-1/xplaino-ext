@@ -35,6 +35,7 @@ import {
   removeAllHighlights,
   parseAnswerCitations,
   locateAndPulsateText,
+  locateCitation,
   ParsedCitation,
 } from '@/content/utils/citationManager';
 import { LoadingDots } from '../SidePanel/LoadingDots';
@@ -134,20 +135,18 @@ const CitationChip: React.FC<CitationChipProps> = ({
     [useShadowDom]
   );
 
-  const isActive = chunkIds.some((id) => activeCitations.has(id));
   const hasData = chunkIds.some((id) => citationMap[id]);
-  const [tooltipVisible, setTooltipVisible] = useState(false);
+  if (!hasData) return null;
+
+  const isActive = chunkIds.some((id) => activeCitations.has(id));
   const [pulsating, setPulsating] = useState(shouldPulsate ?? false);
 
   const handleClick = () => {
     setPulsating(false);
-    if (!hasData) {
-      setTooltipVisible(true);
-      setTimeout(() => setTooltipVisible(false), 2500);
-      return;
-    }
+    console.log(`[Citation][CitationChip] clicked — chunkIds=${JSON.stringify(chunkIds)} isActive=${isActive}`);
 
     if (isActive) {
+      console.log(`[Citation][CitationChip] deactivating ${chunkIds.length} chunk(s)`);
       for (const id of chunkIds) deactivateCitation(id);
       const removed = new Set(chunkIds);
       setActiveCitations((prev) => prev.filter((id) => !removed.has(id)));
@@ -167,8 +166,10 @@ const CitationChip: React.FC<CitationChipProps> = ({
       const activated: string[] = [];
       for (const id of chunkIds) {
         const detail = citationMap[id];
+        console.log(`[Citation][CitationChip] chunkId=${id} — detail in map=${!!detail}`);
         if (detail && activateCitation(id, detail)) activated.push(id);
       }
+      console.log(`[Citation][CitationChip] activated ${activated.length}/${chunkIds.length} chunk(s): ${JSON.stringify(activated)}`);
       setActiveCitations(() => activated);
       setSessions((prev) =>
         updateSession(prev, sessionId, (s) => ({
@@ -181,7 +182,6 @@ const CitationChip: React.FC<CitationChipProps> = ({
 
   let chipClass = cn('citationChip');
   if (isActive) chipClass += ' ' + cn('citationChipActive');
-  if (!hasData) chipClass += ' ' + cn('citationChipDimmed');
   if (pulsating) chipClass += ' ' + cn('citationChipPulsating');
 
   return (
@@ -192,30 +192,9 @@ const CitationChip: React.FC<CitationChipProps> = ({
         type="button"
         disabled={isStreaming}
         aria-label={`Citation ${number}`}
-        title={hasData ? undefined : 'Could not locate this reference on the page'}
       >
         {number}
       </button>
-      {tooltipVisible && !hasData && (
-        <span
-          style={{
-            position: 'absolute',
-            bottom: '120%',
-            left: '50%',
-            transform: 'translateX(-50%)',
-            background: '#333',
-            color: '#fff',
-            padding: '4px 8px',
-            borderRadius: '4px',
-            fontSize: '11px',
-            whiteSpace: 'nowrap',
-            zIndex: 9999,
-            pointerEvents: 'none',
-          }}
-        >
-          Could not locate this reference on the page
-        </span>
-      )}
     </span>
   );
 };
@@ -916,7 +895,23 @@ export const WebpageChatView: React.FC<WebpageChatViewProps> = ({
             );
           },
           onCitations: (answer, citeMap, possibleQuestions) => {
-            Object.assign(msgCitationMap, citeMap);
+            const locatableCiteMap: Record<string, CitationDetail> = {};
+            for (const [chunkId, detail] of Object.entries(citeMap)) {
+              const found = locateCitation(detail).found;
+              console.log(`[Citation][onCitations] chunkId=${chunkId} locatable=${found}`);
+              if (found) {
+                locatableCiteMap[chunkId] = detail;
+              }
+            }
+            const totalReceived = Object.keys(citeMap).length;
+            const totalLocatable = Object.keys(locatableCiteMap).length;
+            console.log(`[Citation][onCitations] total=${totalReceived} locatable=${totalLocatable} nonLocatable=${totalReceived - totalLocatable}`);
+
+            // Clear non-locatable entries that may have been added during streaming via onInlineCitation
+            for (const key of Object.keys(msgCitationMap)) {
+              if (!locatableCiteMap[key]) delete msgCitationMap[key];
+            }
+            Object.assign(msgCitationMap, locatableCiteMap);
             const asstMsgId = makeMsgId();
 
             setSessions((prev) =>
@@ -1067,6 +1062,7 @@ export const WebpageChatView: React.FC<WebpageChatViewProps> = ({
       }
 
       // SSE stream
+      streamingSessionIdRef.current = activeSessionId;
       setChatState('answering');
       setStreamingAnswer('');
       const abort = new AbortController();
@@ -1126,11 +1122,13 @@ export const WebpageChatView: React.FC<WebpageChatViewProps> = ({
             );
             setJustCommittedMsgId(asstMsgId);
             setTimeout(() => setJustCommittedMsgId(null), 1500);
+            streamingSessionIdRef.current = null;
             setStreamingAnswer('');
             setChatState('idle');
           },
           onError: (code, msg) => {
             if (abort.signal.aborted) return;
+            streamingSessionIdRef.current = null;
             setStreamingAnswer('');
             setChatState('error');
             setSessions((prev) =>
@@ -1146,6 +1144,7 @@ export const WebpageChatView: React.FC<WebpageChatViewProps> = ({
             );
           },
           onLoginRequired: () => {
+            streamingSessionIdRef.current = null;
             setShowLoginModal(true);
             setStreamingAnswer('');
             setChatState('idle');

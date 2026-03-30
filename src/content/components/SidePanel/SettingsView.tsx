@@ -396,15 +396,15 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ useShadowDom = false
                     <span>Unlock Ultra features</span>
                   </p>
                   <ul className={getClassName('ultraBenefitsList')}>
-                    <li><Check size={13} strokeWidth={2.5} /><span>Unlimited page summaries & AI chat</span></li>
-                    <li><Check size={13} strokeWidth={2.5} /><span>Unlimited text & image explanations</span></li>
-                    <li><Check size={13} strokeWidth={2.5} /><span>Results in your native language</span></li>
-                    <li><Check size={13} strokeWidth={2.5} /><span>Unlimited page translations in 60+ languages</span></li>
-                    <li><Check size={13} strokeWidth={2.5} /><span>Unlimited contextual word meanings & vocabulary</span></li>
-                    <li><Check size={13} strokeWidth={2.5} /><span>Revisit your reading history</span></li>
-                    <li><Check size={13} strokeWidth={2.5} /><span>Unlimited bookmarks with source links</span></li>
-                    <li><Check size={13} strokeWidth={2.5} /><span>Unlimited notes & AI chat</span></li>
-                    <li><Check size={13} strokeWidth={2.5} /><span>Priority support anytime</span></li>
+                    <li><Check size={13} strokeWidth={2.5} /><span>Unlimited Chat with webpages in your language</span></li>
+                    <li><Check size={13} strokeWidth={2.5} /><span>Unlimited Highlight anything and add notes in webpages</span></li>
+                    <li><Check size={13} strokeWidth={2.5} /><span>Unlimited Chat with images</span></li>
+                    <li><Check size={13} strokeWidth={2.5} /><span>Unlimited bookmark, text, words, images, webpage with source reference</span></li>
+                    <li><Check size={13} strokeWidth={2.5} /><span>Unlimited Chat with words, vocabulary, terminologies</span></li>
+                    <li><Check size={13} strokeWidth={2.5} /><span>Unlimited Translate in more than 50+ languages</span></li>
+                    <li><Check size={13} strokeWidth={2.5} /><span>Unlimited PDF features - Chat with PDF, highlight text, add notes</span></li>
+                    <li><Check size={13} strokeWidth={2.5} /><span>Unlimited Collaborate with colleagues</span></li>
+                    <li><Check size={13} strokeWidth={2.5} /><span>Priority customer support via tickets at anytime</span></li>
                   </ul>
                 </div>
                 <div className={getClassName('settingsUpgradeButtonGroup')}>
