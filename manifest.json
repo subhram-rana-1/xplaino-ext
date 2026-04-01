@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Xplaino AI – Chat with webpage, pdf, highlight text, add notes, bookmarks",
-  "version": "2.0.4",
-  "description": "AI research assistant to summarize webpages, translate content, simplify text, and save organized insights.",
+  "name": "Xplaino – Chat PDF & Webpage, Summarizer, Highlighter & Research Tool",
+  "version": "2.0.5",
+  "description": "AI webpage & PDF summarizer. Chat, highlight, bookmark, translate & research smarter. Your all-in-one AI research assistant.",
   "icons": {
     "16": "public/icons/chrome-extension-logo.png",
     "48": "public/icons/chrome-extension-logo.png",
@@ -15,7 +15,7 @@
       "48": "public/icons/chrome-extension-logo.png",
       "128": "public/icons/chrome-extension-logo.png"
     },
-    "default_title": "Xplaino AI – Chat with webpage, pdf, highlight text, add notes, bookmarks"
+    "default_title": "Xplaino – Chat PDF & Webpage, Summarizer, Highlighter & Research Tool"
   },
   "background": {
     "service_worker": "src/background/index.ts",
