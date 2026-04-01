@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Xplaino AI – Chat with webpage, pdf, highlight text, add notes, bookmarks",
-  "version": "2.0.3",
+  "version": "2.0.4",
   "description": "AI research assistant to summarize webpages, translate content, simplify text, and save organized insights.",
   "icons": {
     "16": "public/icons/chrome-extension-logo.png",
