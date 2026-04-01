@@ -153,6 +153,13 @@ export const shouldShowWordFeatureAtom = atom<boolean>(true);
 export const contentActionsModalOpenAtom = atom<boolean>(false);
 
 // ============================================
+// USER FEEDBACK MODAL STATE
+// ============================================
+
+/** User feedback modal visibility — set true once api threshold is crossed and sidebar opens */
+export const showUserFeedbackModalAtom = atom<boolean>(false);
+
+// ============================================
 // PANEL STATE (shared with FAB for positioning)
 // ============================================
 

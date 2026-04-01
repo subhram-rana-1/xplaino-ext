@@ -1,0 +1,332 @@
+/* src/content/styles/userFeedbackModal.shadow.css */
+/* Shadow DOM compatible styles for User Feedback Modal component */
+/*
+ * Color Variables: These are injected from src/constants/colors.css.ts
+ * NEVER use hardcoded hex or rgba values - always use CSS variables
+ * ALL properties use !important for Shadow DOM style isolation
+ */
+
+* {
+  box-sizing: border-box !important;
+}
+
+/* ============================================================
+   OVERLAY — covers the entire sidePanel (position: fixed acts
+   as containing block, so absolute here fills the panel)
+   ============================================================ */
+.feedbackModalOverlay {
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  z-index: 10 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+  justify-content: flex-start !important;
+  background: var(--color-bg-primary-theme) !important;
+  overflow-y: auto !important;
+  animation: feedbackFadeIn 0.25s ease-out !important;
+}
+
+/* ============================================================
+   INNER CARD — centred content with generous padding
+   ============================================================ */
+.feedbackModalCard {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  gap: 24px !important;
+  padding: 36px 28px 28px !important;
+  width: 100% !important;
+}
+
+/* ============================================================
+   HEADER
+   ============================================================ */
+.feedbackModalTitle {
+  margin: 0 !important;
+  padding: 0 !important;
+  font-family: var(--font-family-primary) !important;
+  font-size: 18px !important;
+  font-weight: 700 !important;
+  color: var(--color-text-primary-theme) !important;
+  text-align: center !important;
+  line-height: 1.4 !important;
+}
+
+.feedbackModalSubtitle {
+  margin: -12px 0 0 !important;
+  padding: 0 !important;
+  font-family: var(--font-family-primary) !important;
+  font-size: 13px !important;
+  font-weight: 400 !important;
+  color: var(--color-text-secondary-theme) !important;
+  text-align: center !important;
+  line-height: 1.5 !important;
+}
+
+/* ============================================================
+   VERDICT CARDS ROW
+   ============================================================ */
+.feedbackVerdictRow {
+  display: flex !important;
+  flex-direction: row !important;
+  gap: 12px !important;
+  width: 100% !important;
+  justify-content: center !important;
+}
+
+.feedbackVerdictCard {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 8px !important;
+  flex: 1 !important;
+  padding: 16px 8px !important;
+  background: var(--color-bg-secondary-theme) !important;
+  border: 2px solid transparent !important;
+  border-radius: 16px !important;
+  cursor: pointer !important;
+  transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  outline: none !important;
+  min-width: 0 !important;
+}
+
+.feedbackVerdictCard:hover {
+  background: var(--color-bg-hover-theme) !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 4px 12px var(--color-shadow-fab-group) !important;
+}
+
+.feedbackVerdictCard.selected {
+  border-color: var(--color-primary-light, #14a08a) !important;
+  background: var(--color-primary-opacity-10, rgba(13, 128, 112, 0.08)) !important;
+  box-shadow: 0 0 0 3px var(--color-primary-opacity-20, rgba(13, 128, 112, 0.15)) !important;
+}
+
+.feedbackVerdictCard.selected:hover {
+  transform: translateY(0) !important;
+}
+
+.feedbackVerdictEmoji {
+  font-size: 28px !important;
+  line-height: 1 !important;
+  display: block !important;
+}
+
+.feedbackVerdictLabel {
+  font-family: var(--font-family-primary) !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  color: var(--color-text-secondary-theme) !important;
+  text-align: center !important;
+  letter-spacing: 0.2px !important;
+}
+
+.feedbackVerdictCard.selected .feedbackVerdictLabel {
+  color: var(--color-primary, #0d8070) !important;
+}
+
+/* ============================================================
+   FOLLOW-UP QUESTION SECTION
+   (slides in after verdict selection)
+   ============================================================ */
+.feedbackFollowUp {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 8px !important;
+  width: 100% !important;
+  animation: feedbackSlideDown 0.22s ease-out !important;
+}
+
+.feedbackFollowUpQuestion {
+  margin: 0 !important;
+  padding: 0 !important;
+  font-family: var(--font-family-primary) !important;
+  font-size: 13px !important;
+  font-weight: 700 !important;
+  color: var(--color-text-primary-theme) !important;
+  line-height: 1.5 !important;
+}
+
+.feedbackFollowUpHint {
+  margin: -2px 0 4px !important;
+  padding: 0 !important;
+  font-family: var(--font-family-primary) !important;
+  font-size: 12px !important;
+  font-weight: 400 !important;
+  color: var(--color-primary, #0d8070) !important;
+  font-style: italic !important;
+  line-height: 1.4 !important;
+}
+
+.feedbackTextarea {
+  width: 100% !important;
+  min-height: 90px !important;
+  padding: 12px 14px !important;
+  background: var(--color-bg-secondary-theme) !important;
+  border: 1.5px solid var(--color-border-theme) !important;
+  border-radius: 10px !important;
+  font-family: var(--font-family-primary) !important;
+  font-size: 13px !important;
+  font-weight: 400 !important;
+  color: var(--color-text-primary-theme) !important;
+  resize: vertical !important;
+  outline: none !important;
+  transition: border-color 0.15s ease !important;
+}
+
+.feedbackTextarea::placeholder {
+  color: var(--color-text-secondary-theme) !important;
+  opacity: 0.6 !important;
+}
+
+.feedbackTextarea:focus {
+  border-color: var(--color-primary-light, #14a08a) !important;
+  background: var(--color-bg-primary-theme) !important;
+}
+
+/* ============================================================
+   PROFESSION INPUT
+   ============================================================ */
+.feedbackProfessionWrap {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 6px !important;
+  width: 100% !important;
+  animation: feedbackSlideDown 0.22s ease-out !important;
+}
+
+.feedbackProfessionLabel {
+  font-family: var(--font-family-primary) !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  color: var(--color-text-secondary-theme) !important;
+}
+
+.feedbackProfessionInput {
+  width: 100% !important;
+  padding: 10px 14px !important;
+  background: var(--color-bg-secondary-theme) !important;
+  border: 1.5px solid var(--color-border-theme) !important;
+  border-radius: 10px !important;
+  font-family: var(--font-family-primary) !important;
+  font-size: 13px !important;
+  font-weight: 400 !important;
+  color: var(--color-text-primary-theme) !important;
+  outline: none !important;
+  transition: border-color 0.15s ease !important;
+}
+
+.feedbackProfessionInput::placeholder {
+  color: var(--color-text-secondary-theme) !important;
+  opacity: 0.6 !important;
+}
+
+.feedbackProfessionInput:focus {
+  border-color: var(--color-primary-light, #14a08a) !important;
+  background: var(--color-bg-primary-theme) !important;
+}
+
+/* ============================================================
+   ERROR MESSAGE
+   ============================================================ */
+.feedbackErrorMsg {
+  font-family: var(--font-family-primary) !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  color: var(--color-error, #e53e3e) !important;
+  text-align: center !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+/* ============================================================
+   SUBMIT BUTTON
+   ============================================================ */
+.feedbackSubmitBtn {
+  display: block !important;
+  width: 100% !important;
+  padding: 13px 24px !important;
+  border: none !important;
+  border-radius: 12px !important;
+  background: var(--color-primary-light, #14a08a) !important;
+  font-family: var(--font-family-primary) !important;
+  font-size: 14px !important;
+  font-weight: 700 !important;
+  color: var(--color-white, #ffffff) !important;
+  cursor: pointer !important;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  outline: none !important;
+  letter-spacing: 0.3px !important;
+}
+
+.feedbackSubmitBtn:hover:not(:disabled) {
+  background: var(--color-primary-dark, #0a5f54) !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 12px var(--color-primary-opacity-20, rgba(13, 128, 112, 0.3)) !important;
+}
+
+.feedbackSubmitBtn:active:not(:disabled) {
+  transform: scale(0.98) !important;
+}
+
+.feedbackSubmitBtn:disabled {
+  background: var(--color-bg-secondary-theme) !important;
+  color: var(--color-text-secondary-theme) !important;
+  cursor: not-allowed !important;
+  opacity: 0.55 !important;
+}
+
+/* ============================================================
+   LOADING SPINNER INSIDE BUTTON
+   ============================================================ */
+.feedbackSubmitBtn.loading {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 8px !important;
+}
+
+.feedbackSpinner {
+  width: 16px !important;
+  height: 16px !important;
+  border: 2px solid var(--color-white, #ffffff) !important;
+  border-top-color: transparent !important;
+  border-radius: 50% !important;
+  display: inline-block !important;
+  animation: feedbackSpin 0.7s linear infinite !important;
+  flex-shrink: 0 !important;
+}
+
+/* ============================================================
+   ANIMATIONS
+   ============================================================ */
+@keyframes feedbackFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes feedbackSlideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes feedbackSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}

@@ -9,7 +9,8 @@ import { SettingsView } from './SettingsView';
 import { WebpageChatView } from '../WebpageChat/WebpageChatView';
 import { ChatRefreshWarningModal } from '../WebpageChat/ChatRefreshWarningModal';
 import { SaveLinkModal } from '../SaveLinkModal/SaveLinkModal';
-import { showLoginModalAtom, currentThemeAtom, isFreeTrialAtom, activePanelWidthAtom } from '@/store/uiAtoms';
+import { UserFeedbackModal } from '../UserFeedbackModal/UserFeedbackModal';
+import { showLoginModalAtom, currentThemeAtom, isFreeTrialAtom, activePanelWidthAtom, showUserFeedbackModalAtom } from '@/store/uiAtoms';
 import { summaryAtom, summariseStateAtom } from '@/store/summaryAtoms';
 import { SavedLinkService } from '@/api-services/SavedLinkService';
 import { ChromeStorage } from '@/storage/chrome-local/ChromeStorage';
@@ -98,6 +99,9 @@ export const SidePanel: React.FC<SidePanelProps> = ({
   
   // Jotai setter for login modal
   const setShowLoginModal = useSetAtom(showLoginModalAtom);
+
+  // User feedback modal visibility
+  const showFeedbackModal = useAtomValue(showUserFeedbackModalAtom);
 
   // Sync local width from atom (e.g. when loaded from storage or another panel resized)
   useEffect(() => {
@@ -417,6 +421,10 @@ export const SidePanel: React.FC<SidePanelProps> = ({
           even when the side panel is closed. Uses position:fixed so it covers
           the full viewport regardless of panel width/position. */}
       <ChatRefreshWarningModal useShadowDom={useShadowDom} />
+
+      {/* User feedback modal — overlays the panel content via position:absolute.
+          The sidePanel container (position:fixed) acts as the containing block. */}
+      <UserFeedbackModal visible={showFeedbackModal} useShadowDom={useShadowDom} />
     </div>
   );
 };

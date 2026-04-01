@@ -7,6 +7,11 @@ import { ApiHeaders } from './ApiHeaders';
 import { ApiResponseHandler } from './ApiResponseHandler';
 import type { LoginResponse } from './AuthService';
 
+/** Thrown by _executeRefresh() when the server returns LOGIN_REQUIRED, allowing the retry wrapper to intercept it. */
+class LoginRequiredError extends Error {
+  constructor() { super('LOGIN_REQUIRED'); }
+}
+
 /**
  * Service for handling token refresh operations
  */
@@ -17,6 +22,13 @@ export class TokenRefreshService {
   private static readonly LOCK_TTL_MS = 15_000;
   /** How often waiting tabs poll Chrome storage for the lock to be released. */
   private static readonly LOCK_POLL_INTERVAL_MS = 200;
+
+  /**
+   * Delays (ms) between successive LOGIN_REQUIRED retries.
+   * Attempt 1 → 100 ms, attempt 2 → 200 ms, attempt 3 → 200 ms.
+   * Length of array == max number of retries.
+   */
+  private static readonly REFRESH_RETRY_DELAYS_MS = [100, 200, 200];
 
   /**
    * Level 1 (intra-tab): in-memory promise mutex.
@@ -57,7 +69,7 @@ export class TokenRefreshService {
 
     console.log(`[TokenRefreshService] Acquired refresh lock (${lockId})`);
     try {
-      return await this._executeRefresh();
+      return await this._executeRefreshWithRetry();
     } finally {
       await this._releaseStorageLock(lockId);
       console.log(`[TokenRefreshService] Released refresh lock (${lockId})`);
@@ -137,14 +149,47 @@ export class TokenRefreshService {
         // Storage has no valid tokens — the other tab's refresh must have failed.
         // Try to do the refresh ourselves.
         console.log('[TokenRefreshService] Lock released but no fresh tokens found, attempting own refresh');
-        return this._executeRefresh();
+        return this._executeRefreshWithRetry();
       }
     }
 
     // Deadline exceeded — holding tab likely crashed. Take over.
     console.warn('[TokenRefreshService] Lock TTL exceeded, taking over refresh');
     await ChromeStorage.setTokenRefreshLock(null);
-    return this._executeRefresh();
+    return this._executeRefreshWithRetry();
+  }
+
+  /**
+   * Wraps _executeRefresh() with LOGIN_REQUIRED retry logic.
+   * On each LOGIN_REQUIRED response the call is retried after the next delay in
+   * REFRESH_RETRY_DELAYS_MS (tokens are re-read from Chrome storage on every
+   * attempt because _executeRefresh() always calls ChromeStorage.getAuthInfo()
+   * at the top of its body).  Once all retries are exhausted the login modal is
+   * triggered via handleTokenRefreshFailure() and the error is re-thrown.
+   */
+  private static async _executeRefreshWithRetry(): Promise<LoginResponse> {
+    for (let attempt = 0; attempt <= this.REFRESH_RETRY_DELAYS_MS.length; attempt++) {
+      try {
+        return await this._executeRefresh();
+      } catch (error) {
+        if (error instanceof LoginRequiredError) {
+          const delay = this.REFRESH_RETRY_DELAYS_MS[attempt]; // undefined after last retry
+          if (delay !== undefined) {
+            console.warn(
+              `[TokenRefreshService] LOGIN_REQUIRED — retrying in ${delay}ms (attempt ${attempt + 1} of ${this.REFRESH_RETRY_DELAYS_MS.length})`,
+            );
+            await new Promise<void>((resolve) => setTimeout(resolve, delay));
+            continue;
+          }
+          // All retries exhausted — escalate.
+          console.error('[TokenRefreshService] LOGIN_REQUIRED after all retries, showing login modal');
+          await this.handleTokenRefreshFailure();
+        }
+        throw error;
+      }
+    }
+    // Unreachable — TypeScript guard.
+    throw new Error('[TokenRefreshService] Unexpected end of retry loop');
   }
 
   /**
@@ -198,11 +243,11 @@ export class TokenRefreshService {
           errorBody,
         });
 
-        // Check for LOGIN_REQUIRED error code
+        // Check for LOGIN_REQUIRED error code — throw a sentinel so the retry
+        // wrapper can decide whether to retry or escalate to handleTokenRefreshFailure().
         if (response.status === 401 && ApiResponseHandler.checkLoginRequired(errorBody, response.status)) {
-          console.log('[TokenRefreshService] LOGIN_REQUIRED error, showing login modal');
-          // Handle login required - remove auth info and show login modal
-          await this.handleTokenRefreshFailure();
+          console.log('[TokenRefreshService] LOGIN_REQUIRED error detected, will retry');
+          throw new LoginRequiredError();
         }
 
         throw new Error(`Token refresh failed: ${response.status} - ${errorText}`);

@@ -21,7 +21,7 @@ import type { CustomPromptResponse } from '@/api-services/dto/CustomPromptDTO';
 
 import { WebpageChatService, CitationDetail, ConversationMessage, stripCiteMarkers } from '@/api-services/WebpageChatService';
 import { WebpageChatImageService } from '@/api-services/WebpageChatImageService';
-import { ENV } from '@/config/env';
+import { ENV, FEATURE_FLAGS } from '@/config/env';
 import { getLanguageCode } from '@/api-services/TranslateService';
 import { ChromeStorage } from '@/storage/chrome-local/ChromeStorage';
 import { chunkPage, extractFullPageText } from '@/content/utils/pageChunker';
@@ -63,7 +63,7 @@ import {
 /** Shared prompt used by the FAB Summarise button, Ctrl+M, and the built-in pill. */
 const SUMMARISE_PAGE_QUESTION = 'Summarise this page';
 
-import { showLoginModalAtom } from '@/store/uiAtoms';
+import { showLoginModalAtom, showUserFeedbackModalAtom } from '@/store/uiAtoms';
 
 // ============================================================
 // Constants
@@ -356,6 +356,7 @@ export const WebpageChatView: React.FC<WebpageChatViewProps> = ({
   const [isIndexing, setIsIndexing] = useAtom(webpageChatIndexingIndicatorAtom);
   const isLoading = useAtomValue(webpageChatIsLoadingAtom);
   const setShowLoginModal = useSetAtom(showLoginModalAtom);
+  const setShowFeedbackModal = useSetAtom(showUserFeedbackModalAtom);
 
   // ── Local UI state ─────────────────────────────────────────
   const [inputValue, setInputValue] = useState('');
@@ -868,6 +869,14 @@ export const WebpageChatView: React.FC<WebpageChatViewProps> = ({
 
       const msgCitationMap: Record<string, CitationDetail> = {};
 
+      // Increment API counter and check if feedback modal should show
+      ChromeStorage.incrementUserTotalApiCounter().then(async (newCount) => {
+        if (newCount >= FEATURE_FLAGS.FEEDBACK_API_THRESHOLD) {
+          const submitted = await ChromeStorage.getHasFeedbackSubmitted();
+          if (!submitted) setShowFeedbackModal(true);
+        }
+      }).catch(() => {/* non-critical */});
+
       await WebpageChatService.answer(
         {
           question: q,
@@ -1072,6 +1081,14 @@ export const WebpageChatView: React.FC<WebpageChatViewProps> = ({
       const languageCode = nativeLanguage ? (getLanguageCode(nativeLanguage) || undefined) : undefined;
       const answerHistory = trimHistory(currentSession?.history ?? [], ANSWER_HISTORY_TURNS);
       const msgCitationMap: Record<string, CitationDetail> = {};
+
+      // Increment API counter and check if feedback modal should show
+      ChromeStorage.incrementUserTotalApiCounter().then(async (newCount) => {
+        if (newCount >= FEATURE_FLAGS.FEEDBACK_API_THRESHOLD) {
+          const submitted = await ChromeStorage.getHasFeedbackSubmitted();
+          if (!submitted) setShowFeedbackModal(true);
+        }
+      }).catch(() => {/* non-critical */});
 
       await WebpageChatImageService.answerWithImage(
         imageFile,

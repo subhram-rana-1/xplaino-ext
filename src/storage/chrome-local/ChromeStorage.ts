@@ -53,6 +53,7 @@ export class ChromeStorage {
     SIDE_PANEL_WIDTH: 'side_panel_width',
     TOKEN_REFRESH_LOCK: 'xplaino_token_refresh_lock',
     SELECTED_HIGHLIGHT_COLOUR_ID: 'selected_highlight_colour_id',
+    HAS_USER_FEEDBACK_SUBMITTED: 'has_user_feedback_submitted',
   } as const;
 
   /** Panel width min/max (px) - must match panel components. Max kept lower so panel doesn’t push page content too far left. */
@@ -979,6 +980,43 @@ export class ChromeStorage {
         chrome.storage.local.set(updates, () => {
           resolve();
         });
+      });
+    }
+  }
+
+  // ============================================
+  // USER FEEDBACK
+  // ============================================
+
+  /**
+   * Get whether the user has already submitted feedback.
+   * Returns false if not yet set (new users haven't submitted).
+   */
+  static async getHasFeedbackSubmitted(): Promise<boolean> {
+    const value = await this.get<boolean>(this.KEYS.HAS_USER_FEEDBACK_SUBMITTED);
+    return value ?? false;
+  }
+
+  /**
+   * Set whether the user has submitted feedback
+   */
+  static async setHasFeedbackSubmitted(value: boolean): Promise<void> {
+    return this.set(this.KEYS.HAS_USER_FEEDBACK_SUBMITTED, value);
+  }
+
+  /**
+   * Ensure feedback fields exist in storage with default values.
+   * Called on page load to initialise if needed.
+   */
+  static async ensureFeedbackFields(): Promise<void> {
+    const hasFeedbackFlag = await this.get<boolean>(this.KEYS.HAS_USER_FEEDBACK_SUBMITTED);
+
+    if (hasFeedbackFlag === null || hasFeedbackFlag === undefined) {
+      return new Promise((resolve) => {
+        chrome.storage.local.set(
+          { [this.KEYS.HAS_USER_FEEDBACK_SUBMITTED]: false },
+          () => resolve()
+        );
       });
     }
   }

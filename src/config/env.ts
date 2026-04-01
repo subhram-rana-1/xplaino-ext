@@ -58,3 +58,12 @@ const ENV_CONFIG: Record<Environment, EnvConfig> = {
  */
 export const ENV: EnvConfig = ENV_CONFIG[env];
 
+/**
+ * Feature flags — environment-independent tunable constants.
+ * Change values here to adjust behaviour without touching business logic.
+ */
+export const FEATURE_FLAGS = {
+  /** Number of functional API calls before the user feedback modal is triggered. */
+  FEEDBACK_API_THRESHOLD: 30,
+} as const;
+

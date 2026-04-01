@@ -58,6 +58,7 @@ import spinnerStyles from './styles/spinner.shadow.css?inline';
 import webpageChatStyles from './styles/webpageChat.shadow.css?inline';
 import createCustomPromptModalStyles from './styles/createCustomPromptModal.shadow.css?inline';
 import tryPDFBadgeStyles from './styles/tryPDFBadge.shadow.css?inline';
+import userFeedbackModalStyles from './styles/userFeedbackModal.shadow.css?inline';
 
 // Import color CSS variables
 import { getAllColorVariables } from '../constants/colors.css.js';
@@ -97,7 +98,7 @@ import {
   pageContentAtom,
   summaryIdToElementMapAtom,
 } from '../store/summaryAtoms';
-import { showLoginModalAtom, showSubscriptionModalAtom, showFeatureRequestModalAtom, userAuthInfoAtom, currentThemeAtom, subscriptionStatusAtom, isUserLoggedInAtom, shouldShowImageFeatureAtom, shouldShowTextFeatureAtom, shouldShowWordFeatureAtom, activePanelWidthAtom } from '../store/uiAtoms';
+import { showLoginModalAtom, showSubscriptionModalAtom, showFeatureRequestModalAtom, userAuthInfoAtom, currentThemeAtom, subscriptionStatusAtom, isUserLoggedInAtom, shouldShowImageFeatureAtom, shouldShowTextFeatureAtom, shouldShowWordFeatureAtom, activePanelWidthAtom, showUserFeedbackModalAtom } from '../store/uiAtoms';
 import {
   textExplanationsAtom,
   activeTextExplanationIdAtom,
@@ -121,7 +122,7 @@ import {
   type ChatMessage,
 } from '../store/wordExplanationAtoms';
 import { ChromeStorage } from '../storage/chrome-local/ChromeStorage';
-import { ENV } from '../config/env';
+import { ENV, FEATURE_FLAGS } from '../config/env';
 import { WebHighlightService } from '../api-services/WebHighlightService';
 import { HighlightColourService } from '../api-services/HighlightColourService';
 import { webHighlightsAtom, highlightColoursAtom, selectedHighlightColourIdAtom, type WebHighlightState } from '../store/webHighlightAtoms';
@@ -637,6 +638,8 @@ function setSidePanelOpen(open: boolean, initialTab?: 'summary' | 'chat' | 'sett
       mainPanelSlidingIn = false;
       updateFAB();
     });
+    // Check whether the feedback modal should appear now that the sidebar is open
+    checkAndShowFeedbackModal();
   } else {
     updateFAB();
   }
@@ -1231,6 +1234,9 @@ async function injectSidePanel(): Promise<void> {
 
   // Inject TryPDFBadge styles
   injectStyles(shadow, tryPDFBadgeStyles);
+
+  // Inject user feedback modal styles
+  injectStyles(shadow, userFeedbackModalStyles);
 
   // Append to document
   document.documentElement.appendChild(host);
@@ -9013,6 +9019,9 @@ async function handleHighlightClick(selectedText: string, range?: Range, hexcode
 
   const anchor = buildAnchor(range);
 
+  // Increment API counter for review prompt + feedback tracking
+  incrementApiCounterAndCheckReview();
+
   WebHighlightService.createHighlight(
     {
       pageUrl: window.location.href,
@@ -9449,6 +9458,9 @@ function handleNoteSave(content: string): void {
   const range = state.pendingRange;
   const selectedText = state.pendingSelectedText;
   const anchor = buildAnchor(range);
+
+  // Increment API counter for review prompt + feedback tracking
+  incrementApiCounterAndCheckReview();
 
   WebNoteService.createNote(
     {
@@ -10585,7 +10597,10 @@ async function handleFolderModalSave(folderId: string | null): Promise<void> {
   // Set saving state
   folderModalSaving = true;
   updateFolderListModal();
-  
+
+  // Increment API counter for review prompt + feedback tracking
+  incrementApiCounterAndCheckReview();
+
   // Save paragraph
   SavedParagraphService.saveParagraph(
     {
@@ -10854,7 +10869,10 @@ async function handleFolderModalSaveForLink(folderId: string | null, name?: stri
   const filteredSummary = folderModalLinkSummary 
     ? filterReferenceLinks(folderModalLinkSummary) 
     : undefined;
-  
+
+  // Increment API counter for review prompt + feedback tracking
+  incrementApiCounterAndCheckReview();
+
   // Save link
   await SavedLinkService.saveLink(
     {
@@ -10988,6 +11006,9 @@ async function handleFolderModalSaveForImage(folderId: string | null): Promise<v
     }
   }
   
+  // Increment API counter for review prompt + feedback tracking
+  incrementApiCounterAndCheckReview();
+
   // Save image
   await SavedImageService.saveImage(
     {
@@ -11131,6 +11152,9 @@ async function handleFolderModalSaveForWord(folderId: string | null): Promise<vo
     updateWordExplanationPopover();
   }
   
+  // Increment API counter for review prompt + feedback tracking
+  incrementApiCounterAndCheckReview();
+
   // Save word
   SavedWordsService.saveWord(
     {
@@ -11886,9 +11910,39 @@ async function incrementApiCounterAndCheckReview(): Promise<void> {
       reviewPromptModalVisible = true;
       await injectReviewPromptModal();
     }
+
+    // Also check feedback modal on every API call (in case sidebar is already open)
+    checkAndShowFeedbackModal();
   } catch (error) {
     // Silently fail — review prompt is non-critical
     console.warn('[Content Script] Error in incrementApiCounterAndCheckReview:', error);
+  }
+}
+
+// =============================================================================
+// USER FEEDBACK MODAL CHECK
+// =============================================================================
+
+/**
+ * Check whether the user feedback modal should be shown when the sidebar opens.
+ *
+ * Conditions (all must be true):
+ *  - sidebar is currently open
+ *  - api counter >= FEATURE_FLAGS.FEEDBACK_API_THRESHOLD
+ *  - user has not yet submitted feedback (chrome storage flag)
+ */
+async function checkAndShowFeedbackModal(): Promise<void> {
+  if (!sidePanelOpen) return;
+  try {
+    const counter = await ChromeStorage.getUserTotalApiCounter();
+    const submitted = await ChromeStorage.getHasFeedbackSubmitted();
+    if (!submitted && counter >= FEATURE_FLAGS.FEEDBACK_API_THRESHOLD) {
+      console.log('[Content Script] Showing user feedback modal');
+      store.set(showUserFeedbackModalAtom, true);
+    }
+  } catch (error) {
+    // Silently fail — feedback prompt is non-critical
+    console.warn('[Content Script] Error in checkAndShowFeedbackModal:', error);
   }
 }
 
@@ -12068,6 +12122,7 @@ async function initContentScript(): Promise<void> {
 
   await ChromeStorage.ensureUserExtensionSettings();
   await ChromeStorage.ensureReviewPromptFields();
+  await ChromeStorage.ensureFeedbackFields();
   await ChromeStorage.ensureFeatureDiscoveryFlags();
 
   // Load feature discovery flags into Jotai atoms
