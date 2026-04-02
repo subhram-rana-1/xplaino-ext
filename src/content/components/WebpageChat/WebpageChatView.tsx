@@ -396,6 +396,9 @@ export const WebpageChatView: React.FC<WebpageChatViewProps> = ({
   const [shareLoading, setShareLoading] = useState(false);
   const [shareError, setShareError] = useState<string | null>(null);
 
+  // ── Chat walkthrough (first-time only) ──────────────────
+  const [showWalkthrough, setShowWalkthrough] = useState(false);
+
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -416,6 +419,13 @@ export const WebpageChatView: React.FC<WebpageChatViewProps> = ({
     CustomPromptService.listCustomPrompts()
       .then((res) => setCustomPrompts(res.prompts.filter((p) => !p.isHidden)))
       .catch(() => { /* silently ignore — user may not be logged in */ });
+  }, []);
+
+  // ── Chat walkthrough: show once on first open ─────────────
+  useEffect(() => {
+    ChromeStorage.getDontShowChatWalkthrough().then((dismissed) => {
+      if (!dismissed) setShowWalkthrough(true);
+    });
   }, []);
 
   // ── Outside-click to close custom prompt dropdown ───────────
@@ -1249,6 +1259,11 @@ export const WebpageChatView: React.FC<WebpageChatViewProps> = ({
     }
   };
 
+  const handleWalkthroughGotIt = useCallback(async () => {
+    await ChromeStorage.setDontShowChatWalkthrough(true);
+    setShowWalkthrough(false);
+  }, []);
+
   // True only when the active session owns the current in-flight stream.
   // Guards streaming UI (dots, answer text, stop button, disabled input) so
   // switching to another session tab doesn't show or disrupt another session's stream.
@@ -1443,192 +1458,216 @@ export const WebpageChatView: React.FC<WebpageChatViewProps> = ({
         )}
       </div>
 
-      {/* Prompt row */}
-      <div className={cn('promptRow')}>
-        {/* + create prompt button */}
-        <div className={cn('tooltipWrap')}>
-          <button
-            type="button"
-            className={cn('promptAddBtn')}
-            onClick={() => setShowCreatePromptModal(true)}
-            aria-label="Create prompt"
-          >
-            <Plus size={13} />
-          </button>
-          <span className={`${cn('tooltip')} ${cn('tooltipAbove')}`}>Create prompt</span>
-        </div>
-
-        {/* ... custom prompts button */}
-        {customPrompts.length > 0 && (
-          <div className={cn('customPromptMenuWrap')} ref={customPromptMenuRef}>
-            <div className={cn('tooltipWrap')}>
-              <button
-                type="button"
-                className={`${cn('promptAddBtn')}${customPromptMenuOpen ? ` ${cn('promptAddBtnActive')}` : ''}`}
-                onClick={() => {
-                  setCustomPromptMenuOpen((v) => !v);
-                  setCustomPromptActionMenuId(null);
-                  setCustomPromptActionMenuPos(null);
-                }}
-                aria-label="Custom prompts"
-              >
-                <MoreHorizontal size={13} />
-              </button>
-              <span className={`${cn('tooltip')} ${cn('tooltipAbove')}`}>Custom prompts</span>
-            </div>
-
-            <div className={`${cn('customPromptDropdown')}${customPromptMenuOpen ? ` ${cn('customPromptDropdownOpen')}` : ''}`}>
-              <div className={cn('customPromptDropdownList')}>
-                {customPrompts.map((p) => (
-                  <div key={p.id} className={cn('customPromptItem')}>
-                    <button
-                      type="button"
-                      className={cn('customPromptItemTitle')}
-                      onClick={() => handlePromptClick(p.title, p.description ? stripHtml(p.description) : p.title)}
-                    >
-                      <BookMarked size={13} />
-                      <span className={cn('customPromptItemTitleText')}>{p.title}</span>
-                    </button>
-                    <button
-                      type="button"
-                      className={cn('customPromptItemMenuBtn')}
-                      aria-label="Prompt options"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        const rect = e.currentTarget.getBoundingClientRect();
-                        const isOpening = customPromptActionMenuId !== p.id;
-                        setCustomPromptActionMenuId(isOpening ? p.id : null);
-                        setCustomPromptActionMenuPos(
-                          isOpening
-                            ? { top: rect.bottom + 4, right: window.innerWidth - rect.right }
-                            : null
-                        );
-                      }}
-                    >
-                      <MoreHorizontal size={13} />
-                    </button>
-                  </div>
-                ))}
-              </div>
-              <div className={cn('customPromptDropdownFooter')}>
-                <button
-                  type="button"
-                  className={cn('customPromptFooterBtn')}
-                  onClick={() => { setShowCreatePromptModal(true); setCustomPromptMenuOpen(false); }}
-                >
-                  <Plus size={13} />
-                  <span>Add prompt</span>
-                </button>
-                <button
-                  type="button"
-                  className={cn('customPromptFooterBtn')}
-                  onClick={() => {
-                    setCustomPromptMenuOpen(false);
-                    window.open(`${ENV.XPLAINO_WEBSITE_BASE_URL}/user/account/custom-prompt`, '_blank');
-                  }}
-                >
-                  <ExternalLink size={13} />
-                  <span>Manage custom prompts</span>
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        <button
-          ref={summarisePillRef}
-          type="button"
-          className={cn('promptPill')}
-          disabled={isCurrentSessionStreaming}
-          onClick={() => submitQuestion(SUMMARISE_PAGE_QUESTION)}
-        >
-          Summarise
-        </button>
-        <OnHoverMessage
-          message="Summarise page"
-          shortcut={isMac ? '⌘M' : 'Ctrl+M'}
-          targetRef={summarisePillRef}
-          position="top"
-          offset={8}
-        />
-        <button
-          type="button"
-          className={cn('promptPill')}
-          disabled={isCurrentSessionStreaming}
-          onClick={() => submitQuestion('What are the key takeaways from this page?')}
-        >
-          Key takeaways
-        </button>
-      </div>
-
-      {/* Image attachment preview — shown when "Ask AI about this image" is clicked */}
-      {pendingImageAttachment && (
-        <div className={cn('imageAttachmentPreview')}>
-          <div className={cn('imageAttachmentThumbWrap')}>
-            <img
-              src={pendingImageAttachment.imageUrl}
-              alt="Attached image"
-              className={cn('imageAttachmentThumb')}
-            />
+      {/* Chat walkthrough overlay (first-time only) */}
+      {showWalkthrough && (
+        <>
+          <div className={cn('walkthroughOverlay')} />
+          <div className={cn('walkthroughCallout')}>
+            <p className={cn('walkthroughTitle')}>Chat with this page</p>
+            <p className={cn('walkthroughBody')}>
+              Use the quick-action pills, the <strong>···</strong> menu for saved prompts,
+              or type your own question in the input below.
+            </p>
             <button
+              className={cn('walkthroughGotItBtn')}
+              onClick={handleWalkthroughGotIt}
               type="button"
-              className={cn('imageAttachmentDismiss')}
-              onClick={() => setPendingImageAttachment(null)}
-              title="Remove image"
             >
-              <X size={10} />
+              Got it
             </button>
           </div>
-          <span className={cn('imageAttachmentHint')}>Ask about the attached image</span>
-        </div>
+        </>
       )}
 
-      {/* Input bar */}
-      <div className={cn('inputBar')}>
-        <div className={cn('inputWrapper')}>
-          <input
-            ref={inputRef}
-            type="text"
-            className={cn('input')}
-            placeholder="Ask about this page…"
-            value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
-            onKeyDown={handleKeyDown}
-            disabled={isCurrentSessionStreaming && chatState !== 'answering'}
+      {/* Bottom controls — prompt row + input bar */}
+      <div className={`${cn('bottomControls')}${showWalkthrough ? ` ${cn('bottomControlsHighlighted')}` : ''}`}>
+        {/* Prompt row */}
+        <div className={cn('promptRow')}>
+          {/* + create prompt button */}
+          <div className={cn('tooltipWrap')}>
+            <button
+              type="button"
+              className={cn('promptAddBtn')}
+              onClick={() => setShowCreatePromptModal(true)}
+              aria-label="Create prompt"
+            >
+              <Plus size={13} />
+            </button>
+            <span className={`${cn('tooltip')} ${cn('tooltipAbove')}`}>Create prompt</span>
+          </div>
+
+          {/* ... custom prompts button */}
+          {customPrompts.length > 0 && (
+            <div className={cn('customPromptMenuWrap')} ref={customPromptMenuRef}>
+              <div className={cn('tooltipWrap')}>
+                <button
+                  type="button"
+                  className={`${cn('promptAddBtn')}${customPromptMenuOpen ? ` ${cn('promptAddBtnActive')}` : ''}`}
+                  onClick={() => {
+                    setCustomPromptMenuOpen((v) => !v);
+                    setCustomPromptActionMenuId(null);
+                    setCustomPromptActionMenuPos(null);
+                  }}
+                  aria-label="Custom prompts"
+                >
+                  <MoreHorizontal size={13} />
+                </button>
+                <span className={`${cn('tooltip')} ${cn('tooltipAbove')}`}>Custom prompts</span>
+              </div>
+
+              <div className={`${cn('customPromptDropdown')}${customPromptMenuOpen ? ` ${cn('customPromptDropdownOpen')}` : ''}`}>
+                <div className={cn('customPromptDropdownList')}>
+                  {customPrompts.map((p) => (
+                    <div key={p.id} className={cn('customPromptItem')}>
+                      <button
+                        type="button"
+                        className={cn('customPromptItemTitle')}
+                        onClick={() => handlePromptClick(p.title, p.description ? stripHtml(p.description) : p.title)}
+                      >
+                        <BookMarked size={13} />
+                        <span className={cn('customPromptItemTitleText')}>{p.title}</span>
+                      </button>
+                      <button
+                        type="button"
+                        className={cn('customPromptItemMenuBtn')}
+                        aria-label="Prompt options"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const rect = e.currentTarget.getBoundingClientRect();
+                          const isOpening = customPromptActionMenuId !== p.id;
+                          setCustomPromptActionMenuId(isOpening ? p.id : null);
+                          setCustomPromptActionMenuPos(
+                            isOpening
+                              ? { top: rect.bottom + 4, right: window.innerWidth - rect.right }
+                              : null
+                          );
+                        }}
+                      >
+                        <MoreHorizontal size={13} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                <div className={cn('customPromptDropdownFooter')}>
+                  <button
+                    type="button"
+                    className={cn('customPromptFooterBtn')}
+                    onClick={() => { setShowCreatePromptModal(true); setCustomPromptMenuOpen(false); }}
+                  >
+                    <Plus size={13} />
+                    <span>Add prompt</span>
+                  </button>
+                  <button
+                    type="button"
+                    className={cn('customPromptFooterBtn')}
+                    onClick={() => {
+                      setCustomPromptMenuOpen(false);
+                      window.open(`${ENV.XPLAINO_WEBSITE_BASE_URL}/user/account/custom-prompt`, '_blank');
+                    }}
+                  >
+                    <ExternalLink size={13} />
+                    <span>Manage custom prompts</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <button
+            ref={summarisePillRef}
+            type="button"
+            className={cn('promptPill')}
+            disabled={isCurrentSessionStreaming}
+            onClick={() => submitQuestion(SUMMARISE_PAGE_QUESTION)}
+          >
+            Summarise
+          </button>
+          <OnHoverMessage
+            message="Summarise page"
+            shortcut={isMac ? '⌘M' : 'Ctrl+M'}
+            targetRef={summarisePillRef}
+            position="top"
+            offset={8}
           />
+          <button
+            type="button"
+            className={cn('promptPill')}
+            disabled={isCurrentSessionStreaming}
+            onClick={() => submitQuestion('What are the key takeaways from this page?')}
+          >
+            Key takeaways
+          </button>
         </div>
 
-        {isCurrentSessionStreaming && chatState === 'answering' ? (
-          <button
-            className={cn('stopButton')}
-            onClick={handleStop}
-            type="button"
-            aria-label="Stop"
-          >
-            <Square size={16} />
-          </button>
-        ) : (
-          <button
-            className={cn('sendButton')}
-            onClick={handleSend}
-            disabled={!inputValue.trim() || isCurrentSessionStreaming}
-            type="button"
-            aria-label="Send"
-          >
-            <ArrowUp size={16} />
-          </button>
+        {/* Image attachment preview — shown when "Ask AI about this image" is clicked */}
+        {pendingImageAttachment && (
+          <div className={cn('imageAttachmentPreview')}>
+            <div className={cn('imageAttachmentThumbWrap')}>
+              <img
+                src={pendingImageAttachment.imageUrl}
+                alt="Attached image"
+                className={cn('imageAttachmentThumb')}
+              />
+              <button
+                type="button"
+                className={cn('imageAttachmentDismiss')}
+                onClick={() => setPendingImageAttachment(null)}
+                title="Remove image"
+              >
+                <X size={10} />
+              </button>
+            </div>
+            <span className={cn('imageAttachmentHint')}>Ask about the attached image</span>
+          </div>
         )}
 
-        {hasContent && (
-          <button
-            className={cn('clearButton')}
-            onClick={handleClear}
-            type="button"
-            aria-label="Clear chat"
-          >
-            <Trash2 size={16} />
-          </button>
-        )}
+        {/* Input bar */}
+        <div className={cn('inputBar')}>
+          <div className={cn('inputWrapper')}>
+            <input
+              ref={inputRef}
+              type="text"
+              className={cn('input')}
+              placeholder="Ask about this page…"
+              value={inputValue}
+              onChange={(e) => setInputValue(e.target.value)}
+              onKeyDown={handleKeyDown}
+              disabled={isCurrentSessionStreaming && chatState !== 'answering'}
+            />
+          </div>
+
+          {isCurrentSessionStreaming && chatState === 'answering' ? (
+            <button
+              className={cn('stopButton')}
+              onClick={handleStop}
+              type="button"
+              aria-label="Stop"
+            >
+              <Square size={16} />
+            </button>
+          ) : (
+            <button
+              className={cn('sendButton')}
+              onClick={handleSend}
+              disabled={!inputValue.trim() || isCurrentSessionStreaming}
+              type="button"
+              aria-label="Send"
+            >
+              <ArrowUp size={16} />
+            </button>
+          )}
+
+          {hasContent && (
+            <button
+              className={cn('clearButton')}
+              onClick={handleClear}
+              type="button"
+              aria-label="Clear chat"
+            >
+              <Trash2 size={16} />
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Per-prompt action menu (fixed position, rendered inline for shadow DOM compat) */}

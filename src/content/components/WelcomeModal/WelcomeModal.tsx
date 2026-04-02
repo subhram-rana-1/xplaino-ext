@@ -53,10 +53,6 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({
         <p className="welcomeModalHeading">
           Your Control Panel
         </p>
-        <ul className="welcomeModalInstructions">
-          <li>Select text to explain</li>
-          <li>Double-click a word to explain</li>
-        </ul>
         {/* Button row */}
         <div className="welcomeModalRow">
           <button

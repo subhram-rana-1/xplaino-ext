@@ -7,7 +7,7 @@
   --panel-transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
   --panel-min-width: 300px !important;
   --panel-max-width: 800px !important;
-  --panel-default-width: 400px !important;
+  --panel-default-width: 600px !important;
 }
 
 /* Side Panel Container - always full height, side-by-side with page */

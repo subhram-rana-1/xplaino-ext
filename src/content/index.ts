@@ -544,7 +544,7 @@ function updatePageMarginForPanels(): void {
     store.get(imageExplanationPanelOpenAtom);
 
   if (isAnyOpen) {
-    const width = store.get(activePanelWidthAtom) || 400;
+    const width = store.get(activePanelWidthAtom) || 600;
     setPageMarginForPanel(width);
   } else {
     setPageMarginForPanel(null);
@@ -1083,6 +1083,7 @@ function updateFAB(): void {
           viewMode: pageViewMode,
           isBookmarked: isBookmarked,
           forceShowActions: forceShowFABActions,
+          showWelcomeGlow: welcomeModalVisible,
         })
       )
     );
@@ -11803,6 +11804,7 @@ function removeWelcomeModal(): void {
 function handleWelcomeModalOk(): void {
   welcomeModalVisible = false;
   updateWelcomeModal();
+  updateFAB();
 }
 
 /**
@@ -11812,6 +11814,7 @@ async function handleWelcomeModalDontShowAgain(): Promise<void> {
   await ChromeStorage.setDontShowWelcomeModal(true);
   welcomeModalVisible = false;
   updateWelcomeModal();
+  updateFAB();
 }
 
 // =============================================================================
@@ -12299,6 +12302,7 @@ async function initContentScript(): Promise<void> {
         // Inject modal early; CSS animation-delay handles visual timing after FAB animations
         setTimeout(async () => {
           welcomeModalVisible = true;
+          updateFAB();
           await injectWelcomeModal();
         }, 500);
       } else {

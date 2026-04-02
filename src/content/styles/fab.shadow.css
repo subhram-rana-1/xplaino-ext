@@ -311,6 +311,23 @@
   100% { transform: scale(1); }
 }
 
+/* Welcome modal glow: pulse opacity + teal box-shadow while modal is visible */
+/* NOTE: Do NOT use !important inside @keyframes — Chrome drops those declarations */
+@keyframes welcomeGlow {
+  0%, 100% {
+    opacity: 0.6;
+    box-shadow: 0 0 6px 2px rgba(20, 160, 138, 0.35);
+  }
+  50% {
+    opacity: 1;
+    box-shadow: 0 0 20px 8px rgba(20, 160, 138, 0.65);
+  }
+}
+
+.fabContainer.welcomeGlow {
+  animation: welcomeGlow 1.8s ease-in-out infinite !important;
+}
+
 .fabButton.pulse {
   animation: none !important;
 }

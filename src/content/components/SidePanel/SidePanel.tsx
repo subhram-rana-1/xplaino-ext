@@ -3,14 +3,13 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useSetAtom, useAtomValue } from 'jotai';
 import styles from './SidePanel.module.css';
 import { Header } from './Header';
-import { UpgradeFooter } from '../BaseSidePanel/UpgradeFooter';
 import { SummaryView } from './SummaryView';
 import { SettingsView } from './SettingsView';
 import { WebpageChatView } from '../WebpageChat/WebpageChatView';
 import { ChatRefreshWarningModal } from '../WebpageChat/ChatRefreshWarningModal';
 import { SaveLinkModal } from '../SaveLinkModal/SaveLinkModal';
 import { UserFeedbackModal } from '../UserFeedbackModal/UserFeedbackModal';
-import { showLoginModalAtom, currentThemeAtom, isFreeTrialAtom, activePanelWidthAtom, showUserFeedbackModalAtom } from '@/store/uiAtoms';
+import { showLoginModalAtom, currentThemeAtom, activePanelWidthAtom, showUserFeedbackModalAtom } from '@/store/uiAtoms';
 import { summaryAtom, summariseStateAtom } from '@/store/summaryAtoms';
 import { SavedLinkService } from '@/api-services/SavedLinkService';
 import { ChromeStorage } from '@/storage/chrome-local/ChromeStorage';
@@ -108,9 +107,6 @@ export const SidePanel: React.FC<SidePanelProps> = ({
     setWidth(globalWidth);
   }, [globalWidth]);
 
-  // Subscription status for conditional upgrade footer
-  const isFreeTrial = useAtomValue(isFreeTrialAtom);
-  
   // Get summary state to determine bookmark visibility
   const summary = useAtomValue(summaryAtom);
   const summariseState = useAtomValue(summariseStateAtom);
@@ -397,11 +393,6 @@ export const SidePanel: React.FC<SidePanelProps> = ({
           <SettingsView useShadowDom={useShadowDom} />
         )}
       </div>
-
-      {/* Upgrade Footer - only shown for free trial users and not on settings tab */}
-      {isFreeTrial && activeTab !== 'settings' && (
-        <UpgradeFooter useShadowDom={useShadowDom} />
-      )}
 
       {/* Save Link Modal */}
       <SaveLinkModal

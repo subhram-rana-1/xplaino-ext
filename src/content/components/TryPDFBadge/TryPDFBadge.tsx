@@ -2,9 +2,8 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { FileText, X, MessageSquare, PenLine, Users, Sparkles } from 'lucide-react';
 import { ENV } from '@/config/env';
+import { ChromeStorage } from '@/storage/chrome-local/ChromeStorage';
 import styles from './TryPDFBadge.module.css';
-
-const STORAGE_KEY = 'xplaino_pdf_badge_dismissed';
 
 const FEATURES = [
   { icon: MessageSquare, label: 'Chat with PDF' },
@@ -18,17 +17,14 @@ export interface TryPDFBadgeProps {
 }
 
 export const TryPDFBadge: React.FC<TryPDFBadgeProps> = ({ useShadowDom = false }) => {
-  const [isCollapsed, setIsCollapsed] = useState<boolean>(() => {
-    try {
-      return localStorage.getItem(STORAGE_KEY) === 'true';
-    } catch {
-      return false;
-    }
-  });
+  const [isDismissed, setIsDismissed] = useState(true);
   const [isHovered, setIsHovered] = useState(false);
   const hoverTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
+    ChromeStorage.getDontShowPdfBadge().then((dismissed) => {
+      setIsDismissed(dismissed);
+    });
     return () => {
       if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
     };
@@ -58,18 +54,13 @@ export const TryPDFBadge: React.FC<TryPDFBadgeProps> = ({ useShadowDom = false }
     window.open(`${ENV.XPLAINO_WEBSITE_BASE_URL}/tools/pdf`, '_blank');
   }, []);
 
-  const handleDismiss = useCallback((e: React.MouseEvent) => {
+  const handleDismiss = useCallback(async (e: React.MouseEvent) => {
     e.stopPropagation();
-    setIsCollapsed(true);
-    try {
-      localStorage.setItem(STORAGE_KEY, 'true');
-    } catch {
-      // ignore storage errors
-    }
+    setIsDismissed(true);
+    await ChromeStorage.setDontShowPdfBadge(true);
   }, []);
 
-  const isVisuallyExpanded = !isCollapsed || isHovered;
-  const showDismissX = !isCollapsed;
+  if (isDismissed) return null;
 
   return (
     <div
@@ -79,7 +70,7 @@ export const TryPDFBadge: React.FC<TryPDFBadgeProps> = ({ useShadowDom = false }
     >
       <button
         type="button"
-        className={`${cn('tryPDFBadge', 'badge')}${isVisuallyExpanded ? ' ' + cn('tryPDFBadgeExpanded', 'expanded') : ''}`}
+        className={`${cn('tryPDFBadge', 'badge')} ${cn('tryPDFBadgeExpanded', 'expanded')}`}
         onClick={handleNavigate}
         aria-label="Try PDF — Free"
         title="Try PDF — Free"
@@ -92,16 +83,14 @@ export const TryPDFBadge: React.FC<TryPDFBadgeProps> = ({ useShadowDom = false }
           Try PDF &mdash; Free
         </span>
 
-        {showDismissX && (
-          <span
-            className={cn('tryPDFDismissBtn', 'dismissBtn')}
-            onClick={handleDismiss}
-            role="button"
-            aria-label="Dismiss"
-          >
-            <X size={10} strokeWidth={2.5} />
-          </span>
-        )}
+        <span
+          className={cn('tryPDFDismissBtn', 'dismissBtn')}
+          onClick={handleDismiss}
+          role="button"
+          aria-label="Dismiss"
+        >
+          <X size={10} strokeWidth={2.5} />
+        </span>
       </button>
 
       {isHovered && (

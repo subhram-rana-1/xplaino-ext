@@ -54,6 +54,8 @@ export interface FABProps {
   isBookmarked?: boolean;
   /** Whether to force-show the action buttons (e.g. from keyboard shortcut) */
   forceShowActions?: boolean;
+  /** Whether the welcome modal is currently visible (triggers teal glow on FAB) */
+  showWelcomeGlow?: boolean;
 }
 
 export const FAB: React.FC<FABProps> = ({
@@ -75,6 +77,7 @@ export const FAB: React.FC<FABProps> = ({
   viewMode = 'translated',
   isBookmarked = false,
   forceShowActions = false,
+  showWelcomeGlow = false,
 }) => {
   const [actionsVisible, setActionsVisible] = useState(false);
   const [showPulse, setShowPulse] = useState(true);
@@ -383,8 +386,8 @@ export const FAB: React.FC<FABProps> = ({
   );
   const actionButtonClass = getClassName('actionButton', styles.actionButton);
   const fabContainerClass = getClassName(
-    `fabContainer ${actionsVisible ? 'actionsVisible' : ''}`,
-    `${styles.fabContainer} ${actionsVisible ? styles.actionsVisible : ''}`
+    `fabContainer ${actionsVisible ? 'actionsVisible' : ''} ${showWelcomeGlow ? 'welcomeGlow' : ''}`,
+    `${styles.fabContainer} ${actionsVisible ? styles.actionsVisible : ''} ${showWelcomeGlow ? styles.welcomeGlow : ''}`
   );
   const fabButtonClass = getClassName(
     `fabButton ${showPulse ? 'pulse' : ''} ${actionsVisible ? 'actionsVisible' : ''}`,
@@ -404,7 +407,7 @@ export const FAB: React.FC<FABProps> = ({
         <div className={actionsContainerClass}>
           <ActionButton
             icon="askAboutPage"
-            tooltip="Ask about page"
+            tooltip="Chat with page"
             shortcut={askAboutPageShortcut}
             onClick={handleAskAboutPage}
             className={actionButtonClass}

@@ -167,5 +167,5 @@ export const showUserFeedbackModalAtom = atom<boolean>(false);
 export const isPanelVerticallyExpandedAtom = atom<boolean>(true);
 
 /** Width (px) of the currently-open side panel. Default kept narrow so page content isn’t pushed too far left. */
-export const activePanelWidthAtom = atom<number>(400);
+export const activePanelWidthAtom = atom<number>(600);
 

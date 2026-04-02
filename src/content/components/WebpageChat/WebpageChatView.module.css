@@ -1032,3 +1032,108 @@
   background: rgba(239, 68, 68, 0.08);
   color: #ef4444;
 }
+
+/* ============================================================
+   Chat walkthrough (first-time spotlight)
+   ============================================================ */
+
+@keyframes walkthroughFadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes walkthroughPulse {
+  0%, 100% { box-shadow: 0 0 0 2px rgba(20, 160, 138, 0.5), 0 0 12px rgba(20, 160, 138, 0.15); }
+  50%      { box-shadow: 0 0 0 3px rgba(20, 160, 138, 0.7), 0 0 18px rgba(20, 160, 138, 0.25); }
+}
+
+.bottomControls {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+}
+
+.bottomControlsHighlighted {
+  position: relative;
+  z-index: 101;
+  border-radius: 10px;
+  background: var(--color-bg-primary-theme, #fff);
+  animation: walkthroughPulse 2s ease-in-out infinite;
+}
+
+.walkthroughOverlay {
+  position: absolute;
+  inset: 0;
+  z-index: 100;
+  background: rgba(0, 0, 0, 0.45);
+  border-radius: inherit;
+  pointer-events: all;
+}
+
+.walkthroughCallout {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 110px;
+  z-index: 102;
+  background: var(--color-bg-primary-theme, #fff);
+  border-radius: 14px;
+  padding: 18px 16px 14px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.14);
+  animation: walkthroughFadeIn 0.35s cubic-bezier(0.4, 0, 0.2, 1) both;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.walkthroughCallout::after {
+  content: '';
+  position: absolute;
+  bottom: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 5px solid transparent;
+  border-top-color: var(--color-bg-primary-theme, #fff);
+}
+
+.walkthroughTitle {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-primary-light, #14a08a);
+  text-align: center;
+  line-height: 1.4;
+}
+
+.walkthroughBody {
+  margin: 0;
+  font-size: 12.5px;
+  font-weight: 400;
+  color: var(--color-text-secondary, #666);
+  text-align: center;
+  line-height: 1.5;
+}
+
+.walkthroughBody strong {
+  font-weight: 600;
+  color: var(--color-text-primary, #333);
+}
+
+.walkthroughGotItBtn {
+  margin-top: 6px;
+  padding: 6px 20px;
+  border: none;
+  border-radius: 8px;
+  background: var(--color-primary-lightest, rgba(20, 160, 138, 0.1));
+  color: var(--color-primary-light, #14a08a);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.walkthroughGotItBtn:hover {
+  background: var(--color-primary-light, #14a08a);
+  color: var(--color-white, #fff);
+}

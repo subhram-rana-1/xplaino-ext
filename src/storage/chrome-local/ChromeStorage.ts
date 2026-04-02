@@ -44,6 +44,8 @@ export class ChromeStorage {
     DONT_SHOW_XPLAINO_WORD_BOOKMARK_SAVED_LINK_TOAST: 'dont_show_xplaino_word_bookmark_saved_link_toast',
     DONT_SHOW_XPLAINO_IMAGE_BOOKMARK_SAVED_LINK_TOAST: 'dont_show_xplaino_image_bookmark_saved_link_toast',
     DONT_SHOW_WELCOME_MODAL: 'dont_show_welcome_modal',
+    DONT_SHOW_CHAT_WALKTHROUGH: 'dont_show_chat_walkthrough',
+    DONT_SHOW_PDF_BADGE: 'dont_show_pdf_badge',
     SUBSCRIPTION_STATUS: 'xplaino-subscription-status',
     HAS_USER_REVIEW_SUBMISSION_ATTEMPTED: 'has_user_review_submission_attempted',
     USER_TOTAL_API_COUNTER: 'user_total_api_counter',
@@ -771,6 +773,26 @@ export class ChromeStorage {
    */
   static async setDontShowWelcomeModal(dontShow: boolean): Promise<void> {
     return this.set(this.KEYS.DONT_SHOW_WELCOME_MODAL, dontShow);
+  }
+
+  // --- Chat Walkthrough Preference ---
+  static async getDontShowChatWalkthrough(): Promise<boolean> {
+    const value = await this.get<boolean>(this.KEYS.DONT_SHOW_CHAT_WALKTHROUGH);
+    return value ?? false;
+  }
+
+  static async setDontShowChatWalkthrough(dontShow: boolean): Promise<void> {
+    return this.set(this.KEYS.DONT_SHOW_CHAT_WALKTHROUGH, dontShow);
+  }
+
+  // --- PDF Badge Preference ---
+  static async getDontShowPdfBadge(): Promise<boolean> {
+    const value = await this.get<boolean>(this.KEYS.DONT_SHOW_PDF_BADGE);
+    return value ?? false;
+  }
+
+  static async setDontShowPdfBadge(dontShow: boolean): Promise<void> {
+    return this.set(this.KEYS.DONT_SHOW_PDF_BADGE, dontShow);
   }
 
   // ============================================

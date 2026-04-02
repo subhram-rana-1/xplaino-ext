@@ -18,19 +18,19 @@
   padding: 5px !important;
   background: linear-gradient(
     135deg,
-    rgba(13, 128, 112, 0.18),
-    rgba(13, 128, 112, 0.30)
+    rgba(124, 58, 237, 0.18),
+    rgba(124, 58, 237, 0.32)
   ) !important;
-  border: 1px solid rgba(13, 128, 112, 0.35) !important;
+  border: 1px solid rgba(124, 58, 237, 0.40) !important;
   cursor: pointer !important;
   outline: none !important;
-  color: var(--color-primary, #0d8070) !important;
+  color: #7c3aed !important;
   font-size: 11px !important;
   font-family: inherit !important;
   white-space: nowrap !important;
   overflow: hidden !important;
   flex-shrink: 0 !important;
-  box-shadow: 0 2px 8px rgba(13, 128, 112, 0.22) !important;
+  box-shadow: 0 2px 8px rgba(124, 58, 237, 0.22) !important;
   transition:
     padding 0.25s ease,
     background 0.2s ease,
@@ -41,11 +41,11 @@
 .tryPDFBadge:hover {
   background: linear-gradient(
     135deg,
-    rgba(13, 128, 112, 0.25),
-    rgba(13, 128, 112, 0.40)
+    rgba(124, 58, 237, 0.28),
+    rgba(124, 58, 237, 0.44)
   ) !important;
-  border-color: rgba(13, 128, 112, 0.50) !important;
-  box-shadow: 0 3px 12px rgba(13, 128, 112, 0.32) !important;
+  border-color: rgba(124, 58, 237, 0.55) !important;
+  box-shadow: 0 3px 12px rgba(124, 58, 237, 0.35) !important;
 }
 
 .tryPDFBadgeExpanded {
@@ -58,7 +58,7 @@
   display: flex !important;
   align-items: center !important;
   flex-shrink: 0 !important;
-  color: var(--color-primary, #0d8070) !important;
+  color: #7c3aed !important;
 }
 
 .tryPDFBadgeIcon svg {
@@ -71,10 +71,10 @@
 
 /* ── Label text ────────────────────────────────────────────── */
 .tryPDFBadgeText {
-  font-size: 11px !important;
-  font-weight: 600 !important;
-  letter-spacing: 0.01em !important;
-  color: var(--color-primary, #0d8070) !important;
+  font-size: 11.5px !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.02em !important;
+  color: #7c3aed !important;
   max-width: 0 !important;
   opacity: 0 !important;
   overflow: hidden !important;
@@ -97,7 +97,7 @@
   border-radius: 50% !important;
   flex-shrink: 0 !important;
   transition: max-width 0.25s ease, opacity 0.18s ease !important;
-  color: var(--color-primary, #0d8070) !important;
+  color: #7c3aed !important;
   padding: 2px !important;
   margin-left: -2px !important;
   cursor: pointer !important;
@@ -110,7 +110,7 @@
 
 .tryPDFDismissBtn:hover {
   opacity: 1 !important;
-  background: var(--color-primary-opacity-10, rgba(13, 128, 112, 0.10)) !important;
+  background: rgba(124, 58, 237, 0.12) !important;
 }
 
 .tryPDFDismissBtn svg {
@@ -128,14 +128,14 @@
   left: 0 !important;
   background: linear-gradient(
     160deg,
-    #0a5f54 0%,
-    #0d8070 55%,
-    #1fb89a 100%
+    #5b21b6 0%,
+    #7c3aed 55%,
+    #a78bfa 100%
   ) !important;
   border: none !important;
   border-radius: 12px !important;
   box-shadow:
-    0 8px 32px rgba(13, 128, 112, 0.40),
+    0 8px 32px rgba(124, 58, 237, 0.40),
     0 2px 8px rgba(0, 0, 0, 0.15) !important;
   padding: 0 !important;
   z-index: 99999 !important;

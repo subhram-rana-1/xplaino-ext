@@ -12,11 +12,39 @@ import { ENV } from '@/config/env';
 
 console.log('Background service worker initialized');
 
-// Redirect to feedback page when user uninstalls the extension
-const version = chrome.runtime.getManifest().version;
-chrome.runtime.setUninstallURL(
-  `${ENV.XPLAINO_WEBSITE_BASE_URL}/uninstall-extension-feedback?version=${version}`
-);
+/**
+ * Builds and registers the uninstall redirect URL.
+ *
+ * The URL is stored by Chrome itself (not in chrome.storage.local) so it
+ * survives the extension being uninstalled. We enrich it with the logged-in
+ * user's email (if any) and the persistent unauthenticated user ID so the
+ * landing page can identify who uninstalled and trigger retargeting flows.
+ *
+ * Call this on startup and whenever auth state changes.
+ */
+async function refreshUninstallUrl(): Promise<void> {
+  const version = chrome.runtime.getManifest().version;
+  const params = new URLSearchParams({ version });
+
+  const [authInfo, unauthId] = await Promise.all([
+    ChromeStorage.getAuthInfo(),
+    ChromeStorage.getUnauthenticatedUserId(),
+  ]);
+
+  if (authInfo?.user?.email) {
+    params.set('email', authInfo.user.email);
+  }
+  if (unauthId) {
+    params.set('uid', unauthId);
+  }
+
+  chrome.runtime.setUninstallURL(
+    `${ENV.XPLAINO_WEBSITE_BASE_URL}/uninstall-extension-feedback?${params.toString()}`
+  );
+}
+
+// Set the uninstall URL on startup, enriched with any persisted auth data.
+refreshUninstallUrl();
 
 // Redirect to website when user installs the extension
 chrome.runtime.onInstalled.addListener((details) => {
@@ -24,6 +52,20 @@ chrome.runtime.onInstalled.addListener((details) => {
     chrome.tabs.create({
       url: `${ENV.XPLAINO_WEBSITE_BASE_URL}/getting-started?source=cws`,
     });
+  }
+});
+
+// Re-build the uninstall URL whenever auth info or the unauthenticated user ID
+// changes so the URL always reflects the current identity.
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area !== 'local') return;
+  const watchedKeys: string[] = [
+    ChromeStorage.KEYS.XPLAINO_AUTH_INFO,
+    ChromeStorage.KEYS.UNAUTHENTICATED_USER_ID,
+  ];
+  const affected = watchedKeys.some((key) => key in changes);
+  if (affected) {
+    refreshUninstallUrl();
   }
 });
 
