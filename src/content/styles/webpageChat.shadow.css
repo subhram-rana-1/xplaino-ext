@@ -456,10 +456,8 @@
 
 /* ── Custom prompt dropdown panel ── */
 .customPromptDropdown {
-  position: absolute;
-  bottom: calc(100% + 6px);
-  right: 0;
-  z-index: 500;
+  position: fixed;
+  z-index: 2147483647;
   background: var(--color-bg-primary-theme, #fff);
   border: 1px solid var(--color-border-default-theme, rgba(0,0,0,0.1));
   border-radius: 8px;

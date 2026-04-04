@@ -31,11 +31,10 @@
   transition: transform var(--panel-transition),
               box-shadow var(--panel-transition),
               border var(--panel-transition) !important;
-  overflow: hidden !important;
 }
 
 .sidePanel.open {
-  transform: translateX(0) !important;
+  transform: none !important;
 }
 
 .sidePanel.slidingOut {

@@ -9320,7 +9320,7 @@ async function injectNoteIconLayer(): Promise<void> {
 
   const { host, shadow, mountPoint } = createShadowHost({
     id: NOTE_ICON_HOST_ID,
-    zIndex: 2147483645,
+    zIndex: 2147483639,
   });
 
   const colorVariables = await getAllColorVariables();
@@ -9729,6 +9729,7 @@ function cancelNoteLeaveTimer(): void {
  */
 function scheduleNoteEditorHide(): void {
   if (notePinnedId) return; // Don't hide pinned editors
+  if (noteEditorOpenState?.mode === 'create') return; // Keep create editor open until X is clicked
   cancelNoteLeaveTimer();
   noteLeaveTimeoutId = setTimeout(() => {
     noteLeaveTimeoutId = null;
@@ -12282,6 +12283,33 @@ async function initContentScript(): Promise<void> {
       noteIconLayerRAF = requestAnimationFrame(() => {
         noteIconLayerRAF = null;
         updateNoteIconLayer();
+        // Keep the note editor in sync with scroll/resize too
+        if (noteEditorOpenState) {
+          if (noteEditorOpenState.mode === 'edit' && noteEditorOpenState.noteId) {
+            const range = noteResolvedRanges.get(noteEditorOpenState.noteId);
+            if (range) {
+              try {
+                const rects = Array.from(range.getClientRects());
+                if (rects.length > 0) {
+                  const iconLeft = Math.max(...rects.map((r) => r.right)) + 4;
+                  const iconTop = rects[0].top;
+                  const newLeft = Math.min(iconLeft - 230, window.innerWidth - 246);
+                  const newTop = iconTop + 24 + 4;
+                  noteEditorOpenState = { ...noteEditorOpenState, position: { left: newLeft, top: newTop } };
+                  updateNoteEditor();
+                }
+              } catch { /* detached range — leave position as-is */ }
+            }
+          } else if (noteEditorOpenState.mode === 'create' && noteEditorOpenState.pendingRange) {
+            try {
+              const rect = noteEditorOpenState.pendingRange.getBoundingClientRect();
+              const newLeft = Math.min(rect.right + 8, window.innerWidth - 246);
+              const newTop = rect.bottom + 8;
+              noteEditorOpenState = { ...noteEditorOpenState, position: { left: newLeft, top: newTop } };
+              updateNoteEditor();
+            } catch { /* detached range — leave position as-is */ }
+          }
+        }
       });
     }
     window.addEventListener('scroll', scheduleNoteIconLayerUpdate, { passive: true, capture: true });

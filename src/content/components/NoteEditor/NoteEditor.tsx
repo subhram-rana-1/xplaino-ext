@@ -46,12 +46,10 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
     return () => cancelAnimationFrame(raf);
   }, []);
 
-  // Auto-size textarea and position cursor on mount
+  // Position cursor at end on mount and focus
   useEffect(() => {
     const el = textareaRef.current;
     if (!el) return;
-    el.style.height = 'auto';
-    el.style.height = `${el.scrollHeight}px`;
     const len = el.value.length;
     el.setSelectionRange(len, len);
     el.focus();
@@ -143,9 +141,6 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
         value={content}
         onChange={(e) => {
           setContent(e.target.value);
-          const el = e.target;
-          el.style.height = 'auto';
-          el.style.height = `${el.scrollHeight}px`;
         }}
         onKeyDown={handleKeyDown}
         placeholder="Write your note here…"

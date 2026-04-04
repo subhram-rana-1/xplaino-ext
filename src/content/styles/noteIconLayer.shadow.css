@@ -9,7 +9,7 @@
 .noteIconWrapper {
   position: fixed !important;
   pointer-events: none !important;
-  z-index: 2147483645 !important;
+  z-index: 2147483639 !important;
   /* Offset: align the icon's top with the anchor span top */
   transform: translateY(-2px) !important;
 }
@@ -58,8 +58,8 @@
 
 /* Icon inside the button */
 .noteIconBtn svg {
-  width: 16px !important;
-  height: 16px !important;
+  width: 17px !important;
+  height: 17px !important;
   flex-shrink: 0 !important;
   stroke: currentColor !important;
   fill: none !important;

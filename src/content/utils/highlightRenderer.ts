@@ -16,12 +16,12 @@ import { getCurrentTheme } from '../../constants/theme';
 export const HIGHLIGHT_DATA_ATTR = 'data-xplaino-highlight-id';
 
 // Default colours (theme-aware applied at runtime)
-const HIGHLIGHT_BG_LIGHT = 'rgba(255, 235, 59, 0.40)';
-const HIGHLIGHT_BG_DARK = 'rgba(255, 235, 59, 0.25)';
+const HIGHLIGHT_BG_LIGHT = 'rgba(255, 235, 59, 0.45)';
+const HIGHLIGHT_BG_DARK = 'rgba(255, 235, 59, 0.30)';
 
 // Opacity applied to API-supplied highlight colours so they render as gentle tints
-const HIGHLIGHT_COLOR_OPACITY_LIGHT = 0.35;
-const HIGHLIGHT_COLOR_OPACITY_DARK = 0.25;
+const HIGHLIGHT_COLOR_OPACITY_LIGHT = 0.40;
+const HIGHLIGHT_COLOR_OPACITY_DARK = 0.28;
 
 /**
  * Ensure a colour value has the desired transparency.

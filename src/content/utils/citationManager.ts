@@ -537,7 +537,7 @@ export function locateAndPulsateText(
   mark.setAttribute(PULSATE_ATTR, 'true');
   mark.setAttribute(
     'style',
-    'background-color:transparent;border-radius:3px;padding:0 2px;' +
+    'background-color:transparent;color:inherit;border-radius:3px;padding:0 2px;' +
     'box-decoration-break:clone;-webkit-box-decoration-break:clone;'
   );
 

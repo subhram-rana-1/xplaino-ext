@@ -8,6 +8,7 @@
   position: fixed !important;
   width: 230px !important;
   min-width: 180px !important;
+  max-width: 500px !important;
   min-height: 120px !important;
   background: var(--color-bg-primary-theme, #ffffff) !important;
   border: 1px solid var(--color-border-default-theme, #e2e8f0) !important;
@@ -23,10 +24,8 @@
   transition: opacity 0.22s ease, transform 0.22s ease !important;
   transform-origin: top left !important;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif !important;
-  /* resize: both + direction: rtl moves the browser resize handle to the bottom-left */
   resize: both !important;
-  overflow: hidden !important;
-  direction: rtl !important;
+  overflow: auto !important;
 }
 
 /* Create mode: springs open from scale(0) */
@@ -60,7 +59,6 @@
   font-size: 0.75rem !important;
   font-weight: 600 !important;
   color: #0d8070 !important;
-  direction: ltr !important;
 }
 
 .noteEditorClose {
@@ -92,8 +90,9 @@
 /* ─── Textarea ───────────────────────────────────────────────────────────────── */
 .noteEditorTextarea {
   width: 100% !important;
+  flex: 1 !important;
   resize: none !important;
-  overflow: hidden !important;
+  overflow: auto !important;
   border: 1px solid var(--color-border-default-theme, #e2e8f0) !important;
   border-radius: 5px !important;
   padding: 5px 8px !important;
@@ -106,7 +105,6 @@
   box-sizing: border-box !important;
   transition: border-color 0.15s ease, background 0.15s ease !important;
   min-height: 60px !important;
-  direction: ltr !important;
 }
 
 .noteEditorTextarea:focus {
@@ -125,7 +123,6 @@
   align-items: center !important;
   justify-content: flex-end !important;
   gap: 5px !important;
-  direction: ltr !important;
 }
 
 /* Delete button */
@@ -204,16 +201,15 @@
   border-top-color: #e53e3e !important;
 }
 
-/* ─── Bottom-left resize grip indicator ──────────────────────────────────────── */
+/* ─── Bottom-right resize grip indicator ──────────────────────────────────────── */
 .noteEditorResizeHandle {
   position: absolute !important;
   bottom: 4px !important;
-  left: 5px !important;
+  right: 5px !important;
   color: #c8d0da !important;
   pointer-events: none !important;
   line-height: 0 !important;
   transition: color 0.15s ease !important;
-  direction: ltr !important;
 }
 
 .noteEditor:hover .noteEditorResizeHandle {

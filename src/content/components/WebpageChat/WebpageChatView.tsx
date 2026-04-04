@@ -386,6 +386,7 @@ export const WebpageChatView: React.FC<WebpageChatViewProps> = ({
   // ── Custom prompt state ────────────────────────────────────
   const [customPrompts, setCustomPrompts] = useState<CustomPromptResponse[]>([]);
   const [customPromptMenuOpen, setCustomPromptMenuOpen] = useState(false);
+  const [customPromptDropdownPos, setCustomPromptDropdownPos] = useState<{ bottom: number; right: number } | null>(null);
   const [customPromptActionMenuId, setCustomPromptActionMenuId] = useState<string | null>(null);
   const [customPromptActionMenuPos, setCustomPromptActionMenuPos] = useState<{ top: number; right: number } | null>(null);
   const [editingPrompt, setEditingPrompt] = useState<CustomPromptResponse | null>(null);
@@ -403,6 +404,8 @@ export const WebpageChatView: React.FC<WebpageChatViewProps> = ({
   const inputRef = useRef<HTMLInputElement>(null);
   const abortRef = useRef<AbortController | null>(null);
   const customPromptMenuRef = useRef<HTMLDivElement>(null);
+  const customPromptBtnRef = useRef<HTMLButtonElement>(null);
+  const customPromptDropdownRef = useRef<HTMLDivElement>(null);
   const summarisePillRef = useRef<HTMLButtonElement>(null);
   // Tracks which session ID owns the currently in-flight SSE stream.
   // Used to scope streaming UI (dots, answer) and input disabling to the
@@ -435,10 +438,10 @@ export const WebpageChatView: React.FC<WebpageChatViewProps> = ({
   useEffect(() => {
     if (!customPromptMenuOpen) return;
     const handler = (e: MouseEvent) => {
-      if (
-        customPromptMenuRef.current &&
-        !e.composedPath().includes(customPromptMenuRef.current as EventTarget)
-      ) {
+      const path = e.composedPath();
+      const insideBtn = customPromptMenuRef.current && path.includes(customPromptMenuRef.current as EventTarget);
+      const insideDropdown = customPromptDropdownRef.current && path.includes(customPromptDropdownRef.current as EventTarget);
+      if (!insideBtn && !insideDropdown) {
         setCustomPromptMenuOpen(false);
         setCustomPromptActionMenuId(null);
         setCustomPromptActionMenuPos(null);
@@ -1501,9 +1504,17 @@ export const WebpageChatView: React.FC<WebpageChatViewProps> = ({
             <div className={cn('customPromptMenuWrap')} ref={customPromptMenuRef}>
               <div className={cn('tooltipWrap')}>
                 <button
+                  ref={customPromptBtnRef}
                   type="button"
                   className={`${cn('promptAddBtn')}${customPromptMenuOpen ? ` ${cn('promptAddBtnActive')}` : ''}`}
-                  onClick={() => {
+                  onClick={(e) => {
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    if (!customPromptMenuOpen) {
+                      setCustomPromptDropdownPos({
+                        bottom: window.innerHeight - rect.top + 6,
+                        right: window.innerWidth - rect.right,
+                      });
+                    }
                     setCustomPromptMenuOpen((v) => !v);
                     setCustomPromptActionMenuId(null);
                     setCustomPromptActionMenuPos(null);
@@ -1513,62 +1524,6 @@ export const WebpageChatView: React.FC<WebpageChatViewProps> = ({
                   <MoreHorizontal size={13} />
                 </button>
                 <span className={`${cn('tooltip')} ${cn('tooltipAbove')}`}>Custom prompts</span>
-              </div>
-
-              <div className={`${cn('customPromptDropdown')}${customPromptMenuOpen ? ` ${cn('customPromptDropdownOpen')}` : ''}`}>
-                <div className={cn('customPromptDropdownList')}>
-                  {customPrompts.map((p) => (
-                    <div key={p.id} className={cn('customPromptItem')}>
-                      <button
-                        type="button"
-                        className={cn('customPromptItemTitle')}
-                        onClick={() => handlePromptClick(p.title, p.description ? stripHtml(p.description) : p.title)}
-                      >
-                        <BookMarked size={13} />
-                        <span className={cn('customPromptItemTitleText')}>{p.title}</span>
-                      </button>
-                      <button
-                        type="button"
-                        className={cn('customPromptItemMenuBtn')}
-                        aria-label="Prompt options"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          const rect = e.currentTarget.getBoundingClientRect();
-                          const isOpening = customPromptActionMenuId !== p.id;
-                          setCustomPromptActionMenuId(isOpening ? p.id : null);
-                          setCustomPromptActionMenuPos(
-                            isOpening
-                              ? { top: rect.bottom + 4, right: window.innerWidth - rect.right }
-                              : null
-                          );
-                        }}
-                      >
-                        <MoreHorizontal size={13} />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-                <div className={cn('customPromptDropdownFooter')}>
-                  <button
-                    type="button"
-                    className={cn('customPromptFooterBtn')}
-                    onClick={() => { setShowCreatePromptModal(true); setCustomPromptMenuOpen(false); }}
-                  >
-                    <Plus size={13} />
-                    <span>Add prompt</span>
-                  </button>
-                  <button
-                    type="button"
-                    className={cn('customPromptFooterBtn')}
-                    onClick={() => {
-                      setCustomPromptMenuOpen(false);
-                      window.open(`${ENV.XPLAINO_WEBSITE_BASE_URL}/user/account/custom-prompt`, '_blank');
-                    }}
-                  >
-                    <ExternalLink size={13} />
-                    <span>Manage custom prompts</span>
-                  </button>
-                </div>
               </div>
             </div>
           )}
@@ -1726,6 +1681,70 @@ export const WebpageChatView: React.FC<WebpageChatViewProps> = ({
           </div>
         );
       })()}
+
+      {/* Custom prompt dropdown (fixed position to escape overflow:hidden clipping) */}
+      {customPrompts.length > 0 && customPromptDropdownPos && (
+        <div
+          ref={customPromptDropdownRef}
+          className={`${cn('customPromptDropdown')}${customPromptMenuOpen ? ` ${cn('customPromptDropdownOpen')}` : ''}`}
+          style={{ bottom: customPromptDropdownPos.bottom, right: customPromptDropdownPos.right }}
+          onMouseDown={(e) => e.stopPropagation()}
+        >
+          <div className={cn('customPromptDropdownList')}>
+            {customPrompts.map((p) => (
+              <div key={p.id} className={cn('customPromptItem')}>
+                <button
+                  type="button"
+                  className={cn('customPromptItemTitle')}
+                  onClick={() => { handlePromptClick(p.title, p.description ? stripHtml(p.description) : p.title); setCustomPromptMenuOpen(false); }}
+                >
+                  <BookMarked size={13} />
+                  <span className={cn('customPromptItemTitleText')}>{p.title}</span>
+                </button>
+                <button
+                  type="button"
+                  className={cn('customPromptItemMenuBtn')}
+                  aria-label="Prompt options"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    const isOpening = customPromptActionMenuId !== p.id;
+                    setCustomPromptActionMenuId(isOpening ? p.id : null);
+                    setCustomPromptActionMenuPos(
+                      isOpening
+                        ? { top: rect.bottom + 4, right: window.innerWidth - rect.right }
+                        : null
+                    );
+                  }}
+                >
+                  <MoreHorizontal size={13} />
+                </button>
+              </div>
+            ))}
+          </div>
+          <div className={cn('customPromptDropdownFooter')}>
+            <button
+              type="button"
+              className={cn('customPromptFooterBtn')}
+              onClick={() => { setShowCreatePromptModal(true); setCustomPromptMenuOpen(false); }}
+            >
+              <Plus size={13} />
+              <span>Add prompt</span>
+            </button>
+            <button
+              type="button"
+              className={cn('customPromptFooterBtn')}
+              onClick={() => {
+                setCustomPromptMenuOpen(false);
+                window.open(`${ENV.XPLAINO_WEBSITE_BASE_URL}/user/account/custom-prompt`, '_blank');
+              }}
+            >
+              <ExternalLink size={13} />
+              <span>Manage custom prompts</span>
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Share prompt dialog */}
       {sharingPrompt && (

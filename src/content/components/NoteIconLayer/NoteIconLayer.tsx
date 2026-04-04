@@ -73,7 +73,7 @@ export const NoteIconLayer: React.FC<NoteIconLayerProps> = ({
               aria-label="View or edit note"
               title="Note"
             >
-              <MessageSquare size={16} strokeWidth={1.5} />
+              <MessageSquare size={17} strokeWidth={2.2} />
             </button>
           </div>
         );
