@@ -49,6 +49,8 @@ export interface RenderedMessage {
 // Session
 // =============================================================================
 
+export type GoogleDocsTabScope = 'current' | 'all';
+
 /** A single chat session with its own history, messages, and citation state */
 export interface ChatSession {
   id: string;
@@ -66,6 +68,12 @@ export interface ChatSession {
    * Consumed (cleared) the moment the user submits their first question with it.
    */
   pendingAnnotation: AnnotationData & { question?: string } | null;
+  /**
+   * Google Docs tab scope for this session.
+   * "current" indexes only the active tab; "all" indexes every tab.
+   * Sticky per session — does not reset when the user switches Docs tabs.
+   */
+  googleDocsTabScope: GoogleDocsTabScope;
 }
 
 function createSession(id: string, name: string): ChatSession {
@@ -77,6 +85,7 @@ function createSession(id: string, name: string): ChatSession {
     citationMap: {},
     activeCitations: [],
     pendingAnnotation: null,
+    googleDocsTabScope: 'current',
   };
 }
 

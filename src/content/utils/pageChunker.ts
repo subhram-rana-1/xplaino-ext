@@ -19,6 +19,9 @@ export interface ChunkMetadata {
   cssSelector: string;
   textSnippetStart: string;
   textSnippetEnd: string;
+  tabName?: string;
+  tabId?: string;
+  pageNumber?: number;
 }
 
 export interface PageChunk {

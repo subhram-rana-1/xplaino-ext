@@ -869,6 +869,7 @@ function handleSummariseClick(): void {
         citationMap: {},
         activeCitations: [],
         pendingAnnotation: null,
+        googleDocsTabScope: 'current',
       },
     ]);
     store.set(webpageChatActiveSessionIdAtom, newId);
@@ -12095,7 +12096,10 @@ function injectUserSelectOverride(): void {
     li, td, th, dt, dd, label, figcaption, caption,
     blockquote, pre, code, em, strong, b, i, u, small,
     mark, del, ins, sub, sup, abbr, cite, q, legend,
-    article, section, main, aside {
+    article, section, main, aside,
+    /* Google Docs editor surfaces */
+    .kix-appview-editor, .docs-editor, .kix-page,
+    .kix-paragraphrenderer, .kix-lineview {
       -webkit-user-select: text !important;
       user-select: text !important;
     }

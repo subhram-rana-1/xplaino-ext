@@ -27,8 +27,11 @@ import { ChromeStorage } from '@/storage/chrome-local/ChromeStorage';
 import { chunkPage, extractFullPageText } from '@/content/utils/pageChunker';
 import { embedText, embedTexts, cosineSimilarity } from '@/content/utils/embeddingClient';
 import { getVectorIndex, putVectorIndex } from '@/content/utils/vectorStore';
-import { hashPageUrl, hashPageContent } from '@/content/utils/urlHasher';
+import { hashPageUrl, hashPageContent, sha256 } from '@/content/utils/urlHasher';
 import { bm25Rerank } from '@/content/utils/bm25Reranker';
+import { isGoogleDocsPage, extractGoogleDocsId, googleDocsUrlWithoutTab } from '@/content/utils/googleDocsHelper';
+import { GoogleDocsApiService } from '@/api-services/GoogleDocsApiService';
+import { chunkGoogleDocTabs, extractGoogleDocFullText } from '@/content/utils/googleDocsChunker';
 import {
   activateCitation,
   deactivateCitation,
@@ -141,13 +144,18 @@ const CitationChip: React.FC<CitationChipProps> = ({
   const isActive = chunkIds.some((id) => activeCitations.has(id));
   const [pulsating, setPulsating] = useState(shouldPulsate ?? false);
 
+  const isGDocs = isGoogleDocsPage();
+
   const handleClick = () => {
     setPulsating(false);
-    console.log(`[Citation][CitationChip] clicked — chunkIds=${JSON.stringify(chunkIds)} isActive=${isActive}`);
+    console.log(`[Citation][CitationChip] clicked — chunkIds=${JSON.stringify(chunkIds)} isActive=${isActive} isGDocs=${isGDocs}`);
 
     if (isActive) {
       console.log(`[Citation][CitationChip] deactivating ${chunkIds.length} chunk(s)`);
-      for (const id of chunkIds) deactivateCitation(id);
+      // On Google Docs DOM highlighting is a no-op (canvas rendering); skip unwrap.
+      if (!isGDocs) {
+        for (const id of chunkIds) deactivateCitation(id);
+      }
       const removed = new Set(chunkIds);
       setActiveCitations((prev) => prev.filter((id) => !removed.has(id)));
       setSessions((prev) =>
@@ -158,31 +166,62 @@ const CitationChip: React.FC<CitationChipProps> = ({
       );
     } else {
       // Deactivate all currently active citations first (single-selection behaviour)
-      setActiveCitations((prev) => {
-        for (const id of prev) deactivateCitation(id);
-        return [];
-      });
-
-      const activated: string[] = [];
-      for (const id of chunkIds) {
-        const detail = citationMap[id];
-        console.log(`[Citation][CitationChip] chunkId=${id} — detail in map=${!!detail}`);
-        if (detail && activateCitation(id, detail)) activated.push(id);
+      if (!isGDocs) {
+        setActiveCitations((prev) => {
+          for (const id of prev) deactivateCitation(id);
+          return [];
+        });
+      } else {
+        setActiveCitations(() => []);
       }
-      console.log(`[Citation][CitationChip] activated ${activated.length}/${chunkIds.length} chunk(s): ${JSON.stringify(activated)}`);
-      setActiveCitations(() => activated);
-      setSessions((prev) =>
-        updateSession(prev, sessionId, (s) => ({
-          ...s,
-          activeCitations: activated,
-        }))
-      );
+
+      if (isGDocs) {
+        // On Google Docs: no DOM highlighting possible (canvas).
+        // Just mark all chunkIds as active so the chip visually highlights.
+        const activated = chunkIds.filter((id) => citationMap[id]);
+        console.log(`[Citation][CitationChip] Google Docs — activating ${activated.length} chunk(s) (chip-only, no DOM highlight)`);
+        setActiveCitations(() => activated);
+        setSessions((prev) =>
+          updateSession(prev, sessionId, (s) => ({
+            ...s,
+            activeCitations: activated,
+          }))
+        );
+      } else {
+        const activated: string[] = [];
+        for (const id of chunkIds) {
+          const detail = citationMap[id];
+          console.log(`[Citation][CitationChip] chunkId=${id} — detail in map=${!!detail}`);
+          if (detail && activateCitation(id, detail)) activated.push(id);
+        }
+        console.log(`[Citation][CitationChip] activated ${activated.length}/${chunkIds.length} chunk(s): ${JSON.stringify(activated)}`);
+        setActiveCitations(() => activated);
+        setSessions((prev) =>
+          updateSession(prev, sessionId, (s) => ({
+            ...s,
+            activeCitations: activated,
+          }))
+        );
+      }
     }
   };
 
   let chipClass = cn('citationChip');
   if (isActive) chipClass += ' ' + cn('citationChipActive');
   if (pulsating) chipClass += ' ' + cn('citationChipPulsating');
+
+  // Build a tooltip with tab name / page number when available (Google Docs citations)
+  let tooltipText = `Citation ${number}`;
+  for (const id of chunkIds) {
+    const d = citationMap[id];
+    if (d?.tabName || d?.pageNumber) {
+      const parts: string[] = [];
+      if (d.tabName) parts.push(`Tab: ${d.tabName}`);
+      if (d.pageNumber) parts.push(`Page ${d.pageNumber}`);
+      tooltipText = parts.join(' · ');
+      break;
+    }
+  }
 
   return (
     <span style={{ position: 'relative', display: 'inline' }}>
@@ -191,7 +230,8 @@ const CitationChip: React.FC<CitationChipProps> = ({
         onClick={handleClick}
         type="button"
         disabled={isStreaming}
-        aria-label={`Citation ${number}`}
+        aria-label={tooltipText}
+        title={tooltipText}
       >
         {number}
       </button>
@@ -250,6 +290,8 @@ const AssistantMessage: React.FC<AssistantMessageProps> = ({
           const text = String(children);
           const match = text.match(/^CITE_(\d+)_PLACEHOLDER$/);
           if (match) {
+            // No citation chips on Google Docs (canvas rendering — DOM highlights are invisible)
+            if (isGoogleDocsPage()) return null;
             const idx = parseInt(match[1], 10) - 1;
             const citation: ParsedCitation | undefined = citations[idx];
             if (!citation) return null;
@@ -465,6 +507,8 @@ export const WebpageChatView: React.FC<WebpageChatViewProps> = ({
 
   // ── Auto-scroll ─────────────────────────────────────────────
   const SCROLL_THRESHOLD = 5;
+  const isAutoScrollingRef = useRef(false);
+
   const checkAtBottom = useCallback((el: HTMLDivElement) => {
     return el.scrollTop >= el.scrollHeight - el.clientHeight - SCROLL_THRESHOLD;
   }, []);
@@ -472,7 +516,10 @@ export const WebpageChatView: React.FC<WebpageChatViewProps> = ({
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
-    const handler = () => setShouldAutoScroll(checkAtBottom(el));
+    const handler = () => {
+      if (isAutoScrollingRef.current) return;
+      setShouldAutoScroll(checkAtBottom(el));
+    };
     el.addEventListener('scroll', handler, { passive: true });
     return () => el.removeEventListener('scroll', handler);
   }, [checkAtBottom]);
@@ -482,7 +529,15 @@ export const WebpageChatView: React.FC<WebpageChatViewProps> = ({
 
   useEffect(() => {
     if (containerRef.current && shouldAutoScroll) {
-      containerRef.current.scrollTop = containerRef.current.scrollHeight;
+      isAutoScrollingRef.current = true;
+      setTimeout(() => {
+        if (containerRef.current) {
+          containerRef.current.scrollTop = containerRef.current.scrollHeight;
+        }
+        requestAnimationFrame(() => {
+          isAutoScrollingRef.current = false;
+        });
+      }, 0);
     }
   }, [messages, streamingAnswer, shouldAutoScroll]);
 
@@ -614,6 +669,7 @@ export const WebpageChatView: React.FC<WebpageChatViewProps> = ({
       citationMap: {},
       activeCitations: [],
       pendingAnnotation: null,
+      googleDocsTabScope: 'current',
     };
 
     // Abort in-flight and clean up current session highlights
@@ -709,6 +765,7 @@ export const WebpageChatView: React.FC<WebpageChatViewProps> = ({
       if (!question.trim()) return;
       // Block only if THIS session already owns an in-flight stream, not others
       if (isLoading && streamingSessionIdRef.current === activeSessionId) return;
+      setShouldAutoScroll(true);
       const q = question.trim();
       const displayQ = displayText?.trim() ?? q;
 
@@ -1014,6 +1071,7 @@ export const WebpageChatView: React.FC<WebpageChatViewProps> = ({
   const submitImageQuestion = useCallback(
     async (payload: NonNullable<typeof pendingImageQuestion>) => {
       if (isLoading) return;
+      setShouldAutoScroll(true);
       const { question, displayText, imageFile, imageUrl, imageExplanationId } = payload;
       const displayQ = displayText.trim() || question.trim();
 
@@ -1864,6 +1922,12 @@ async function buildContextualChunks(
   question: string,
   onIndexingStart: () => void
 ): Promise<ReturnType<typeof chunkPage>> {
+  // ── Google Docs path ──────────────────────────────────────────
+  if (isGoogleDocsPage()) {
+    return buildGoogleDocsChunks(question, onIndexingStart);
+  }
+
+  // ── Standard DOM path ─────────────────────────────────────────
   const pageUrl = window.location.href;
   const urlHash = await hashPageUrl(pageUrl);
 
@@ -1900,6 +1964,80 @@ async function buildContextualChunks(
     throw new Error('Vector index unavailable');
   }
 
+  return searchVectorIndex(storedIndex, question);
+}
+
+// ============================================================
+// Google Docs contextual chunks via REST API
+// ============================================================
+
+async function buildGoogleDocsChunks(
+  question: string,
+  onIndexingStart: () => void
+): Promise<ReturnType<typeof chunkPage>> {
+  const pageUrl = window.location.href;
+  const docId = extractGoogleDocsId(pageUrl);
+  if (!docId) throw new Error('Could not extract Google Docs ID from URL');
+
+  const accessToken = await GoogleDocsApiService.getGoogleAccessToken();
+
+  // Fetch the full document with all tabs
+  const { tabs: allTabs } = await GoogleDocsApiService.fetchAndFlattenTabs(
+    docId,
+    accessToken
+  );
+  if (allTabs.length === 0) throw new Error('Google Doc has no tabs');
+
+  const tabsToChunk = allTabs;
+
+  // Index key is per-document (all tabs always included)
+  const baseUrl = googleDocsUrlWithoutTab(pageUrl);
+  const urlHash = await sha256(`gdocs:${baseUrl}`);
+
+  const fullText = extractGoogleDocFullText(tabsToChunk);
+  const contentHash = await hashPageContent(fullText);
+
+  let storedIndex = await getVectorIndex(urlHash);
+
+  if (!storedIndex || storedIndex.pageContentHash !== contentHash) {
+    onIndexingStart();
+
+    const freshChunks = chunkGoogleDocTabs(tabsToChunk);
+    if (freshChunks.length === 0) throw new Error('Google Doc has no content to index');
+
+    const texts = freshChunks.map((c) => c.text);
+    const vectors = await embedTexts(texts);
+
+    await putVectorIndex({
+      pageUrlHash: urlHash,
+      pageContentHash: contentHash,
+      indexedAt: new Date().toISOString(),
+      chunks: freshChunks.map((c, i) => ({
+        chunkId: c.chunkId,
+        text: c.text,
+        vector: vectors[i],
+        metadata: c.metadata,
+      })),
+    });
+
+    storedIndex = await getVectorIndex(urlHash);
+  }
+
+  if (!storedIndex || storedIndex.chunks.length === 0) {
+    throw new Error('Vector index unavailable');
+  }
+
+  return searchVectorIndex(storedIndex, question);
+}
+
+// ============================================================
+// Shared: search a stored vector index
+// ============================================================
+
+async function searchVectorIndex(
+  storedIndex: Awaited<ReturnType<typeof getVectorIndex>> & object,
+  question: string
+): Promise<ReturnType<typeof chunkPage>> {
   const questionVector = await embedText(question);
 
   const scored = storedIndex.chunks

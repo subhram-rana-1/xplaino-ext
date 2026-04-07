@@ -62,6 +62,8 @@ export interface ContentActionsButtonGroupProps {
   onHighlightWithColor?: (hexcode: string) => void;
   /** Callback when Add a note is clicked (text selection) */
   onNote?: () => void;
+  /** When true, hide highlight and note buttons (e.g. on Google Docs) */
+  isGoogleDocsPage?: boolean;
 }
 
 const DEFAULT_HIGHLIGHT_HEXCODE = '#fbbf24'; // amber/yellow fallback
@@ -95,6 +97,7 @@ export const ContentActionsButtonGroup: React.FC<ContentActionsButtonGroupProps>
   selectedHighlightColourId = null,
   onHighlightWithColor,
   onNote,
+  isGoogleDocsPage = false,
 }) => {
   const [showOptionsPopover, setShowOptionsPopover] = useState(false);
   const [showColorPicker, setShowColorPicker] = useState(false);
@@ -324,8 +327,8 @@ export const ContentActionsButtonGroup: React.FC<ContentActionsButtonGroupProps>
         </ContentActionButton>
       </div>
 
-      {/* Highlight button — colored circle + color-picker popover on hover (text selections only) */}
-      {!isWordSelection && (
+      {/* Highlight button — colored circle + color-picker popover on hover (text selections only, hidden on Google Docs) */}
+      {!isWordSelection && !isGoogleDocsPage && (
         <div
           className="highlightColorButtonWrapper"
           onMouseEnter={handleHighlightMouseEnter}
@@ -390,8 +393,8 @@ export const ContentActionsButtonGroup: React.FC<ContentActionsButtonGroupProps>
         </div>
       )}
 
-      {/* Note button — only for text (non-word) selections */}
-      {!isWordSelection && (
+      {/* Note button — only for text (non-word) selections, hidden on Google Docs */}
+      {!isWordSelection && !isGoogleDocsPage && (
         <ContentActionButton
           icon="note"
           tooltip="Add a note"

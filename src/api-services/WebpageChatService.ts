@@ -61,6 +61,9 @@ export interface CitationDetail {
   cssSelector: string;
   textSnippetStart: string;
   textSnippetEnd: string;
+  tabName?: string;
+  tabId?: string;
+  pageNumber?: number;
 }
 
 export interface AnswerCallbacks {

@@ -10,6 +10,7 @@ import { currentThemeAtom, activePanelWidthAtom } from '@/store/uiAtoms';
 import { textExplanationPanelOpenAtom } from '@/store/textExplanationAtoms';
 import { wordAskAISidePanelOpenAtom } from '@/store/wordExplanationAtoms';
 import { imageExplanationPanelOpenAtom } from '@/store/imageExplanationAtoms';
+import { isGoogleDocsPage } from '@/content/utils/googleDocsHelper';
 
 export interface FABProps {
   /** Callback when Summarise is clicked */
@@ -412,29 +413,31 @@ export const FAB: React.FC<FABProps> = ({
             onClick={handleAskAboutPage}
             className={actionButtonClass}
           />
-          <div style={{ position: 'relative' }}>
-            <ActionButton
-              icon={translationState === 'translating' ? 'stop' : 'translate'}
-              tooltip={
-                translationState === 'idle' ? 'Translate Page' :
-                translationState === 'translating' ? 'Stop Translation' :
-                'Translation Controls'
-              }
-              shortcut={translateShortcut}
-              onClick={handleTranslate}
-              className={`${actionButtonClass} ${translationState === 'translating' ? 'stopTranslating' : ''}`}
-              disabled={false}
-              hideTooltip={showTranslationPopover}
-            />
-            <TranslationControlPopover
-              viewMode={viewMode}
-              onToggleView={handleToggleView}
-              onClear={handleClearTranslations}
-              visible={showTranslationPopover}
-              useShadowDom={useShadowDom}
-              onMouseLeave={handleTranslatePopoverMouseLeave}
-            />
-          </div>
+          {!isGoogleDocsPage() && (
+            <div style={{ position: 'relative' }}>
+              <ActionButton
+                icon={translationState === 'translating' ? 'stop' : 'translate'}
+                tooltip={
+                  translationState === 'idle' ? 'Translate Page' :
+                  translationState === 'translating' ? 'Stop Translation' :
+                  'Translation Controls'
+                }
+                shortcut={translateShortcut}
+                onClick={handleTranslate}
+                className={`${actionButtonClass} ${translationState === 'translating' ? 'stopTranslating' : ''}`}
+                disabled={false}
+                hideTooltip={showTranslationPopover}
+              />
+              <TranslationControlPopover
+                viewMode={viewMode}
+                onToggleView={handleToggleView}
+                onClear={handleClearTranslations}
+                visible={showTranslationPopover}
+                useShadowDom={useShadowDom}
+                onMouseLeave={handleTranslatePopoverMouseLeave}
+              />
+            </div>
+          )}
           <ActionButton
             icon="bookmark"
             tooltip={isBookmarked ? "Remove saved link" : "Save page link"}

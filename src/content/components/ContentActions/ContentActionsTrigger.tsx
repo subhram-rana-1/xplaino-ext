@@ -6,6 +6,23 @@ import { useAtom, useAtomValue, useSetAtom } from 'jotai';
 import { shouldShowTextFeatureAtom, shouldShowWordFeatureAtom, contentActionsModalOpenAtom } from '@/store/uiAtoms';
 import { highlightColoursAtom, selectedHighlightColourIdAtom } from '@/store/webHighlightAtoms';
 import { ChromeStorage } from '@/storage/chrome-local/ChromeStorage';
+import { isGoogleDocsPage } from '@/content/utils/googleDocsHelper';
+
+/**
+ * Try to read selected text from the Google Docs hidden iframe.
+ * Returns empty string when the iframe is unavailable or has no selection.
+ */
+function getGoogleDocsSelectedText(): string {
+  try {
+    const iframe = document.querySelector(
+      '.docs-texteventtarget-iframe'
+    ) as HTMLIFrameElement | null;
+    if (!iframe?.contentDocument) return '';
+    return iframe.contentDocument.getSelection()?.toString()?.trim() ?? '';
+  } catch {
+    return '';
+  }
+}
 
 export interface ContentActionsTriggerProps {
   /** Whether component is rendered in Shadow DOM */
@@ -150,6 +167,8 @@ export const ContentActionsTrigger: React.FC<ContentActionsTriggerProps> = ({
     }
   }, []);
 
+  const isGDocs = isGoogleDocsPage();
+
   // Handle double-click (word selection)
   const handleDoubleClick = useCallback((e: MouseEvent) => {
     // Ignore if clicking on our own component
@@ -165,18 +184,28 @@ export const ContentActionsTrigger: React.FC<ContentActionsTriggerProps> = ({
     }
 
     const windowSelection = window.getSelection();
-    if (!windowSelection) return;
+    let text = windowSelection?.toString().trim() ?? '';
 
-    const text = windowSelection.toString().trim();
+    // Google Docs canvas mode: window.getSelection() is empty → try hidden iframe
+    if (!text && isGDocs) {
+      text = getGoogleDocsSelectedText();
+    }
     if (!text) return;
 
     // Capture the range before it might get cleared
     let range: Range | undefined = undefined;
-    if (windowSelection.rangeCount > 0) {
+    if (windowSelection && windowSelection.rangeCount > 0) {
       range = windowSelection.getRangeAt(0).cloneRange();
     }
 
-    const position = getSelectionPosition(true);
+    // In Google Docs canvas mode the native range rect is 0×0, so fall back to mouse position
+    let position = getSelectionPosition(true);
+    if (!position && isGDocs) {
+      position = {
+        x: lastMousePosition.current.x + 8,
+        y: lastMousePosition.current.y + 4,
+      };
+    }
     if (!position) return;
 
     setSelection({
@@ -205,7 +234,7 @@ export const ContentActionsTrigger: React.FC<ContentActionsTriggerProps> = ({
       setShouldShowWordFeature(false);
       ChromeStorage.setShouldShowWordFeature(false);
     }
-  }, [getSelectionPosition, shouldShowWordFeature, setShouldShowWordFeature]);
+  }, [getSelectionPosition, shouldShowWordFeature, setShouldShowWordFeature, isGDocs]);
 
   // Handle mouse up (text selection)
   const handleMouseUp = useCallback((e: MouseEvent) => {
@@ -234,7 +263,7 @@ export const ContentActionsTrigger: React.FC<ContentActionsTriggerProps> = ({
       return;
     }
 
-    // Small delay to let selection complete
+    // Small delay to let selection complete (longer on Google Docs to let iframe sync)
     setTimeout(() => {
       // If a double-click just happened, skip this handler to avoid interference
       if (doubleClickJustHappenedRef.current) {
@@ -258,28 +287,34 @@ export const ContentActionsTrigger: React.FC<ContentActionsTriggerProps> = ({
       }
 
       const windowSelection = window.getSelection();
-      if (!windowSelection) return;
+      let text = windowSelection?.toString().trim() ?? '';
 
-      const text = windowSelection.toString().trim();
+      // Google Docs canvas mode fallback
+      if (!text && isGDocs) {
+        text = getGoogleDocsSelectedText();
+      }
       if (!text || text.length < 2) return;
 
       // Check if this is a word selection (single word, no spaces)
       const isWord = isWordSelection(text);
       
-      // Only check overlap for text selections (not word selections)
-      // Word selections should work even inside underlined text
-      if (!isWord && windowSelection.rangeCount > 0) {
+      // Only check overlap for text selections (not word selections) — skip on Google Docs (no DOM range)
+      if (!isGDocs && !isWord && windowSelection && windowSelection.rangeCount > 0) {
         const range = windowSelection.getRangeAt(0);
         if (isRangeOverlappingUnderlinedText(range)) {
-          // Allow selection but don't show the xplaino icon
-          // Just return early without setting selection state
           return;
         }
       }
 
       // If it's a double-click, the dblclick handler will take care of it
       // This is for drag selection only
-      const position = getSelectionPosition(false);
+      let position = getSelectionPosition(false);
+      if (!position && isGDocs) {
+        position = {
+          x: lastMousePosition.current.x + 24,
+          y: lastMousePosition.current.y + 8,
+        };
+      }
       if (!position) return;
 
       // Check if this is the same selection we already have
@@ -290,7 +325,7 @@ export const ContentActionsTrigger: React.FC<ContentActionsTriggerProps> = ({
 
       // Capture the range before it might get cleared
       let range: Range | undefined = undefined;
-      if (windowSelection.rangeCount > 0) {
+      if (windowSelection && windowSelection.rangeCount > 0) {
         range = windowSelection.getRangeAt(0).cloneRange();
       }
 
@@ -310,8 +345,8 @@ export const ContentActionsTrigger: React.FC<ContentActionsTriggerProps> = ({
         setShouldShowTextFeature(false);
         ChromeStorage.setShouldShowTextFeature(false);
       }
-    }, 10);
-  }, [getSelectionPosition, isWordSelection, selection, onShowToast, shouldShowTextFeature, setShouldShowTextFeature, isContentActionsModalOpen]);
+    }, isGDocs ? 50 : 10);
+  }, [getSelectionPosition, isWordSelection, selection, onShowToast, shouldShowTextFeature, setShouldShowTextFeature, isContentActionsModalOpen, isGDocs]);
 
   // Handle selection change (to hide component when selection is cleared)
   const handleSelectionChange = useCallback(() => {
@@ -732,6 +767,7 @@ export const ContentActionsTrigger: React.FC<ContentActionsTriggerProps> = ({
         onNote={handleNote}
         onWordCustomPromptClick={handleWordCustomPromptClick}
         onTextCustomPromptClick={handleTextCustomPromptClick}
+        isGoogleDocsPage={isGDocs}
       />
     </div>
   );

@@ -36,7 +36,12 @@
   ],
   "oauth2": {
     "client_id": "355884005048-haqbeokpobimcafks356ovc371glnglo.apps.googleusercontent.com",
-    "scopes": ["openid", "email", "profile"]
+    "scopes": [
+      "openid",
+      "email",
+      "profile",
+      "https://www.googleapis.com/auth/documents.readonly"
+    ]
   },
   "host_permissions": [
     "<all_urls>"
